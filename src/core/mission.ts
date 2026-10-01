@@ -9,6 +9,7 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
   const hp = side === 'player' ? CONFIG.soldierHp : CONFIG.enemyHp;
   return {
     id,
+    name: id.toUpperCase(),
     side,
     pos: { x, y },
     facing: side === 'player' ? 0 : 4,
@@ -20,6 +21,7 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     grenades: side === 'player' ? CONFIG.soldierGrenades : 0,
     alive: true,
     alert: false,
+    kills: 0,
     patrol: [],
     patrolIndex: 0,
   };
