@@ -19,7 +19,7 @@ describe('parseMap', () => {
     const e1 = s.units.find((u) => u.id === 'e1')!;
     expect(p1).toMatchObject({
       side: 'player', pos: { x: 1, y: 1 }, facing: 0, hp: 50, maxHp: 50,
-      ap: 60, maxAp: 60, weapon: 'rifle', grenades: 1, alive: true,
+      ap: 60, maxAp: 60, weapon: 'rifle', grenades: 1, alive: true, alert: false,
     });
     expect(e1).toMatchObject({
       side: 'enemy', pos: { x: 3, y: 1 }, facing: 4, hp: 40, maxHp: 40,
@@ -38,7 +38,7 @@ describe('parseMap', () => {
     expect(s.turnNumber).toBe(1);
     expect(s.status).toBe('playing');
     expect(s.rngState).toBe(9);
-    expect(s.settings.reactionFire).toBe(false);
+    expect(s.reacted).toEqual([]);
     expect(s.enemyMemory).toBeNull();
     expect(s.explored.length).toBe(4);
     expect(s.explored[0].length).toBe(5);

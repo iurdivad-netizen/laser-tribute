@@ -3,7 +3,7 @@ import type { GameState } from '../core/types';
 import type { UiState } from '../input/uiState';
 import { VIEW } from './layout';
 
-export type ButtonId = 'snap' | 'aimed' | 'throw' | 'door' | 'pickup' | 'end';
+export type ButtonId = 'snap' | 'aimed' | 'throw' | 'door' | 'pickup' | 'alert' | 'end';
 
 export interface PanelButton {
   id: ButtonId;
@@ -21,11 +21,12 @@ const DEFS: [ButtonId, string, string][] = [
   ['throw', 'THROW', 'T'],
   ['door', 'DOOR', 'D'],
   ['pickup', 'TAKE', 'P'],
+  ['alert', 'ALERT', 'L'],
   ['end', 'END', 'Spc'],
 ];
 
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) => ({
-  id, label, key, x: 172 + i * 50, y: VIEW.mapHeight + 20, w: 46, h: 16,
+  id, label, key, x: 172 + i * 44, y: VIEW.mapHeight + 20, w: 40, h: 16,
 }));
 
 export function buttonAt(px: number, py: number): ButtonId | null {
@@ -46,7 +47,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   ctx.fillStyle = '#e8e8f0';
   if (u) {
     ctx.fillText(`${u.id.toUpperCase()}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
-    ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}`, 4, top + 15);
+    ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}${u.alert ? '  ALERT' : ''}`, 4, top + 15);
   } else {
     ctx.fillText('No soldier selected', 4, top + 4);
   }
@@ -65,7 +66,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door',
   };
   for (const b of PANEL_BUTTONS) {
-    const active = modeButton[ui.mode] === b.id;
+    const active = modeButton[ui.mode] === b.id || (b.id === 'alert' && !!u?.alert);
     ctx.fillStyle = active ? '#4da6ff' : '#2a2f45';
     ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = active ? '#000' : '#e8e8f0';

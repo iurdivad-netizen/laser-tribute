@@ -1,3 +1,4 @@
+import { handleAlert } from './actions/alert';
 import { handleDoor } from './actions/door';
 import { handleEndTurn } from './actions/endTurn';
 import { handlePickUp } from './actions/item';
@@ -25,6 +26,8 @@ export function applyCommand(state: GameState, cmd: Command): Result {
     if (!unit.alive) return fail('That unit is dead');
     if (unit.side !== s.turn) return fail("It is not that unit's turn");
     error = dispatch(s, cmd, unit, events);
+    // Spending AP on anything but going on alert ends the soldier's own alert.
+    if (!error && cmd.type !== 'Alert') unit.alert = false;
   }
 
   if (error) return fail(error);
@@ -50,6 +53,8 @@ function dispatch(s: GameState, cmd: UnitCommand, unit: Unit, events: GameEvent[
       return handleShot(s, cmd, unit, events);
     case 'Throw':
       return handleThrow(s, cmd, unit, events);
+    case 'Alert':
+      return handleAlert(s, cmd, unit, events);
   }
 }
 

@@ -194,6 +194,7 @@ export class Controller {
       case 'throw': this.setMode('throw'); break;
       case 'door': this.setMode('door'); break;
       case 'pickup': this.pickup(); break;
+      case 'alert': this.toggleAlert(); break;
       case 'end': this.endTurn(); break;
     }
   }
@@ -207,6 +208,15 @@ export class Controller {
       return;
     }
     this.run({ type: 'PickUp', unitId: sel.id, itemId: item.id });
+  }
+
+  private toggleAlert(): void {
+    const sel = this.selected();
+    if (!sel || !this.canAct()) return;
+    const turningOn = !sel.alert;
+    if (this.run({ type: 'Alert', unitId: sel.id, on: turningOn }) && turningOn) {
+      this.say(`${sel.id.toUpperCase()} on alert: fires once at each enemy that moves in view`, 4000);
+    }
   }
 
   cancel(): void {
@@ -263,6 +273,7 @@ export class Controller {
       case 't': this.setMode('throw'); return true;
       case 'd': this.setMode('door'); return true;
       case 'p': this.pickup(); return true;
+      case 'l': this.toggleAlert(); return true;
       case ' ':
       case 'Enter': this.endTurn(); return true;
       case 'Escape': this.cancel(); return true;

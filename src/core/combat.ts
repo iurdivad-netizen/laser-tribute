@@ -64,15 +64,20 @@ export function fireShot(
   }
 }
 
+/** Alerted units on the other side fire one snap shot at a mover they can see, once per turn per target. */
 export function applyReactionFire(s: GameState, mover: Unit, events: GameEvent[]): void {
   for (const o of s.units) {
     if (!mover.alive) return;
-    if (!o.alive || o.side === mover.side) continue;
+    if (!o.alive || !o.alert || o.side === mover.side) continue;
     const w = WEAPONS[o.weapon];
     if (o.ap < w.snapAp) continue;
     if (distance(o.pos, mover.pos) > w.range) continue;
     if (!canSee(s, o, mover.pos)) continue;
+    const key = `${o.id}>${mover.id}`;
+    if (s.reacted.includes(key)) continue;
+    s.reacted.push(key);
     o.ap -= w.snapAp;
     fireShot(s, o, mover, 'snap', events);
+    if (o.ap < w.snapAp) o.alert = false;
   }
 }

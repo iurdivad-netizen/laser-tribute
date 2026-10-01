@@ -90,6 +90,12 @@ export function drawGame(
     ctx.fillRect(cx - 6, cy - 9, 12, 2);
     ctx.fillStyle = '#7dff9a';
     ctx.fillRect(cx - 6, cy - 9, (12 * u.hp) / u.maxHp, 2);
+    if (u.alert) {
+      ctx.font = '8px monospace';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = COLORS.select;
+      ctx.fillText('!', cx + 5, cy - 17);
+    }
     if (u.id === ui.selectedId) {
       ctx.strokeStyle = COLORS.select;
       ctx.strokeRect(u.pos.x * T + 0.5, u.pos.y * T + 0.5, T - 1, T - 1);

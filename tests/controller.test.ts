@@ -83,4 +83,15 @@ describe('Controller', () => {
     expect(c.selected()!.pos).toEqual({ x: 2, y: 1 });
     expect(c.ui.busy).toBe(false);
   });
+
+  it('toggles alert on the selected soldier with L and the Alert button', () => {
+    const c = setup();
+    c.key('l');
+    expect(c.selected()!.alert).toBe(true);
+    expect(c.ui.message).toMatch(/alert/i);
+    c.key('L');
+    expect(c.selected()!.alert).toBe(false);
+    c.pressButton('alert');
+    expect(c.selected()!.alert).toBe(true);
+  });
 });

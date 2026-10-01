@@ -25,6 +25,7 @@ The game opens on an **equipment screen**: spend a 120-credit budget on each sol
 | T, then click a tile | Throw a grenade |
 | D, then click a door | Open or close a door |
 | P | Pick up the item underfoot |
+| L | Alert: keep the soldier's AP and fire once at each enemy that moves into his view |
 | Q / E | Turn left / right |
 | Space or Enter | End turn |
 | Esc or right-click | Cancel |
