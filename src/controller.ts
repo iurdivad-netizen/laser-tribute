@@ -215,7 +215,7 @@ export class Controller {
     if (!sel || !this.canAct()) return;
     const turningOn = !sel.alert;
     if (this.run({ type: 'Alert', unitId: sel.id, on: turningOn }) && turningOn) {
-      this.say(`${sel.id.toUpperCase()} on alert: fires once at each enemy that moves in view`, 4000);
+      this.say(`${sel.name} on alert: fires once at each enemy that moves in view`, 4000);
     }
   }
 
