@@ -19,6 +19,7 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     weapon,
     grenades: side === 'player' ? CONFIG.soldierGrenades : 0,
     alive: true,
+    alert: false,
     patrol: [],
     patrolIndex: 0,
   };
@@ -68,7 +69,7 @@ export function parseMap(rows: string[], seed = 1): GameState {
     rngState: seed,
     explored: Array.from({ length: height }, () => Array<boolean>(width).fill(false)),
     enemyMemory: null,
-    settings: { reactionFire: false },
+    reacted: [],
     status: 'playing',
   };
 }

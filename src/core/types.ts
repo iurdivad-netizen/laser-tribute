@@ -31,6 +31,8 @@ export interface Unit {
   weapon: WeaponId;
   grenades: number;
   alive: boolean;
+  /** On alert: keeps AP for the other side's turn and fires at enemies that move into view. */
+  alert: boolean;
   patrol: Pos[];
   patrolIndex: number;
 }
@@ -39,10 +41,6 @@ export interface FloorItem {
   id: string;
   pos: Pos;
   kind: ItemKind;
-}
-
-export interface Settings {
-  reactionFire: boolean;
 }
 
 export type GameStatus = 'playing' | 'won' | 'lost';
@@ -58,7 +56,8 @@ export interface GameState {
   rngState: number;
   explored: boolean[][]; // explored[y][x], the player's map memory
   enemyMemory: Pos | null; // where the enemy side last saw a player unit
-  settings: Settings;
+  /** Reaction shots already taken this turn, as 'shooterId>targetId'. Cleared when a turn ends. */
+  reacted: string[];
   status: GameStatus;
 }
 
@@ -71,11 +70,13 @@ export type Command =
   | { type: 'CloseDoor'; unitId: string; at: Pos }
   | { type: 'PickUp'; unitId: string; itemId: string }
   | { type: 'Throw'; unitId: string; at: Pos }
+  | { type: 'Alert'; unitId: string; on: boolean }
   | { type: 'EndTurn' };
 
 export type GameEvent =
   | { type: 'moved'; unitId: string; from: Pos; to: Pos }
   | { type: 'turned'; unitId: string; facing: Facing }
+  | { type: 'alert'; unitId: string; on: boolean }
   | {
       type: 'shot';
       unitId: string;

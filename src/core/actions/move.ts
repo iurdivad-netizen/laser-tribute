@@ -26,7 +26,7 @@ export function handleMove(
   if (unit.patrol.length > 0 && posEq(unit.pos, unit.patrol[unit.patrolIndex])) {
     unit.patrolIndex = (unit.patrolIndex + 1) % unit.patrol.length;
   }
-  if (s.settings.reactionFire) applyReactionFire(s, unit, events);
+  applyReactionFire(s, unit, events);
   return null;
 }
 

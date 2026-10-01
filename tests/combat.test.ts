@@ -206,7 +206,7 @@ describe('Throw', () => {
 describe('reaction fire', () => {
   const rows = corridorRows('P....E'); // distance 5
 
-  it('does nothing when the setting is off', () => {
+  it('does nothing when the enemy is not on alert', () => {
     const s = makeState(rows);
     unit(s, 'e1').facing = 6;
     s.rngState = HIT();
@@ -214,9 +214,9 @@ describe('reaction fire', () => {
     expect(r.events.map((e) => e.type)).toEqual(['moved']);
   });
 
-  it('lets an enemy with spare AP shoot a soldier who moves into view', () => {
+  it('lets an alerted enemy with spare AP shoot a soldier who moves into view', () => {
     const s = makeState(rows);
-    s.settings.reactionFire = true;
+    unit(s, 'e1').alert = true;
     unit(s, 'e1').facing = 6;
     s.rngState = HIT();
     const r = ok(applyCommand(s, { type: 'Move', unitId: 'p1', to: { x: 2, y: 1 } }));
@@ -227,7 +227,7 @@ describe('reaction fire', () => {
 
   it('does not fire without the AP for a snap shot', () => {
     const s = makeState(rows);
-    s.settings.reactionFire = true;
+    unit(s, 'e1').alert = true;
     unit(s, 'e1').facing = 6;
     unit(s, 'e1').ap = 5;
     s.rngState = HIT();
@@ -237,7 +237,7 @@ describe('reaction fire', () => {
 
   it('can kill the mover and end the mission', () => {
     const s = makeState(rows);
-    s.settings.reactionFire = true;
+    unit(s, 'e1').alert = true;
     unit(s, 'e1').facing = 6;
     unit(s, 'p1').hp = 10;
     s.rngState = HIT();
