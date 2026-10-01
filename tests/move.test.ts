@@ -116,12 +116,6 @@ describe('command validation', () => {
     s.status = 'won';
     expect(reason(applyCommand(s, { type: 'EndTurn' }))).toMatch(/over/);
   });
-
-  it('rejects commands the build does not support yet without changing state', () => {
-    const s = makeState(open);
-    const r = applyCommand(s, { type: 'Throw', unitId: 'p1', at: { x: 3, y: 1 } });
-    expect(r.ok).toBe(false);
-  });
 });
 
 describe('Turn', () => {

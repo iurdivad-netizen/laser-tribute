@@ -1,3 +1,4 @@
+import { applyReactionFire } from '../combat';
 import { CONFIG, NOT_ENOUGH_AP } from '../config';
 import { chebyshev, facingFromDelta, posEq, turnSteps } from '../geometry';
 import { stepBlockedReason, stepCost } from '../movement';
@@ -25,6 +26,7 @@ export function handleMove(
   if (unit.patrol.length > 0 && posEq(unit.pos, unit.patrol[unit.patrolIndex])) {
     unit.patrolIndex = (unit.patrolIndex + 1) % unit.patrol.length;
   }
+  if (s.settings.reactionFire) applyReactionFire(s, unit, events);
   return null;
 }
 

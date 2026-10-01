@@ -2,6 +2,8 @@ import { handleDoor } from './actions/door';
 import { handleEndTurn } from './actions/endTurn';
 import { handlePickUp } from './actions/item';
 import { handleMove, handleTurn } from './actions/move';
+import { handleShot } from './actions/shoot';
+import { handleThrow } from './actions/throw';
 import type { Command, GameEvent, GameState, Result, Unit } from './types';
 import { updateEnemyMemory, updateExplored } from './vision';
 
@@ -43,8 +45,11 @@ function dispatch(s: GameState, cmd: UnitCommand, unit: Unit, events: GameEvent[
       return handleDoor(s, cmd, unit, events);
     case 'PickUp':
       return handlePickUp(s, cmd, unit, events);
-    default:
-      return 'Unsupported command';
+    case 'SnapShot':
+    case 'AimedShot':
+      return handleShot(s, cmd, unit, events);
+    case 'Throw':
+      return handleThrow(s, cmd, unit, events);
   }
 }
 
