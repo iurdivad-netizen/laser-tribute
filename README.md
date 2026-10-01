@@ -4,6 +4,10 @@ A turn-based squad tactics game in the spirit of Laser Squad and X-COM, running 
 
 ## Play
 
+Online: https://iurdivad-netizen.github.io/laser-tribute/ (deployed from `master` by GitHub Actions).
+
+Locally:
+
     npm install
     npm run dev
 
