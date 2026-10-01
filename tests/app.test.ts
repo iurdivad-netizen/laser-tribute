@@ -1,18 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { App, type AppOptions } from '../src/app';
+import { campaignBudget } from '../src/core/campaign';
+import { cheapLoadout, defaultLoadout, type Loadout } from '../src/core/loadout';
 import type { GameState } from '../src/core/types';
 import { corridorRows, makeState, unit } from './helpers';
 
 const START = { x: 240, y: 315 }; // Start mission button
-const AGAIN = { x: 240, y: 213 }; // Play again button
+const CONTINUE = { x: 240, y: 213 }; // Continue button on the result screen
+const NEW_CAMPAIGN = { x: 240, y: 252 }; // New campaign button on the end screen
 
 /** A tiny winnable map: no enemies, so the first command ends the mission as a win. */
 const winTiny = (): GameState => makeState(corridorRows('P..'));
 
-/** A tiny lost map: the only soldier is dead and it is the enemy's turn. */
-const loseTiny = (): GameState => {
-  const s = makeState(corridorRows('P..E'));
-  unit(s, 'p1').alive = false;
+/** Four soldiers, no enemies: the first command wins. p2 dead with 3 kills, p1 has 2 kills. */
+const winWithCasualty = (): GameState => {
+  const s = makeState(corridorRows('PPPP'));
+  unit(s, 'p2').alive = false;
+  unit(s, 'p2').kills = 3;
+  unit(s, 'p1').kills = 2;
+  return s;
+};
+
+/** All four soldiers dead on the enemy's turn: the first enemy command loses the mission. */
+const loseAll = (): GameState => {
+  const s = makeState(corridorRows('PPPPE'));
+  for (const id of ['p1', 'p2', 'p3', 'p4']) unit(s, id).alive = false;
   s.turn = 'enemy';
   return s;
 };
@@ -24,27 +36,40 @@ function make(opts: AppOptions = {}) {
   return { app, wait: () => { t += 500; } };
 }
 
-function finish(app: App, t: number): void {
-  app.controller!.key('e'); // winTiny: a Turn command ends the mission as a win
-  app.update(t); // starts the end-of-mission delay
+/** Ends a winTiny-style mission: a Turn command wins, then the delay elapses. */
+function endWin(app: App, t: number): void {
+  app.controller!.key('e');
+  app.update(t);
+  app.update(t + 1100);
+}
+
+/** Plays one winTiny mission and presses Continue. */
+function playWin(app: App, wait: () => void, t: number): void {
+  app.click(START);
+  endWin(app, t);
+  wait();
+  app.click(CONTINUE);
+  wait();
 }
 
 describe('App flow', () => {
-  it('opens on the equipment screen with the default loadout', () => {
+  it('opens on the equipment screen for Mission 1 with the default loadout', () => {
     const app = new App();
     expect(app.screen).toBe('equipment');
-    expect(app.loadout.map((s) => s.weapon)).toEqual(['rifle', 'rifle', 'pistol', 'pistol']);
+    expect(app.campaign.missionIndex).toBe(0);
+    expect(app.loadout).toEqual(defaultLoadout());
     expect(app.controller).toBeNull();
   });
 
-  it('starts a mission with the chosen loadout', () => {
+  it('starts a mission with the chosen loadout and the roster names', () => {
     const app = new App();
-    app.click({ x: 100, y: 172 }); // weapon button of P3: pistol to rifle
+    app.click({ x: 100, y: 172 }); // weapon button of the third soldier: pistol to rifle
     expect(app.loadout[2].weapon).toBe('rifle');
     app.click(START);
     expect(app.screen).toBe('mission');
     expect(unit(app.controller!.state, 'p3').weapon).toBe('rifle');
     expect(unit(app.controller!.state, 'p4').weapon).toBe('pistol');
+    expect(unit(app.controller!.state, 'p1').name).toBe('Alvarez');
   });
 
   it('Enter starts the mission from the equipment screen', () => {
@@ -55,28 +80,31 @@ describe('App flow', () => {
 
   it('a blocked equipment click changes nothing', () => {
     const app = new App();
-    app.click({ x: 100, y: 172 }); // P3 to rifle: credits 117
+    app.click({ x: 100, y: 172 }); // third soldier to rifle: credits 117
     const before = app.loadout;
-    app.click({ x: 100, y: 224 }); // P4 to rifle needs 12 more credits
+    app.click({ x: 100, y: 224 }); // fourth soldier to rifle needs 12 more credits
     expect(app.loadout).toBe(before);
   });
 
-  it('shows the result a second after the mission ends', () => {
-    const app = new App({ createMission: winTiny });
+  it('records the mission and shows the result a second after it ends', () => {
+    const { app } = make({ createMission: winTiny });
     app.click(START);
-    finish(app, 1000);
+    app.controller!.key('e');
+    app.update(1000);
     expect(app.controller!.state.status).toBe('won');
     app.update(1500);
     expect(app.screen).toBe('mission'); // still within the delay
     app.update(2100);
     expect(app.screen).toBe('result');
     expect(app.result).toMatchObject({ won: true, survivors: 1, squadSize: 1 });
+    expect(app.campaign).toMatchObject({ missionsWon: 1, missionIndex: 1, status: 'active' });
   });
 
   it('waits until the controller is idle before showing the result', () => {
-    const app = new App({ createMission: winTiny });
+    const { app } = make({ createMission: winTiny });
     app.click(START);
-    finish(app, 1000);
+    app.controller!.key('e');
+    app.update(1000);
     app.controller!.ui.busy = true;
     app.update(9000);
     expect(app.screen).toBe('mission');
@@ -85,45 +113,101 @@ describe('App flow', () => {
     expect(app.screen).toBe('result');
   });
 
-  it('reports a lost mission through the same flow', () => {
-    const app = new App({ createMission: loseTiny });
+  it('Continue after a win opens the next mission with a bigger budget and the same kit', () => {
+    const { app, wait } = make({ createMission: winTiny });
+    app.click({ x: 100, y: 172 }); // change the third soldier so the kept kit is visible
+    app.click(START);
+    endWin(app, 1000);
+    wait();
+    app.click(CONTINUE);
+    expect(app.screen).toBe('equipment');
+    expect(app.campaign.missionIndex).toBe(1);
+    expect(campaignBudget(app.campaign)).toBe(140); // 120 + 20 for the win, no kills
+    expect(app.loadout[2].weapon).toBe('rifle'); // the previous kit still fits
+    expect(app.controller).toBeNull();
+  });
+
+  it('kills by living soldiers raise the next budget', () => {
+    const { app, wait } = make({
+      createMission: () => {
+        const s = winTiny();
+        unit(s, 'p1').kills = 2;
+        return s;
+      },
+    });
+    app.click(START);
+    endWin(app, 1000);
+    wait();
+    app.click(CONTINUE);
+    expect(campaignBudget(app.campaign)).toBe(150); // 120 + 20 + 2 * 5
+  });
+
+  it('replaces a fallen soldier with a rookie and his kills leave the budget', () => {
+    const { app, wait } = make({ createMission: winWithCasualty });
+    app.click(START);
+    endWin(app, 1000);
+    wait();
+    app.click(CONTINUE);
+    expect(app.campaign.fallen).toEqual([{ name: 'Brandt', kills: 3 }]);
+    expect(app.campaign.roster[1]).toEqual({ name: 'Eriksen', kills: 0 });
+    expect(campaignBudget(app.campaign)).toBe(150); // 120 + 20 + 2 kills by Alvarez; Brandt's 3 are gone
+  });
+
+  it('falls back to the cheap kit when the previous kit no longer fits the budget', () => {
+    const { app, wait } = make({ createMission: winTiny });
+    app.click(START);
+    const bigKit: Loadout = Array.from({ length: 4 }, () => ({ weapon: 'rifle' as const, grenades: 3 }));
+    app.loadout = bigKit; // 196, more than the next budget of 140
+    endWin(app, 1000);
+    wait();
+    app.click(CONTINUE);
+    expect(app.loadout).toEqual(cheapLoadout());
+  });
+
+  it('a lost mission ends the campaign: Continue shows the end screen, New campaign resets', () => {
+    const { app, wait } = make({ createMission: loseAll });
+    app.click({ x: 100, y: 172 });
     app.click(START);
     app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
     app.update(1000);
     app.update(2100);
     expect(app.screen).toBe('result');
     expect(app.result).toMatchObject({ won: false, survivors: 0 });
-  });
-
-  it('Play again returns to equipment with the default loadout', () => {
-    const { app, wait } = make({ createMission: winTiny });
-    app.click({ x: 100, y: 172 }); // change P3 so a reset is visible
-    app.click(START);
-    finish(app, 1000);
-    app.update(2100);
+    expect(app.campaign.status).toBe('lost');
     wait();
-    app.click(AGAIN);
-    expect(app.screen).toBe('equipment');
-    expect(app.loadout[2].weapon).toBe('pistol');
-    expect(app.controller).toBeNull();
-    expect(app.result).toBeNull();
-  });
-
-  it('Enter on the result screen plays again', () => {
-    const { app, wait } = make({ createMission: winTiny });
-    app.click(START);
-    finish(app, 1000);
-    app.update(2100);
+    app.click(CONTINUE);
+    expect(app.screen).toBe('end');
     wait();
-    expect(app.key('Enter')).toBe(true);
+    app.click(NEW_CAMPAIGN);
     expect(app.screen).toBe('equipment');
+    expect(app.campaign).toMatchObject({ missionIndex: 0, missionsWon: 0, status: 'active', fallen: [] });
+    expect(app.loadout).toEqual(defaultLoadout());
   });
 
-  it('gives every run a fresh state and a new seed', () => {
+  it('winning the last mission shows Campaign complete, never a fourth mission', () => {
+    const { app, wait } = make({ createMission: winTiny });
+    playWin(app, wait, 1000);
+    expect(app.screen).toBe('equipment');
+    expect(app.campaign.missionIndex).toBe(1);
+    playWin(app, wait, 10000);
+    expect(app.campaign.missionIndex).toBe(2);
+    app.click(START);
+    endWin(app, 20000);
+    expect(app.campaign).toMatchObject({ status: 'won', missionsWon: 3 });
+    wait();
+    app.click(CONTINUE);
+    expect(app.screen).toBe('end');
+    wait();
+    app.key('Enter'); // New campaign
+    expect(app.screen).toBe('equipment');
+    expect(app.campaign.missionIndex).toBe(0);
+  });
+
+  it('gives every mission a fresh state and a new seed', () => {
     const seeds = [111, 222, 333];
     const { app, wait } = make({
       newSeed: () => seeds.shift()!,
-      createMission: (seed) => {
+      createMission: (_def, seed) => {
         const s = winTiny();
         s.rngState = seed;
         return s;
@@ -132,10 +216,9 @@ describe('App flow', () => {
     app.click(START);
     const first = app.controller!.state;
     expect(first.rngState).toBe(111);
-    finish(app, 1000);
-    app.update(2100);
+    endWin(app, 1000);
     wait();
-    app.click(AGAIN);
+    app.click(CONTINUE);
     wait();
     app.click(START);
     expect(app.controller!.state.rngState).toBe(222);
@@ -145,19 +228,36 @@ describe('App flow', () => {
 });
 
 describe('input routing', () => {
-  it('ignores keys and clicks meant for the hidden mission while the result is showing', () => {
-    const app = new App({ createMission: winTiny });
+  it('ignores mission keys and clicks while the result is showing', () => {
+    const { app, wait } = make({ createMission: winTiny });
     app.click(START);
-    finish(app, 1000);
-    app.update(2100);
+    endWin(app, 1000);
+    wait(); // let the input guard expire so the clicks below really reach the result screen
     const state = app.controller!.state;
     expect(app.key(' ')).toBe(false);
     expect(app.key('e')).toBe(false);
-    app.click({ x: 40, y: 40 }); // a map tile under the card
+    app.click({ x: 40, y: 40 });
     app.move({ x: 40, y: 40 });
     app.cancel();
     expect(app.controller!.state).toBe(state);
     expect(app.screen).toBe('result');
+  });
+
+  it('only Enter and the New campaign button act on the end screen', () => {
+    const { app, wait } = make({ createMission: loseAll });
+    app.click(START);
+    app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
+    app.update(1000);
+    app.update(2100);
+    wait();
+    app.click(CONTINUE);
+    wait();
+    expect(app.screen).toBe('end');
+    expect(app.key(' ')).toBe(false);
+    expect(app.key('e')).toBe(false);
+    app.click({ x: 40, y: 40 });
+    app.click(START); // the Start button pixels, but the end screen is showing
+    expect(app.screen).toBe('end');
   });
 
   it('does not send equipment clicks to a running mission', () => {
@@ -165,16 +265,16 @@ describe('input routing', () => {
     app.click(START);
     wait();
     const before = app.loadout;
-    app.click({ x: 100, y: 172 }); // same pixels as P3's weapon button
+    app.click({ x: 100, y: 172 });
     expect(app.loadout).toBe(before);
   });
 
-  it('does not start a mission from the result or mission screens', () => {
+  it('does not start a mission from the mission screen', () => {
     const { app, wait } = make({ createMission: winTiny });
     app.click(START);
     wait();
     const controller = app.controller;
-    app.click(START); // pixels of the Start button, but a mission is showing
+    app.click(START);
     expect(app.controller).toBe(controller);
   });
 });
@@ -189,19 +289,18 @@ describe('input guard after a screen switch', () => {
     expect(p1()).toEqual(before);
     expect(app.controller!.ui.busy).toBe(false);
     wait();
-    app.click({ x: 200, y: 301 }); // once the guard has expired, clicks work again
+    app.click({ x: 200, y: 301 });
     expect(app.controller!.ui.busy).toBe(true);
   });
 
-  it('ignores a click right after Play again so it cannot change the new loadout', () => {
+  it('ignores a click right after Continue so it cannot change the new loadout', () => {
     const { app, wait } = make({ createMission: winTiny });
     app.click(START);
-    finish(app, 1000);
-    app.update(2100);
+    endWin(app, 1000);
     wait();
-    app.click(AGAIN);
+    app.click(CONTINUE);
     expect(app.screen).toBe('equipment');
-    app.click({ x: 260, y: 224 }); // P4 grenade minus, overlapping the Play again button
+    app.click({ x: 260, y: 224 }); // fourth soldier's grenade minus, overlapping the Continue button
     expect(app.loadout[3].grenades).toBe(1);
     wait();
     app.click({ x: 260, y: 224 });
@@ -211,8 +310,7 @@ describe('input guard after a screen switch', () => {
   it('does not chain Enter through screens, whether repeated or pressed twice quickly', () => {
     const { app, wait } = make({ createMission: winTiny });
     app.click(START);
-    finish(app, 1000);
-    app.update(2100);
+    endWin(app, 1000);
     wait();
     app.key('Enter'); // Result to Equipment
     expect(app.screen).toBe('equipment');
