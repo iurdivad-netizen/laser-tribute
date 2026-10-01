@@ -21,7 +21,7 @@ const DEFS: [ButtonId, string, string][] = [
   ['throw', 'THROW', 'T'],
   ['door', 'DOOR', 'D'],
   ['pickup', 'TAKE', 'P'],
-  ['end', 'END', 'Space'],
+  ['end', 'END', 'Spc'],
 ];
 
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) => ({
@@ -45,9 +45,8 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   const u = state.units.find((x) => x.id === ui.selectedId && x.alive);
   ctx.fillStyle = '#e8e8f0';
   if (u) {
-    ctx.fillText(`${u.id.toUpperCase()}  HP ${u.hp}/${u.maxHp}`, 4, top + 4);
-    ctx.fillText(`AP ${u.ap}/${u.maxAp}`, 4, top + 16);
-    ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}`, 4, top + 28);
+    ctx.fillText(`${u.id.toUpperCase()}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
+    ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}`, 4, top + 15);
   } else {
     ctx.fillText('No soldier selected', 4, top + 4);
   }
@@ -60,7 +59,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   else if (now < ui.messageUntil) line = ui.message;
   else if (ui.previewCost !== null) line = `Move: ${ui.previewCost} AP`;
   ctx.fillStyle = state.status === 'playing' ? '#ffe14d' : '#7dff9a';
-  ctx.fillText(line, 172, top + 10);
+  ctx.fillText(line, 172, top + 11);
 
   const modeButton: Partial<Record<UiState['mode'], ButtonId>> = {
     snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door',
@@ -70,8 +69,8 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     ctx.fillStyle = active ? '#4da6ff' : '#2a2f45';
     ctx.fillRect(b.x, b.y, b.w, b.h);
     ctx.fillStyle = active ? '#000' : '#e8e8f0';
-    ctx.fillText(b.label, b.x + 3, b.y + 4);
+    ctx.fillText(`${b.key} ${b.label}`, b.x + 3, b.y + 4);
   }
   ctx.fillStyle = '#6a6f88';
-  ctx.fillText('S snap  A aim  T throw  D door  P take  Q/E turn  Space end  Esc cancel', 4, top + 30);
+  ctx.fillText('1-4 select  Q/E turn  Esc cancel', 4, top + 28);
 }
