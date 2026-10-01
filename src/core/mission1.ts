@@ -1,3 +1,4 @@
+import { applyLoadout, type Loadout } from './loadout';
 import { parseMap } from './mission';
 import type { GameState, Pos } from './types';
 import { updateExplored } from './vision';
@@ -33,11 +34,12 @@ const PATROLS: Record<string, Pos[]> = {
   e4: [{ x: 10, y: 15 }, { x: 24, y: 15 }],
 };
 
-export function createMission1(seed = 1): GameState {
-  const s = parseMap(MISSION1_ROWS, seed);
+export function createMission1(seed = 1, loadout?: Loadout): GameState {
+  let s = parseMap(MISSION1_ROWS, seed);
   for (const u of s.units) {
     if (PATROLS[u.id]) u.patrol = PATROLS[u.id].map((p) => ({ ...p }));
   }
+  if (loadout) s = applyLoadout(s, loadout);
   updateExplored(s);
   return s;
 }

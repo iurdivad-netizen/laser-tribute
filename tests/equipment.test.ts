@@ -1,0 +1,97 @@
+import { describe, expect, it } from 'vitest';
+import { defaultLoadout, loadoutCost } from '../src/core/loadout';
+import {
+  applyEquipmentHit, blockReasonFor, changeGrenades, equipmentHit, grenadeBlockReason,
+  toggleBlockReason, toggleWeapon,
+} from '../src/screens/equipment';
+
+describe('weapon toggle', () => {
+  it('swaps pistol to rifle when there are enough credits', () => {
+    const l = toggleWeapon(defaultLoadout(), 2); // +15: 102 -> 117
+    expect(l[2].weapon).toBe('rifle');
+    expect(loadoutCost(l)).toBe(117);
+  });
+
+  it('blocks a swap that would break the budget and returns the same loadout', () => {
+    const l = toggleWeapon(defaultLoadout(), 2);
+    expect(toggleBlockReason(l, 3)).toBe('Need 12 more credits');
+    expect(toggleWeapon(l, 3)).toBe(l);
+  });
+
+  it('always allows rifle to pistol and frees credits', () => {
+    const l = toggleWeapon(defaultLoadout(), 0);
+    expect(l[0].weapon).toBe('pistol');
+    expect(loadoutCost(l)).toBe(87);
+  });
+
+  it('does not mutate the input', () => {
+    const l = defaultLoadout();
+    toggleWeapon(l, 2);
+    expect(l[2].weapon).toBe('pistol');
+  });
+});
+
+describe('grenades', () => {
+  it('adds grenades up to the cap of 3', () => {
+    let l = changeGrenades(defaultLoadout(), 0, 1); // 2 grenades, cost 110
+    l = changeGrenades(l, 0, 1); // 3 grenades, cost 118
+    expect(l[0].grenades).toBe(3);
+    expect(grenadeBlockReason(l, 0, 1)).toBe('Max 3 grenades');
+    expect(changeGrenades(l, 0, 1)).toBe(l);
+  });
+
+  it('is blocked when the credits run out', () => {
+    let l = changeGrenades(defaultLoadout(), 0, 1);
+    l = changeGrenades(l, 0, 1); // cost 118
+    expect(grenadeBlockReason(l, 1, 1)).toBe('Need 6 more credits');
+    expect(changeGrenades(l, 1, 1)).toBe(l);
+  });
+
+  it('cannot go below zero', () => {
+    const l = changeGrenades(defaultLoadout(), 0, -1);
+    expect(l[0].grenades).toBe(0);
+    expect(grenadeBlockReason(l, 0, -1)).toBe('No grenades to remove');
+    expect(changeGrenades(l, 0, -1)).toBe(l);
+  });
+});
+
+describe('equipmentHit', () => {
+  it('finds the weapon, minus, plus and start buttons', () => {
+    expect(equipmentHit(100, 68)).toEqual({ kind: 'weapon', index: 0 });
+    expect(equipmentHit(100, 120)).toEqual({ kind: 'weapon', index: 1 });
+    expect(equipmentHit(260, 172)).toEqual({ kind: 'minus', index: 2 });
+    expect(equipmentHit(320, 224)).toEqual({ kind: 'plus', index: 3 });
+    expect(equipmentHit(240, 315)).toEqual({ kind: 'start' });
+  });
+
+  it('returns null over empty space', () => {
+    expect(equipmentHit(5, 5)).toBeNull();
+    expect(equipmentHit(200, 68)).toBeNull();
+  });
+});
+
+describe('blockReasonFor and applyEquipmentHit', () => {
+  it('explains a blocked control and applies an allowed one', () => {
+    const l = toggleWeapon(defaultLoadout(), 2);
+    expect(blockReasonFor(l, { kind: 'weapon', index: 3 })).toBe('Need 12 more credits');
+    expect(blockReasonFor(l, { kind: 'weapon', index: 0 })).toBeNull();
+    expect(applyEquipmentHit(l, { kind: 'weapon', index: 3 })).toBe(l);
+    expect(applyEquipmentHit(l, { kind: 'minus', index: 0 })[0].grenades).toBe(0);
+    expect(blockReasonFor(l, { kind: 'plus', index: 0 })).toBe('Need 5 more credits'); // 117 + 8
+    expect(applyEquipmentHit(l, { kind: 'plus', index: 0 })).toBe(l);
+    const base = defaultLoadout();
+    expect(applyEquipmentHit(base, { kind: 'plus', index: 0 })[0].grenades).toBe(2);
+  });
+
+  it('start is allowed for a valid loadout and leaves it unchanged', () => {
+    const l = defaultLoadout();
+    expect(blockReasonFor(l, { kind: 'start' })).toBeNull();
+    expect(applyEquipmentHit(l, { kind: 'start' })).toBe(l);
+  });
+
+  it('start is blocked for an invalid loadout', () => {
+    const l = defaultLoadout();
+    l[0].grenades = 9;
+    expect(blockReasonFor(l, { kind: 'start' })).toMatch(/grenades/);
+  });
+});
