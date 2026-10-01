@@ -50,4 +50,13 @@ describe('findPath', () => {
     expect(findPath(s, 'zz', { x: 2, y: 1 })).toBeNull();
     expect(findPath(s, 'p1', { x: 40, y: 1 })).toBeNull();
   });
+
+  it('ignores units the given side cannot see, but not visible ones', () => {
+    const s = makeState(corridorRows('P..E')); // e1 at x=4
+    s.units.find((u) => u.id === 'p1')!.facing = 6; // facing away: e1 is hidden
+    expect(findPath(s, 'p1', { x: 4, y: 1 })).toBeNull();
+    expect(findPath(s, 'p1', { x: 4, y: 1 }, { seenBy: 'player' })).toHaveLength(3);
+    s.units.find((u) => u.id === 'p1')!.facing = 2; // facing it: e1 is visible and blocks
+    expect(findPath(s, 'p1', { x: 4, y: 1 }, { seenBy: 'player' })).toBeNull();
+  });
 });

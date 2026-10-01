@@ -43,10 +43,14 @@ function candidates(s: GameState, unit: Unit): Command[] {
     return out;
   }
 
-  const goal = s.enemyMemory ?? (unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null);
-  if (goal && !posEq(unit.pos, goal)) {
+  const patrolGoal = unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null;
+  for (const goal of [s.enemyMemory, patrolGoal]) {
+    if (!goal || posEq(unit.pos, goal)) continue;
     const step = firstStep(s, unit, goal);
-    if (step) out.push({ type: 'Move', unitId: unit.id, to: step });
+    if (step) {
+      out.push({ type: 'Move', unitId: unit.id, to: step });
+      break;
+    }
   }
   return out;
 }

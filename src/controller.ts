@@ -13,6 +13,9 @@ const STEP_MS = 130;
 const ENEMY_STEP_MS = 300;
 
 export class Controller {
+  /** True when the last applied command had an effect the player could see. */
+  private lastVisible = false;
+
   constructor(
     public state: GameState,
     public ui: UiState,
@@ -42,7 +45,9 @@ export class Controller {
       this.say(r.reason);
       return false;
     }
+    const before = this.state;
     this.state = r.state;
+    this.lastVisible = r.events.some((ev) => this.eventVisible(ev, before, r.state));
     this.effects.add(r.events, performance.now());
     for (const ev of r.events) this.onEvent(ev);
     if (!this.selected()) this.selectFirstAlive();
@@ -70,7 +75,7 @@ export class Controller {
     const u = this.selected();
     const t = this.ui.hover;
     if (!u || !t || this.ui.mode !== 'move' || this.ui.busy || this.state.turn !== 'player') return;
-    const path = findPath(this.state, u.id, t);
+    const path = findPath(this.state, u.id, t, { seenBy: 'player' });
     if (path) {
       this.ui.preview = path;
       this.ui.previewCost = pathCost(u.pos, path);
@@ -98,7 +103,7 @@ export class Controller {
         this.say('Select a soldier first');
         return;
       }
-      const path = findPath(this.state, sel.id, t);
+      const path = findPath(this.state, sel.id, t, { seenBy: 'player' });
       if (!path) {
         this.say('No path there');
         return;
@@ -136,6 +141,14 @@ export class Controller {
     }
   }
 
+  private enemiesInView(): Set<string> {
+    return new Set(
+      this.state.units
+        .filter((u) => u.alive && u.side === 'enemy' && visibleToSide(this.state, 'player', u.pos))
+        .map((u) => u.id),
+    );
+  }
+
   moveAlong(unitId: string, path: Pos[]): void {
     this.ui.busy = true;
     const step = (i: number) => {
@@ -143,8 +156,14 @@ export class Controller {
         this.ui.busy = false;
         return;
       }
+      const seenBefore = this.enemiesInView();
       if (!this.run({ type: 'Move', unitId, to: path[i] })) {
         this.ui.busy = false;
+        return;
+      }
+      if ([...this.enemiesInView()].some((id) => !seenBefore.has(id))) {
+        this.ui.busy = false;
+        this.say('Enemy spotted');
         return;
       }
       setTimeout(() => step(i + 1), STEP_MS);
@@ -204,13 +223,29 @@ export class Controller {
   }
 
   private enemyStep = (): void => {
-    if (this.state.status !== 'playing' || this.state.turn !== 'enemy') {
-      this.ui.busy = false;
-      return;
+    // Commands the player cannot see are applied at once; only visible ones get a pause.
+    for (let i = 0; i < 500; i++) {
+      if (this.state.status !== 'playing' || this.state.turn !== 'enemy') {
+        this.ui.busy = false;
+        return;
+      }
+      this.run(aiNextCommand(this.state));
+      if (this.lastVisible) break;
     }
-    this.run(aiNextCommand(this.state));
     setTimeout(this.enemyStep, ENEMY_STEP_MS);
   };
+
+  private eventVisible(ev: GameEvent, before: GameState, after: GameState): boolean {
+    const seen = (p: Pos) => visibleToSide(before, 'player', p) || visibleToSide(after, 'player', p);
+    switch (ev.type) {
+      case 'moved': return seen(ev.from) || seen(ev.to);
+      case 'shot': return seen(ev.from) || seen(ev.impact);
+      case 'died':
+      case 'doorChanged':
+      case 'grenade': return seen(ev.at);
+      default: return false;
+    }
+  }
 
   key(k: string): boolean {
     const lower = k.length === 1 ? k.toLowerCase() : k;

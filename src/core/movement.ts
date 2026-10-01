@@ -1,13 +1,13 @@
 import { CONFIG } from './config';
 import { inBounds, isBlocking, tileAt, unitAt } from './geometry';
-import type { GameState, Pos } from './types';
+import type { GameState, Pos, Unit } from './types';
 
 /** Returns why a single step from `from` to the adjacent tile `to` is illegal, or null if it is legal. */
 export function stepBlockedReason(
   s: GameState,
   from: Pos,
   to: Pos,
-  ignoreUnits = false,
+  ignoreUnits: boolean | ((u: Unit) => boolean) = false,
 ): string | null {
   if (!inBounds(s, to)) return 'That tile is off the map';
   const tile = tileAt(s, to);
@@ -20,7 +20,11 @@ export function stepBlockedReason(
     const sideB = tileAt(s, { x: from.x, y: to.y });
     if (isBlocking(sideA) || isBlocking(sideB)) return 'Cannot cut a corner';
   }
-  if (!ignoreUnits && unitAt(s, to)) return 'That tile is occupied';
+  const occupant = unitAt(s, to);
+  if (occupant) {
+    const ignored = typeof ignoreUnits === 'function' ? ignoreUnits(occupant) : ignoreUnits;
+    if (!ignored) return 'That tile is occupied';
+  }
   return null;
 }
 

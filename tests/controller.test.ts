@@ -3,6 +3,7 @@ import { Controller } from '../src/controller';
 import { createMission1 } from '../src/core/mission1';
 import { Effects } from '../src/render/effects';
 import { createUiState } from '../src/input/uiState';
+import { corridorRows, makeState } from './helpers';
 
 function setup() {
   return new Controller(createMission1(), createUiState('p1'), new Effects());
@@ -58,5 +59,28 @@ describe('Controller', () => {
     c.key('q');
     c.key('q');
     expect(c.selected()!.facing).toBe(7);
+  });
+
+  it('previews a path over a tile hiding an unseen enemy just like any other fog tile', () => {
+    const c = setup();
+    c.hover({ x: 24, y: 15 }); // e4 stands here, out of sight
+    expect(c.ui.preview.length).toBeGreaterThan(0);
+  });
+
+  it('plays an enemy turn quickly when most of it happens out of sight', () => {
+    const c = setup();
+    c.endTurn();
+    vi.advanceTimersByTime(8000);
+    expect(c.state.turn).toBe('player');
+  });
+
+  it('stops a multi-step move when a new enemy comes into view', () => {
+    const s = makeState(corridorRows('P......E'));
+    s.units.find((u) => u.id === 'p1')!.facing = 6; // facing away, e1 unseen
+    const c = new Controller(s, createUiState('p1'), new Effects());
+    c.clickTile({ x: 5, y: 1 });
+    vi.advanceTimersByTime(1000);
+    expect(c.selected()!.pos).toEqual({ x: 2, y: 1 });
+    expect(c.ui.busy).toBe(false);
   });
 });

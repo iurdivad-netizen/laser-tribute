@@ -1,9 +1,12 @@
 import { NEIGHBORS_8, inBounds, posEq } from './geometry';
 import { stepBlockedReason, stepCost } from './movement';
-import type { GameState, Pos } from './types';
+import type { GameState, Pos, Side, Unit } from './types';
+import { visibleToSide } from './vision';
 
 export interface PathOptions {
   ignoreOccupantAtGoal?: boolean;
+  /** Plan as this side would: units this side cannot currently see do not block the path. */
+  seenBy?: Side;
 }
 
 export function findPath(
@@ -34,7 +37,9 @@ export function findPath(
 
     for (const d of NEIGHBORS_8) {
       const next = { x: cur.x + d.x, y: cur.y + d.y };
-      const ignoreUnits = !!opts.ignoreOccupantAtGoal && posEq(next, goal);
+      const atGoal = !!opts.ignoreOccupantAtGoal && posEq(next, goal);
+      const ignoreUnits =
+        atGoal || (opts.seenBy ? (u: Unit) => !visibleToSide(s, opts.seenBy!, u.pos) : false);
       if (stepBlockedReason(s, cur, next, ignoreUnits) !== null) continue;
       const nk = key(next);
       const nd = dist.get(ck)! + stepCost(cur, next);
