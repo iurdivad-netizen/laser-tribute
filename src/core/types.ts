@@ -1,0 +1,104 @@
+export type Side = 'player' | 'enemy';
+
+export interface Pos {
+  x: number;
+  y: number;
+}
+
+/** 0 = N, 1 = NE, 2 = E, 3 = SE, 4 = S, 5 = SW, 6 = W, 7 = NW */
+export type Facing = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export type TileKind = 'floor' | 'wall' | 'door';
+
+export interface Tile {
+  kind: TileKind;
+  open: boolean; // only meaningful when kind === 'door'
+}
+
+export type WeaponId = 'pistol' | 'rifle';
+export type ItemKind = WeaponId | 'grenade';
+export type ShotMode = 'snap' | 'aimed';
+
+export interface Unit {
+  id: string;
+  side: Side;
+  pos: Pos;
+  facing: Facing;
+  hp: number;
+  maxHp: number;
+  ap: number;
+  maxAp: number;
+  weapon: WeaponId;
+  grenades: number;
+  alive: boolean;
+  patrol: Pos[];
+  patrolIndex: number;
+}
+
+export interface FloorItem {
+  id: string;
+  pos: Pos;
+  kind: ItemKind;
+}
+
+export interface Settings {
+  reactionFire: boolean;
+}
+
+export type GameStatus = 'playing' | 'won' | 'lost';
+
+export interface GameState {
+  width: number;
+  height: number;
+  tiles: Tile[][]; // tiles[y][x]
+  units: Unit[];
+  items: FloorItem[];
+  turn: Side;
+  turnNumber: number;
+  rngState: number;
+  explored: boolean[][]; // explored[y][x], the player's map memory
+  enemyMemory: Pos | null; // where the enemy side last saw a player unit
+  settings: Settings;
+  status: GameStatus;
+}
+
+export type Command =
+  | { type: 'Move'; unitId: string; to: Pos }
+  | { type: 'Turn'; unitId: string; facing: Facing }
+  | { type: 'SnapShot'; unitId: string; targetId: string }
+  | { type: 'AimedShot'; unitId: string; targetId: string }
+  | { type: 'OpenDoor'; unitId: string; at: Pos }
+  | { type: 'CloseDoor'; unitId: string; at: Pos }
+  | { type: 'PickUp'; unitId: string; itemId: string }
+  | { type: 'Throw'; unitId: string; at: Pos }
+  | { type: 'EndTurn' };
+
+export type GameEvent =
+  | { type: 'moved'; unitId: string; from: Pos; to: Pos }
+  | { type: 'turned'; unitId: string; facing: Facing }
+  | {
+      type: 'shot';
+      unitId: string;
+      targetId: string;
+      mode: ShotMode;
+      hit: boolean;
+      damage: number;
+      from: Pos;
+      impact: Pos;
+    }
+  | { type: 'died'; unitId: string; at: Pos }
+  | { type: 'doorChanged'; at: Pos; open: boolean }
+  | { type: 'pickedUp'; unitId: string; itemId: string; kind: ItemKind }
+  | {
+      type: 'grenade';
+      unitId: string;
+      at: Pos;
+      hits: { unitId: string; damage: number }[];
+      doorsDestroyed: Pos[];
+    }
+  | { type: 'turnEnded'; side: Side }
+  | { type: 'gameOver'; winner: Side };
+
+export type Result =
+  | { ok: true; state: GameState; events: GameEvent[] }
+  | { ok: false; reason: string };
