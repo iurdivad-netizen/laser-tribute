@@ -16,10 +16,13 @@ import { drawResult, resultHit } from './screens/result';
 export type Screen = 'equipment' | 'mission' | 'result';
 
 const RESULT_DELAY_MS = 1000;
+/** After any screen switch, clicks and Enter are ignored briefly so a double-click or held key cannot act on the next screen. */
+const INPUT_LOCK_MS = 300;
 
 export interface AppOptions {
   newSeed?: () => number;
   createMission?: (seed: number, loadout: Loadout) => GameState;
+  clock?: () => number;
 }
 
 export class App {
@@ -30,12 +33,23 @@ export class App {
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
+  private lockedUntil = -Infinity;
+  private readonly clock: () => number;
   private readonly newSeed: () => number;
   private readonly createMission: (seed: number, loadout: Loadout) => GameState;
 
   constructor(opts: AppOptions = {}) {
+    this.clock = opts.clock ?? (() => performance.now());
     this.newSeed = opts.newSeed ?? (() => Math.floor(Math.random() * 2 ** 31));
     this.createMission = opts.createMission ?? ((seed, loadout) => createMission1(seed, loadout));
+  }
+
+  private lock(): void {
+    this.lockedUntil = this.clock() + INPUT_LOCK_MS;
+  }
+
+  private locked(): boolean {
+    return this.clock() < this.lockedUntil;
   }
 
   private startMission(): void {
@@ -45,6 +59,7 @@ export class App {
     this.result = null;
     this.endedAt = null;
     this.screen = 'mission';
+    this.lock();
   }
 
   private playAgain(): void {
@@ -54,9 +69,11 @@ export class App {
     this.endedAt = null;
     this.hover = null;
     this.screen = 'equipment';
+    this.lock();
   }
 
   click(p: Pos): void {
+    if (this.locked()) return;
     switch (this.screen) {
       case 'equipment': {
         const hit = equipmentHit(p.x, p.y);
@@ -100,11 +117,12 @@ export class App {
     if (this.screen === 'mission') this.controller?.hover(null);
   }
 
-  key(k: string): boolean {
+  key(k: string, repeat = false): boolean {
+    if (repeat && k === 'Enter') return true; // a held key must not chain screens
     switch (this.screen) {
       case 'equipment':
         if (k === 'Enter') {
-          this.startMission();
+          if (!this.locked()) this.startMission();
           return true;
         }
         return false;
@@ -112,7 +130,7 @@ export class App {
         return this.controller ? this.controller.key(k) : false;
       case 'result':
         if (k === 'Enter') {
-          this.playAgain();
+          if (!this.locked()) this.playAgain();
           return true;
         }
         return false;
@@ -136,6 +154,7 @@ export class App {
       this.result = summarize(c.state);
       this.screen = 'result';
       this.endedAt = null;
+      this.lock();
     }
   }
 
