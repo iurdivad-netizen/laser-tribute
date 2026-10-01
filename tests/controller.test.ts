@@ -94,4 +94,24 @@ describe('Controller', () => {
     c.pressButton('alert');
     expect(c.selected()!.alert).toBe(true);
   });
+
+  it('yields to the browser during a long enemy turn instead of running it in one block', () => {
+    const c = setup();
+    let t = 0;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => (t += 20)); // every call costs 20 ms
+    c.endTurn();
+    let commands = 0;
+    const run = c.run.bind(c);
+    c.run = (cmd) => {
+      commands += 1;
+      return run(cmd);
+    };
+    vi.advanceTimersByTime(300); // the first enemy step
+    expect(commands).toBeLessThanOrEqual(2); // it handed control back after a moment
+    expect(c.state.turn).toBe('enemy');
+    vi.advanceTimersByTime(120000); // the rest of the turn plays out
+    clock.mockRestore();
+    expect(c.state.turn).toBe('player');
+    expect(c.ui.busy).toBe(false);
+  });
 });

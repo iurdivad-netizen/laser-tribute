@@ -3,6 +3,9 @@ import { stepBlockedReason, stepCost } from './movement';
 import type { GameState, Pos, Side, Unit } from './types';
 import { visibleToSide } from './vision';
 
+/** Counts findPath calls; lets tests check that the AI skips needless pathfinding. */
+export const pathStats = { calls: 0 };
+
 export interface PathOptions {
   ignoreOccupantAtGoal?: boolean;
   /** Plan as this side would: units this side cannot currently see do not block the path. */
@@ -15,6 +18,7 @@ export function findPath(
   goal: Pos,
   opts: PathOptions = {},
 ): Pos[] | null {
+  pathStats.calls += 1;
   const unit = s.units.find((u) => u.id === unitId);
   if (!unit || !unit.alive || !inBounds(s, goal) || posEq(unit.pos, goal)) return null;
 

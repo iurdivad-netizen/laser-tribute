@@ -84,6 +84,18 @@ describe('recordMission', () => {
     expect(next).toMatchObject({ status: 'won', missionsWon: 3, missionIndex: 3 });
   });
 
+  it('keeps no rookie in the roster when the campaign is over', () => {
+    const c = { ...newCampaign(), missionIndex: 2, missionsWon: 2 };
+    const s = finishedWin();
+    unit(s, 'p2').alive = false;
+    unit(s, 'p2').kills = 2;
+    const next = recordMission(c, s, 3);
+    expect(next.status).toBe('won');
+    expect(next.roster.map((r) => r.name)).toEqual(['Alvarez', 'Chen', 'Dubois']); // survivors only
+    expect(next.fallen).toEqual([{ name: 'Brandt', kills: 2 }]);
+    expect(next.namesUsed).toBe(4);
+  });
+
   it('loses the campaign when the mission is lost', () => {
     const s = makeState(corridorRows('PPPPE'));
     s.status = 'lost';
@@ -91,6 +103,7 @@ describe('recordMission', () => {
     const next = recordMission(newCampaign(), s, 3);
     expect(next).toMatchObject({ status: 'lost', missionsWon: 0, missionIndex: 0 });
     expect(next.fallen).toHaveLength(4);
+    expect(next.roster).toEqual([]); // nobody is left, and no rookies are made for a campaign that is over
   });
 
   it('never mutates its inputs', () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { aiNextCommand, runEnemyTurn } from '../src/core/ai';
 import { applyCommand } from '../src/core/apply';
 import { createMission1 } from '../src/core/mission1';
+import { pathStats } from '../src/core/path';
 import { corridorRows, makeState, ok, unit } from './helpers';
 
 function enemyTurn(rows: string[]) {
@@ -48,6 +49,25 @@ describe('aiNextCommand', () => {
     s.enemyMemory = { x: 6, y: 1 };
     unit(s, 'e1').patrol = [{ x: 3, y: 1 }, { x: 1, y: 1 }];
     expect(aiNextCommand(s)).toEqual({ type: 'Move', unitId: 'e1', to: { x: 2, y: 1 } });
+  });
+
+  it('does not pathfind for enemies that cannot afford a step', () => {
+    const s = enemyTurn(['##########', '#E..E..#P#', '##########']);
+    for (const id of ['e1', 'e2']) {
+      unit(s, id).ap = 2; // less than the cheapest move (4)
+      unit(s, id).patrol = [{ x: 6, y: 1 }, { x: 1, y: 1 }];
+    }
+    pathStats.calls = 0;
+    expect(aiNextCommand(s)).toEqual({ type: 'EndTurn' });
+    expect(pathStats.calls).toBe(0);
+  });
+
+  it('still pathfinds for enemies that can afford a step', () => {
+    const s = enemyTurn(['##########', '#E..E..#P#', '##########']);
+    unit(s, 'e1').patrol = [{ x: 3, y: 1 }, { x: 1, y: 1 }]; // stops short of e2
+    pathStats.calls = 0;
+    expect(aiNextCommand(s)).toEqual({ type: 'Move', unitId: 'e1', to: { x: 2, y: 1 } });
+    expect(pathStats.calls).toBeGreaterThan(0);
   });
 
   it('ends the turn when nothing is possible', () => {

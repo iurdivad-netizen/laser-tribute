@@ -11,6 +11,8 @@ import type { ButtonId } from './render/panel';
 
 const STEP_MS = 130;
 const ENEMY_STEP_MS = 300;
+/** Longest stretch of unseen enemy commands run in one block before handing control back to the browser. */
+const ENEMY_BATCH_MS = 10;
 
 export class Controller {
   /** True when the last applied command had an effect the player could see. */
@@ -233,7 +235,9 @@ export class Controller {
   }
 
   private enemyStep = (): void => {
-    // Commands the player cannot see are applied at once; only visible ones get a pause.
+    // Commands the player cannot see are applied at once; only visible ones get a pause. A long run of
+    // unseen commands is split up so the page keeps responding.
+    const started = performance.now();
     for (let i = 0; i < 500; i++) {
       if (this.state.status !== 'playing' || this.state.turn !== 'enemy') {
         this.ui.busy = false;
@@ -241,6 +245,10 @@ export class Controller {
       }
       this.run(aiNextCommand(this.state));
       if (this.lastVisible) break;
+      if (performance.now() - started > ENEMY_BATCH_MS) {
+        setTimeout(this.enemyStep, 0);
+        return;
+      }
     }
     setTimeout(this.enemyStep, ENEMY_STEP_MS);
   };

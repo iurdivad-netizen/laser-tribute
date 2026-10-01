@@ -1,5 +1,5 @@
 import { applyCommand } from './apply';
-import { WEAPONS } from './config';
+import { CONFIG, WEAPONS } from './config';
 import { distance, facingFromDelta, posEq } from './geometry';
 import { findPath } from './path';
 import type { Command, GameEvent, GameState, Pos, Unit } from './types';
@@ -38,10 +38,12 @@ function candidates(s: GameState, unit: Unit): Command[] {
         facing: facingFromDelta(target.pos.x - unit.pos.x, target.pos.y - unit.pos.y),
       });
     }
-    const step = firstStep(s, unit, target.pos);
+    const step = unit.ap >= CONFIG.moveCost ? firstStep(s, unit, target.pos) : null;
     if (step) out.push({ type: 'Move', unitId: unit.id, to: step });
     return out;
   }
+
+  if (unit.ap < CONFIG.moveCost) return out; // a patrol or search step would be rejected anyway
 
   const patrolGoal = unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null;
   for (const goal of [s.enemyMemory, patrolGoal]) {

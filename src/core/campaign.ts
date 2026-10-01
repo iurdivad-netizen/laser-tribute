@@ -54,9 +54,18 @@ export function budgetBreakdown(c: Campaign): string {
   );
 }
 
-/** Folds a finished mission into the campaign. Pure: returns a new Campaign. */
+/**
+ * Folds a finished mission into the campaign. Pure: returns a new Campaign.
+ * While the campaign stays active a dead soldier is replaced by a rookie; once it is over the
+ * roster holds only the survivors (no rookie who never fought).
+ */
 export function recordMission(c: Campaign, finished: GameState, missionCount: number): Campaign {
   if (finished.status === 'playing') throw new Error('The mission is not finished');
+  const won = finished.status === 'won';
+  const missionsWon = c.missionsWon + (won ? 1 : 0);
+  const missionIndex = won ? c.missionIndex + 1 : c.missionIndex;
+  const status = !won ? 'lost' : missionIndex >= missionCount ? 'won' : 'active';
+
   const players = finished.units.filter((u) => u.side === 'player');
   const roster: RosterSoldier[] = [];
   const fallen = c.fallen.map((f) => ({ ...f }));
@@ -73,14 +82,12 @@ export function recordMission(c: Campaign, finished: GameState, missionCount: nu
       roster.push(updated);
     } else {
       fallen.push(updated);
-      roster.push({ name: soldierName(namesUsed), kills: 0 });
-      namesUsed += 1;
+      if (status === 'active') {
+        roster.push({ name: soldierName(namesUsed), kills: 0 });
+        namesUsed += 1;
+      }
     }
   });
 
-  const won = finished.status === 'won';
-  const missionsWon = c.missionsWon + (won ? 1 : 0);
-  const missionIndex = won ? c.missionIndex + 1 : c.missionIndex;
-  const status = !won ? 'lost' : missionIndex >= missionCount ? 'won' : 'active';
   return { missionIndex, missionsWon, roster, fallen, namesUsed, status };
 }

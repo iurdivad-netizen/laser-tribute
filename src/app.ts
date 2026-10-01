@@ -234,7 +234,7 @@ export class App {
         missionsWon: c.missionsWon,
         missionCount: this.missions.length,
         totalKills: totalKills(c) + c.fallen.reduce((sum, f) => sum + f.kills, 0),
-        survivors: c.status === 'won' ? c.roster.map((r) => r.name) : [],
+        survivors: c.roster.map((r) => r.name),
         fallen: c.fallen.map((f) => f.name),
       });
       return;
