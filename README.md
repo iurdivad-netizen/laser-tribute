@@ -13,7 +13,7 @@ Locally:
 
 Open the printed local address, or double-click `play.bat` on Windows.
 
-The game opens on an **equipment screen**: spend a 120-credit budget on each soldier's weapon (pistol 10, rifle 25) and grenades (8 each, up to 3), then press Start (or Enter). When the mission ends a result screen shows how it went; Play again (or Enter) returns to the equipment screen.
+The game is a three-mission campaign with a persistent squad. Before each mission you equip four named soldiers from a shared budget (pistol 10, rifle 25, grenade 8, up to 3 grenades each) and press Start (or Enter). The budget starts at 120 and grows with each won mission (+20) and with each kill by soldiers who are still alive (+5), so protect your veterans. A soldier who dies is gone for good and replaced by a rookie. After each mission a result screen shows how it went; Continue (or Enter) moves on. Win all three missions for Campaign complete; if all four soldiers die the campaign is lost, and New campaign starts again.
 
 ## Controls
 
