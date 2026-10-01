@@ -7,7 +7,9 @@ A turn-based squad tactics game in the spirit of Laser Squad and X-COM, running 
     npm install
     npm run dev
 
-Open the printed local address.
+Open the printed local address, or double-click `play.bat` on Windows.
+
+The game opens on an **equipment screen**: spend a 120-credit budget on each soldier's weapon (pistol 10, rifle 25) and grenades (8 each, up to 3), then press Start (or Enter). When the mission ends a result screen shows how it went; Play again (or Enter) returns to the equipment screen.
 
 ## Controls
 

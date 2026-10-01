@@ -24,7 +24,9 @@ export function drawResult(ctx: CanvasRenderingContext2D, r: MissionResult): voi
   ctx.font = '8px monospace';
   ctx.textBaseline = 'top';
   ctx.fillStyle = r.won ? '#7dff9a' : '#ff5555';
-  ctx.fillText(r.won ? 'MISSION COMPLETE' : 'MISSION FAILED', c.x + 70, c.y + 20);
+  ctx.textAlign = 'center';
+  ctx.fillText(r.won ? 'MISSION COMPLETE' : 'MISSION FAILED', c.x + c.w / 2, c.y + 20);
+  ctx.textAlign = 'left';
   ctx.fillStyle = '#e8e8f0';
   ctx.fillText(`Survivors     ${r.survivors} of ${r.squadSize}`, c.x + 50, c.y + 60);
   ctx.fillText(`Enemies down  ${r.enemiesKilled} of ${r.enemyCount}`, c.x + 50, c.y + 80);
