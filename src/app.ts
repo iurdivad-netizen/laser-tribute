@@ -7,6 +7,7 @@ import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './cor
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
 import { summarize, type MissionResult } from './core/result';
 import type { GameState, Pos } from './core/types';
+import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
 import { screenToTile } from './render/layout';
@@ -28,7 +29,7 @@ export interface AppOptions {
   newSeed?: () => number;
   missions?: MissionDef[];
   createMission?: (
-    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number,
+    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash,
   ) => GameState;
   clock?: () => number;
 }
@@ -45,6 +46,7 @@ export class App {
   private lockedUntil = -Infinity;
   private fallenNow: string[] = [];
   private playedName = '';
+  private usedLoadout: Loadout = [];
   private readonly clock: () => number;
   private readonly newSeed: () => number;
   private readonly missions: MissionDef[];
@@ -56,7 +58,8 @@ export class App {
     this.missions = opts.missions ?? MISSIONS;
     this.createMission =
       opts.createMission ??
-      ((def, seed, roster, loadout, budget) => createMission(def, seed, roster, loadout, budget));
+      ((def, seed, roster, loadout, budget, stash) =>
+        createMission(def, seed, roster, loadout, budget, stash));
   }
 
   private lock(): void {
@@ -76,11 +79,12 @@ export class App {
   }
 
   private startMission(): void {
-    if (validateLoadout(this.loadout, this.budget()) !== null) return;
+    if (validateLoadout(this.loadout, this.budget(), this.campaign.stash) !== null) return;
     const def = this.mission();
     const state = this.createMission(
-      def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(),
+      def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash,
     );
+    this.usedLoadout = this.loadout;
     this.controller = new Controller(state, createUiState('p1'), new Effects());
     this.playedName = def.name;
     this.result = null;
@@ -92,7 +96,7 @@ export class App {
   /** From the result screen: the next mission's equipment while the campaign is active, else the end screen. */
   private continueFromResult(): void {
     if (this.campaign.status === 'active') {
-      this.loadout = fitLoadout(this.loadout, this.budget());
+      this.loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash);
       this.screen = 'equipment';
     } else {
       this.screen = 'end';
@@ -124,7 +128,7 @@ export class App {
           this.startMission();
           return;
         }
-        this.loadout = applyEquipmentHit(this.loadout, hit, this.budget());
+        this.loadout = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash);
         return;
       }
       case 'mission': {
@@ -204,7 +208,7 @@ export class App {
     if (now - this.endedAt >= RESULT_DELAY_MS && !c.ui.busy) {
       const fallenBefore = this.campaign.fallen.length;
       this.result = summarize(c.state);
-      this.campaign = recordMission(this.campaign, c.state, this.missions.length);
+      this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
       this.screen = 'result';
       this.endedAt = null;
@@ -219,6 +223,7 @@ export class App {
       title: `MISSION ${c.missionIndex + 1} OF ${this.missions.length}: ${this.mission().name.toUpperCase()}`,
       breakdown: budgetBreakdown(c),
       soldiers: c.roster,
+      stash: c.stash,
     };
   }
 

@@ -1,3 +1,4 @@
+import { coverage, emptyStash, type Stash } from './stash';
 import type { GameState, WeaponId } from './types';
 
 export const LOADOUT = {
@@ -28,15 +29,23 @@ export function soldierCost(s: SoldierLoadout): number {
   return LOADOUT.prices[s.weapon] + LOADOUT.prices.grenade * s.grenades;
 }
 
-export function loadoutCost(l: Loadout): number {
-  return l.reduce((sum, s) => sum + soldierCost(s), 0);
+/** Credits the loadout costs; gear covered by the stash is free. */
+export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
+  const gross = l.reduce((sum, s) => sum + soldierCost(s), 0);
+  const free = coverage(l, stash).reduce(
+    (sum, c, i) => sum + (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) + c.grenades * LOADOUT.prices.grenade,
+    0,
+  );
+  return gross - free;
 }
 
 export function cheapLoadout(): Loadout {
   return Array.from({ length: SQUAD_SIZE }, () => ({ weapon: 'pistol' as const, grenades: 1 }));
 }
 
-export function validateLoadout(l: Loadout, budget: number = LOADOUT.budget): string | null {
+export function validateLoadout(
+  l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): string | null {
   if (l.length !== SQUAD_SIZE) return `A loadout needs exactly ${SQUAD_SIZE} soldiers`;
   for (const [i, s] of l.entries()) {
     if (s.weapon !== 'pistol' && s.weapon !== 'rifle') return `Soldier ${i + 1} needs a weapon`;
@@ -44,18 +53,20 @@ export function validateLoadout(l: Loadout, budget: number = LOADOUT.budget): st
       return `Soldier ${i + 1} must carry 0 to ${LOADOUT.maxGrenades} grenades`;
     }
   }
-  const cost = loadoutCost(l);
+  const cost = loadoutCost(l, stash);
   if (cost > budget) return `Loadout costs ${cost}, budget is ${budget}`;
   return null;
 }
 
 /** The previous kit if it still fits the budget, otherwise the cheap fallback kit. */
-export function fitLoadout(previous: Loadout, budget: number): Loadout {
-  return validateLoadout(previous, budget) === null ? previous : cheapLoadout();
+export function fitLoadout(previous: Loadout, budget: number, stash: Stash = emptyStash()): Loadout {
+  return validateLoadout(previous, budget, stash) === null ? previous : cheapLoadout();
 }
 
-export function applyLoadout(state: GameState, l: Loadout, budget: number = LOADOUT.budget): GameState {
-  const error = validateLoadout(l, budget);
+export function applyLoadout(
+  state: GameState, l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): GameState {
+  const error = validateLoadout(l, budget, stash);
   if (error) throw new Error(error);
   const soldiers = state.units.filter((u) => u.side === 'player');
   if (soldiers.length !== l.length) throw new Error('Loadout does not match the squad size');

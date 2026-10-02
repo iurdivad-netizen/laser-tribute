@@ -2,6 +2,7 @@ import { WEAPONS } from '../core/config';
 import {
   LOADOUT, SQUAD_SIZE, loadoutCost, soldierCost, validateLoadout, type Loadout,
 } from '../core/loadout';
+import { describeStash, emptyStash, type Stash } from '../core/stash';
 import type { WeaponId } from '../core/types';
 import { VIEW } from '../render/layout';
 
@@ -14,6 +15,7 @@ export interface EquipmentView {
   title: string;
   breakdown: string;
   soldiers: { name: string; kills: number }[];
+  stash: Stash;
 }
 
 export const DEFAULT_VIEW: EquipmentView = {
@@ -21,6 +23,7 @@ export const DEFAULT_VIEW: EquipmentView = {
   title: "EQUIPMENT - choose each soldier's kit",
   breakdown: '',
   soldiers: [],
+  stash: emptyStash(),
 };
 
 export const EQ = {
@@ -41,34 +44,39 @@ function swapped(l: Loadout, i: number): WeaponId {
   return l[i].weapon === 'pistol' ? 'rifle' : 'pistol';
 }
 
-export function toggleBlockReason(l: Loadout, i: number, budget: number = LOADOUT.budget): string | null {
-  const extra = LOADOUT.prices[swapped(l, i)] - LOADOUT.prices[l[i].weapon];
-  const need = loadoutCost(l) + extra - budget;
+export function toggleBlockReason(
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): string | null {
+  const after = l.map((s, j) => (j === i ? { ...s, weapon: swapped(l, i) } : s));
+  const need = loadoutCost(after, stash) - budget;
   return need > 0 ? `Need ${need} more credits` : null;
 }
 
-export function toggleWeapon(l: Loadout, i: number, budget: number = LOADOUT.budget): Loadout {
-  if (toggleBlockReason(l, i, budget)) return l;
+export function toggleWeapon(
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): Loadout {
+  if (toggleBlockReason(l, i, budget, stash)) return l;
   return l.map((s, j) => (j === i ? { ...s, weapon: swapped(l, i) } : s));
 }
 
 export function grenadeBlockReason(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget,
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
 ): string | null {
   const next = l[i].grenades + delta;
   if (next < 0) return 'No grenades to remove';
   if (next > LOADOUT.maxGrenades) return `Max ${LOADOUT.maxGrenades} grenades`;
   if (delta === 1) {
-    const need = loadoutCost(l) + LOADOUT.prices.grenade - budget;
+    const after = l.map((s, j) => (j === i ? { ...s, grenades: next } : s));
+    const need = loadoutCost(after, stash) - budget;
     if (need > 0) return `Need ${need} more credits`;
   }
   return null;
 }
 
 export function changeGrenades(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget,
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
 ): Loadout {
-  if (grenadeBlockReason(l, i, delta, budget)) return l;
+  if (grenadeBlockReason(l, i, delta, budget, stash)) return l;
   return l.map((s, j) => (j === i ? { ...s, grenades: s.grenades + delta } : s));
 }
 
@@ -84,20 +92,24 @@ export function equipmentHit(px: number, py: number): EquipmentHit | null {
   return null;
 }
 
-export function blockReasonFor(l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget): string | null {
+export function blockReasonFor(
+  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): string | null {
   switch (hit.kind) {
-    case 'weapon': return toggleBlockReason(l, hit.index, budget);
-    case 'minus': return grenadeBlockReason(l, hit.index, -1, budget);
-    case 'plus': return grenadeBlockReason(l, hit.index, 1, budget);
-    case 'start': return validateLoadout(l, budget);
+    case 'weapon': return toggleBlockReason(l, hit.index, budget, stash);
+    case 'minus': return grenadeBlockReason(l, hit.index, -1, budget, stash);
+    case 'plus': return grenadeBlockReason(l, hit.index, 1, budget, stash);
+    case 'start': return validateLoadout(l, budget, stash);
   }
 }
 
-export function applyEquipmentHit(l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget): Loadout {
+export function applyEquipmentHit(
+  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): Loadout {
   switch (hit.kind) {
-    case 'weapon': return toggleWeapon(l, hit.index, budget);
-    case 'minus': return changeGrenades(l, hit.index, -1, budget);
-    case 'plus': return changeGrenades(l, hit.index, 1, budget);
+    case 'weapon': return toggleWeapon(l, hit.index, budget, stash);
+    case 'minus': return changeGrenades(l, hit.index, -1, budget, stash);
+    case 'plus': return changeGrenades(l, hit.index, 1, budget, stash);
     case 'start': return l;
   }
 }
@@ -125,7 +137,7 @@ export function drawEquipment(
   ctx.font = '8px monospace';
   ctx.textBaseline = 'top';
 
-  const cost = loadoutCost(l);
+  const cost = loadoutCost(l, view.stash);
   ctx.fillStyle = '#ffe14d';
   ctx.fillText(view.title, 20, 8);
   ctx.fillStyle = '#8a8fa8';
@@ -151,23 +163,29 @@ export function drawEquipment(
     button(
       ctx, EQ.weapon.x, y, EQ.weapon.w, EQ.btnH,
       `${WEAPONS[s.weapon].name} (${LOADOUT.prices[s.weapon]})`,
-      toggleBlockReason(l, i, view.budget) === null, hot('weapon'),
+      toggleBlockReason(l, i, view.budget, view.stash) === null, hot('weapon'),
     );
     ctx.fillStyle = '#8a8fa8';
     ctx.fillText('Grenades', 180, y + 8);
-    button(ctx, EQ.minus.x, y, EQ.minus.w, EQ.btnH, '-', grenadeBlockReason(l, i, -1, view.budget) === null, hot('minus'));
+    button(ctx, EQ.minus.x, y, EQ.minus.w, EQ.btnH, '-', grenadeBlockReason(l, i, -1, view.budget, view.stash) === null, hot('minus'));
     ctx.fillStyle = '#e8e8f0';
     ctx.fillText(`${s.grenades}`, 286, y + 8);
-    button(ctx, EQ.plus.x, y, EQ.plus.w, EQ.btnH, '+', grenadeBlockReason(l, i, 1, view.budget) === null, hot('plus'));
+    button(ctx, EQ.plus.x, y, EQ.plus.w, EQ.btnH, '+', grenadeBlockReason(l, i, 1, view.budget, view.stash) === null, hot('plus'));
     ctx.fillStyle = '#8a8fa8';
     ctx.fillText(`${soldierCost(s)} cr`, 380, y + 8);
   });
 
-  const reason = hover ? blockReasonFor(l, hover, view.budget) : null;
+  const reason = hover ? blockReasonFor(l, hover, view.budget, view.stash) : null;
   ctx.fillStyle = reason ? '#ff9a4d' : '#6a6f88';
   ctx.fillText(reason ?? 'Click a weapon to swap it, + and - for grenades', 20, 272);
 
-  const valid = validateLoadout(l, view.budget) === null;
+  const found = describeStash(view.stash);
+  if (found) {
+    ctx.fillStyle = '#7dff9a';
+    ctx.fillText(`Found gear is free: ${found}`, 20, 286);
+  }
+
+  const valid = validateLoadout(l, view.budget, view.stash) === null;
   const st = EQ.start;
   button(ctx, st.x, st.y, st.w, st.h, 'START MISSION (Enter)', valid, hover?.kind === 'start');
 }

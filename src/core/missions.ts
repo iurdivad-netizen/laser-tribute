@@ -1,5 +1,6 @@
 import type { RosterSoldier } from './campaign';
 import { LOADOUT, applyLoadout, type Loadout } from './loadout';
+import type { Stash } from './stash';
 import { parseMap } from './mission';
 import type { GameState, Pos } from './types';
 import { updateExplored } from './vision';
@@ -133,13 +134,14 @@ export function createMission(
   roster?: RosterSoldier[],
   loadout?: Loadout,
   budget: number = LOADOUT.budget,
+  stash?: Stash,
 ): GameState {
   let s = parseMap(def.rows, seed);
   for (const u of s.units) {
     const patrol = def.patrols[u.id];
     if (patrol) u.patrol = patrol.map((p) => ({ ...p }));
   }
-  if (loadout) s = applyLoadout(s, loadout, budget);
+  if (loadout) s = applyLoadout(s, loadout, budget, stash);
   if (roster) {
     s.units
       .filter((u) => u.side === 'player')
