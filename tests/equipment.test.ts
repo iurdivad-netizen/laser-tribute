@@ -95,3 +95,25 @@ describe('blockReasonFor and applyEquipmentHit', () => {
     expect(blockReasonFor(l, { kind: 'start' })).toMatch(/grenades/);
   });
 });
+
+describe('with a bigger budget', () => {
+  it('lets more weapons be swapped and grenades added', () => {
+    let l = toggleWeapon(defaultLoadout(), 2, 160); // 117
+    l = toggleWeapon(l, 3, 160); // 132
+    expect(l.map((s) => s.weapon)).toEqual(['rifle', 'rifle', 'rifle', 'rifle']);
+    expect(toggleBlockReason(defaultLoadout(), 2, 160)).toBeNull();
+    l = changeGrenades(l, 0, 1, 160); // 140
+    expect(l[0].grenades).toBe(2);
+    expect(grenadeBlockReason(l, 1, 1, 130)).toBe('Need 18 more credits'); // 140 + 8 - 130
+  });
+
+  it('reports the start block against the given budget', () => {
+    const l = defaultLoadout();
+    l[0].grenades = 3;
+    l[1].grenades = 3;
+    l[2].weapon = 'rifle';
+    l[3].weapon = 'rifle'; // cost 164
+    expect(blockReasonFor(l, { kind: 'start' }, 120)).toMatch(/budget/);
+    expect(blockReasonFor(l, { kind: 'start' }, 200)).toBeNull();
+  });
+});

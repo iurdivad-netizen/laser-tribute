@@ -21,6 +21,8 @@ export type ShotMode = 'snap' | 'aimed';
 
 export interface Unit {
   id: string;
+  /** Display name; campaign soldiers carry their roster name. */
+  name: string;
   side: Side;
   pos: Pos;
   facing: Facing;
@@ -33,6 +35,8 @@ export interface Unit {
   alive: boolean;
   /** On alert: keeps AP for the other side's turn and fires at enemies that move into view. */
   alert: boolean;
+  /** Enemies killed in this mission, credited to the shooter or grenade thrower. */
+  kills: number;
   patrol: Pos[];
   patrolIndex: number;
 }

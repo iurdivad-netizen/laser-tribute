@@ -20,10 +20,11 @@ describe('parseMap', () => {
     expect(p1).toMatchObject({
       side: 'player', pos: { x: 1, y: 1 }, facing: 0, hp: 50, maxHp: 50,
       ap: 60, maxAp: 60, weapon: 'rifle', grenades: 1, alive: true, alert: false,
+      name: 'P1', kills: 0,
     });
     expect(e1).toMatchObject({
       side: 'enemy', pos: { x: 3, y: 1 }, facing: 4, hp: 40, maxHp: 40,
-      ap: 60, weapon: 'rifle', grenades: 0, alive: true,
+      ap: 60, weapon: 'rifle', grenades: 0, alive: true, name: 'E1', kills: 0,
     });
   });
 

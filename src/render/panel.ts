@@ -46,7 +46,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   const u = state.units.find((x) => x.id === ui.selectedId && x.alive);
   ctx.fillStyle = '#e8e8f0';
   if (u) {
-    ctx.fillText(`${u.id.toUpperCase()}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
+    ctx.fillText(`${u.name}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
     ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}${u.alert ? '  ALERT' : ''}`, 4, top + 15);
   } else {
     ctx.fillText('No soldier selected', 4, top + 4);

@@ -31,6 +31,7 @@ export function handleThrow(
     if (u.hp <= 0) {
       u.alive = false;
       died.push(u);
+      if (u.side !== unit.side) unit.kills += 1;
     }
   }
 

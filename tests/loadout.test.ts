@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyLoadout, defaultLoadout, loadoutCost, validateLoadout, type Loadout,
+  applyLoadout, cheapLoadout, defaultLoadout, fitLoadout, loadoutCost, validateLoadout, type Loadout,
 } from '../src/core/loadout';
 import { createMission1 } from '../src/core/mission1';
 import { corridorRows, makeState, unit } from './helpers';
@@ -109,5 +109,36 @@ describe('createMission1 with a loadout', () => {
     const s = createMission1();
     expect(unit(s, 'p1')).toMatchObject({ weapon: 'rifle', grenades: 1 });
     expect(unit(s, 'p3')).toMatchObject({ weapon: 'pistol', grenades: 1 });
+  });
+});
+
+describe('budget parameter', () => {
+  it('a bigger budget allows a bigger kit', () => {
+    const big = four('rifle', 3); // 196
+    expect(loadoutCost(big)).toBe(196);
+    expect(validateLoadout(big, 196)).toBeNull();
+    expect(validateLoadout(big, 195)).toMatch(/budget is 195/);
+    expect(validateLoadout(big)).toMatch(/budget is 120/);
+  });
+
+  it('applyLoadout uses the given budget', () => {
+    const s = createMission1();
+    const next = applyLoadout(s, four('rifle', 3), 200);
+    expect(unit(next, 'p4')).toMatchObject({ weapon: 'rifle', grenades: 3 });
+    expect(() => applyLoadout(s, four('rifle', 3), 150)).toThrow(/budget/);
+  });
+});
+
+describe('fitLoadout', () => {
+  it('keeps the previous kit when it still fits', () => {
+    const prev = defaultLoadout();
+    expect(fitLoadout(prev, 160)).toBe(prev);
+  });
+
+  it('falls back to the cheap kit when the budget has fallen below the previous kit', () => {
+    const fitted = fitLoadout(four('rifle', 3), 160);
+    expect(fitted).toEqual(cheapLoadout());
+    expect(loadoutCost(fitted)).toBe(72);
+    expect(validateLoadout(fitted)).toBeNull(); // fits even the base budget
   });
 });

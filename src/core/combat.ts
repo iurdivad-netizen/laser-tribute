@@ -60,6 +60,7 @@ export function fireShot(
   });
   if (hit && target.hp <= 0) {
     target.alive = false;
+    if (target.side !== shooter.side) shooter.kills += 1;
     events.push({ type: 'died', unitId: target.id, at: { ...target.pos } });
   }
 }
