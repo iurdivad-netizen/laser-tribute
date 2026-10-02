@@ -1,3 +1,5 @@
+import type { Loadout } from './loadout';
+import { emptyStash, nextStash, type Stash } from './stash';
 import type { GameState } from './types';
 
 export const CAMPAIGN = { baseBudget: 120, winBonus: 20, killBonus: 5, rosterSize: 4 } as const;
@@ -19,6 +21,8 @@ export interface Campaign {
   fallen: RosterSoldier[];
   namesUsed: number;
   status: 'active' | 'won' | 'lost';
+  /** Found gear that is free on the next equipment screens. */
+  stash: Stash;
 }
 
 export function soldierName(index: number): string {
@@ -35,6 +39,7 @@ export function newCampaign(): Campaign {
     fallen: [],
     namesUsed: CAMPAIGN.rosterSize,
     status: 'active',
+    stash: emptyStash(),
   };
 }
 
@@ -59,7 +64,9 @@ export function budgetBreakdown(c: Campaign): string {
  * While the campaign stays active a dead soldier is replaced by a rookie; once it is over the
  * roster holds only the survivors (no rookie who never fought).
  */
-export function recordMission(c: Campaign, finished: GameState, missionCount: number): Campaign {
+export function recordMission(
+  c: Campaign, finished: GameState, missionCount: number, used?: Loadout,
+): Campaign {
   if (finished.status === 'playing') throw new Error('The mission is not finished');
   const won = finished.status === 'won';
   const missionsWon = c.missionsWon + (won ? 1 : 0);
@@ -89,5 +96,8 @@ export function recordMission(c: Campaign, finished: GameState, missionCount: nu
     }
   });
 
-  return { missionIndex, missionsWon, roster, fallen, namesUsed, status };
+  // A lost mission (or an unknown kit) leaves the stash as it was.
+  const stash = won && used ? nextStash(c.stash, used, finished) : { ...c.stash };
+
+  return { missionIndex, missionsWon, roster, fallen, namesUsed, status, stash };
 }

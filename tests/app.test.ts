@@ -329,3 +329,28 @@ describe('input guard after a screen switch', () => {
     expect(app.screen).toBe('equipment');
   });
 });
+
+describe('found gear carries to the next mission', () => {
+  it('a found rifle lands in the stash and is passed to the next mission for free', () => {
+    const stashes: unknown[] = [];
+    const { app, wait } = make({
+      createMission: (_def, _seed, _roster, _loadout, _budget, stash) => {
+        stashes.push({ ...stash });
+        const s = winTiny();
+        unit(s, 'p1').weapon = 'rifle'; // the soldier picked up a rifle during the mission
+        return s;
+      },
+    });
+    app.click({ x: 100, y: 68 }); // P1 weapon button: rifle to pistol
+    expect(app.loadout[0].weapon).toBe('pistol');
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0 });
+    wait();
+    app.click(CONTINUE); // on to the next equipment screen
+    expect(app.screen).toBe('equipment');
+    wait();
+    app.click(START);
+    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0 });
+  });
+});
