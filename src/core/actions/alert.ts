@@ -9,6 +9,7 @@ export function handleAlert(
 ): string | null {
   if (cmd.on) {
     if (unit.alert) return 'Already on alert';
+    if (unit.ammo < 1) return 'Out of ammo';
     if (unit.ap < WEAPONS[unit.weapon].snapAp) return NOT_ENOUGH_AP;
   } else if (!unit.alert) {
     return 'Not on alert';

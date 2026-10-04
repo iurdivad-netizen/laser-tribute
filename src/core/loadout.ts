@@ -64,9 +64,12 @@ export function validateLoadout(
   return null;
 }
 
-/** The previous kit if it still fits the budget, otherwise the cheap fallback kit. */
+/** The previous kit if it still fits the budget, else the same kit with one spare clip each, else the cheap fallback kit. */
 export function fitLoadout(previous: Loadout, budget: number, stash: Stash = emptyStash()): Loadout {
-  return validateLoadout(previous, budget, stash) === null ? previous : cheapLoadout();
+  if (validateLoadout(previous, budget, stash) === null) return previous;
+  // Trim the extra spare clips before giving up the weapons and grenades.
+  const trimmed = previous.map((s) => ({ ...s, clips: 1 }));
+  return validateLoadout(trimmed, budget, stash) === null ? trimmed : cheapLoadout();
 }
 
 export function applyLoadout(
