@@ -79,6 +79,7 @@ export type Command =
   | { type: 'SnapShot'; unitId: string; targetId: string }
   | { type: 'AimedShot'; unitId: string; targetId: string }
   | { type: 'Stab'; unitId: string; targetId: string }
+  | { type: 'Reload'; unitId: string }
   | { type: 'OpenDoor'; unitId: string; at: Pos }
   | { type: 'CloseDoor'; unitId: string; at: Pos }
   | { type: 'PickUp'; unitId: string; itemId: string }
@@ -101,6 +102,7 @@ export type GameEvent =
       impact: Pos;
     }
   | { type: 'stab'; unitId: string; targetId: string; hit: boolean; damage: number; from: Pos; at: Pos }
+  | { type: 'reloaded'; unitId: string; ammo: number; at: Pos }
   | { type: 'died'; unitId: string; at: Pos }
   | { type: 'doorChanged'; at: Pos; open: boolean }
   | { type: 'pickedUp'; unitId: string; itemId: string; kind: ItemKind }
