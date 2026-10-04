@@ -156,7 +156,7 @@ describe('App flow', () => {
   it('falls back to the cheap kit when the previous kit no longer fits the budget', () => {
     const { app, wait } = make({ createMission: winTiny });
     app.click(START);
-    const bigKit: Loadout = Array.from({ length: 4 }, () => ({ weapon: 'rifle' as const, grenades: 3 }));
+    const bigKit: Loadout = Array.from({ length: 4 }, () => ({ weapon: 'rifle' as const, grenades: 3, clips: 1 }));
     app.loadout = bigKit; // 196, more than the next budget of 140
     endWin(app, 1000);
     wait();

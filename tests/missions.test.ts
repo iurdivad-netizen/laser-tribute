@@ -94,12 +94,12 @@ describe('createMission', () => {
 
   it('applies a loadout under a bigger budget', () => {
     const big: Loadout = [
-      { weapon: 'rifle', grenades: 3 }, { weapon: 'rifle', grenades: 3 },
-      { weapon: 'rifle', grenades: 3 }, { weapon: 'rifle', grenades: 3 },
+      { weapon: 'rifle', grenades: 3, clips: 1 }, { weapon: 'rifle', grenades: 3, clips: 1 },
+      { weapon: 'rifle', grenades: 3, clips: 1 }, { weapon: 'rifle', grenades: 3, clips: 1 },
     ]; // 196
     expect(() => createMission(MISSIONS[2], 1, roster, big)).toThrow(/budget/);
     const s = createMission(MISSIONS[2], 1, roster, big, 200);
-    expect(unit(s, 'p4')).toMatchObject({ weapon: 'rifle', grenades: 3 });
+    expect(unit(s, 'p4')).toMatchObject({ weapon: 'rifle', grenades: 3, clips: 1 });
   });
 
   it('starts with the squad area explored', () => {

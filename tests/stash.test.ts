@@ -9,7 +9,7 @@ import { emptyStash, nextStash, type Stash } from '../src/core/stash';
 import { corridorRows, makeState, unit } from './helpers';
 
 const four = (weapon: 'pistol' | 'rifle', grenades: number): Loadout =>
-  Array.from({ length: 4 }, () => ({ weapon, grenades }));
+  Array.from({ length: 4 }, () => ({ weapon, grenades, clips: 1 }));
 
 describe('loadout cost with a stash', () => {
   it('stash gear is free, in soldier order, up to what is stashed', () => {
