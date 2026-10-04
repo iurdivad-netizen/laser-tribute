@@ -59,22 +59,13 @@ describe('stab in the controller', () => {
 });
 
 describe('stab effects', () => {
-  it('draws a line for a stab event and removes it afterwards', () => {
+  it('shows a slash for a stab event and removes it afterwards', () => {
     const fx = new Effects();
     fx.add(
       [{ type: 'stab', unitId: 'p1', targetId: 'e1', hit: true, damage: 60, from: { x: 1, y: 1 }, at: { x: 2, y: 1 } }],
       0,
     );
-    let strokes = 0;
-    const ctx = {
-      beginPath() {}, moveTo() {}, lineTo() {}, fillRect() {}, arc() {}, fill() {},
-      stroke() { strokes += 1; },
-      set strokeStyle(_v: string) {}, set fillStyle(_v: string) {}, set lineWidth(_v: number) {},
-    } as unknown as CanvasRenderingContext2D;
-    fx.draw(ctx, 50);
-    expect(strokes).toBe(1);
-    strokes = 0;
-    fx.draw(ctx, 5000);
-    expect(strokes).toBe(0);
+    expect(fx.frames(50).some((d) => d.type === 'sprite' && d.name.startsWith('slash'))).toBe(true);
+    expect(fx.frames(5000)).toEqual([]);
   });
 });

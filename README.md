@@ -36,6 +36,10 @@ The game is a three-mission campaign with a persistent squad. Before each missio
 
 Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens.
 
+## Graphics
+
+The pixel art is drawn in code: every sprite is a 16x16 grid of letters in `src/art/sprites.ts` (one soldier is rotated to eight facings, the enemy is a red recolour). In dev mode (`npm run dev`) type `gallery()` in the browser console to see every sprite enlarged.
+
 ## Sound
 
 Sound effects are generated in the browser (no sound files): shots, hits, stabs, grenades, doors, deaths, reloads, footsteps and a jingle when a mission ends. Gunfire, explosions, doors and deaths you cannot see are heard quietly. Browsers only allow sound after a click or key press. Mute and volume are remembered between visits.
