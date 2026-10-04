@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { applyCommand } from '../src/core/apply';
 import { hitChance } from '../src/core/combat';
+import { MISSIONS, createMission } from '../src/core/missions';
 import { RANKS, applyRank, rankFor, rankShort } from '../src/core/ranks';
-import { corridorRows, makeState, unit } from './helpers';
+import { corridorRows, makeState, ok, unit } from './helpers';
 
 describe('rankFor', () => {
   it('promotes exactly at 2, 5 and 9 kills', () => {
@@ -87,5 +89,49 @@ describe('hitChance with soldier accuracy', () => {
     e.weapon = 'rifle';
     applyRank(p, 9);
     expect(hitChance(s, e, p, 'aimed')).toBeCloseTo(0.85 * (1 - 0.5 * (2 / 14)), 5);
+  });
+});
+
+describe('createMission applies ranks from the roster', () => {
+  const roster = [
+    { name: 'Vet', kills: 9 },
+    { name: 'Sarge', kills: 5 },
+    { name: 'Pvt', kills: 2 },
+    { name: 'New', kills: 0 },
+  ];
+
+  it('gives each soldier the stats of their rank', () => {
+    const s = createMission(MISSIONS[0], 1, roster);
+    const soldiers = s.units.filter((u) => u.side === 'player');
+    expect(soldiers.map((u) => u.rank)).toEqual(['Captain', 'Sergeant', 'Private', 'Rookie']);
+    expect(soldiers.map((u) => [u.maxHp, u.hp, u.maxAp, u.ap])).toEqual([
+      [80, 80, 72, 72],
+      [70, 70, 68, 68],
+      [60, 60, 64, 64],
+      [50, 50, 60, 60],
+    ]);
+    expect(soldiers.map((u) => u.accuracy)).toEqual([0.12, 0.08, 0.04, 0]);
+    expect(soldiers.map((u) => u.name)).toEqual(['Vet', 'Sarge', 'Pvt', 'New']);
+  });
+
+  it('does not touch enemies', () => {
+    const s = createMission(MISSIONS[0], 1, roster);
+    for (const e of s.units.filter((u) => u.side === 'enemy')) {
+      expect(e).toMatchObject({ rank: '', accuracy: 0, maxHp: 40, maxAp: 60 });
+    }
+  });
+
+  it('without a roster every soldier is a Rookie', () => {
+    const s = createMission(MISSIONS[0], 1);
+    expect(s.units.filter((u) => u.side === 'player').every((u) => u.rank === 'Rookie' && u.maxHp === 50)).toBe(true);
+  });
+
+  it('refills AP to the rank maximum at the start of the next player turn', () => {
+    const s = makeState(corridorRows('P..E'));
+    applyRank(unit(s, 'p1'), 9);
+    unit(s, 'p1').ap = 0;
+    const r1 = ok(applyCommand(s, { type: 'EndTurn' }));
+    const r2 = ok(applyCommand(r1.state, { type: 'EndTurn' }));
+    expect(unit(r2.state, 'p1').ap).toBe(72);
   });
 });

@@ -2,6 +2,7 @@ import type { RosterSoldier } from './campaign';
 import { LOADOUT, applyLoadout, type Loadout } from './loadout';
 import type { Stash } from './stash';
 import { parseMap } from './mission';
+import { applyRank } from './ranks';
 import type { GameState, Pos } from './types';
 import { updateExplored } from './vision';
 
@@ -146,7 +147,10 @@ export function createMission(
     s.units
       .filter((u) => u.side === 'player')
       .forEach((u, i) => {
-        if (roster[i]) u.name = roster[i].name;
+        if (roster[i]) {
+          u.name = roster[i].name;
+          applyRank(u, roster[i].kills);
+        }
       });
   }
   updateExplored(s);
