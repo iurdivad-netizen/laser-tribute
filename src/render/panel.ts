@@ -35,8 +35,8 @@ const TOP = VIEW.mapHeight;
 /** Row 1: five buttons 60 wide from x 156; row 2: four buttons 76 wide from x 156. */
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) =>
   i < 5
-    ? { id, label, key, x: 156 + i * 64, y: TOP + 28, w: 60, h: 20 }
-    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 76, h: 20 },
+    ? { id, label, key, x: 156 + i * 64, y: TOP + 28, w: 60, h: 22 }
+    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 76, h: 22 },
 );
 
 /** AP the soldier pays for the action behind this button; null for buttons that cost nothing. */
@@ -110,8 +110,8 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     const blocked = !!u && actionBlocked(u, b.id);
     const style: ButtonState = active ? 'pressed' : blocked ? 'disabled' : 'raised';
     drawFrame(ctx, b.x, b.y, b.w, b.h, style);
-    drawText(ctx, `${b.key} ${b.label}`, b.x + 3, b.y + 3, active ? UI.accent : blocked ? UI.disabledText : UI.text);
+    drawText(ctx, `${b.key} ${b.label}`, b.x + 3, b.y + 4, active ? UI.accent : blocked ? UI.disabledText : UI.text);
     const cost = u ? actionCost(u, b.id) : null;
-    if (cost !== null) drawText(ctx, `${cost} AP`, b.x + 3, b.y + 11, blocked ? UI.red : UI.dim);
+    if (cost !== null) drawText(ctx, `${cost} AP`, b.x + 3, b.y + 12, blocked ? UI.red : UI.dim);
   }
 }

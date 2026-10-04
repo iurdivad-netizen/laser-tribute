@@ -274,7 +274,7 @@ export class App {
       const w = textWidth(this.noticeText) + 10;
       drawFrame(ctx, VIEW.width - 6 - w, 2, w, 13, 'inset');
       drawText(ctx, this.noticeText, VIEW.width - 11, 5, UI.accent, 'right');
-    } else if (this.screen !== 'mission') {
+    } else if (this.screen === 'equipment' || this.screen === 'end') {
       drawText(ctx, 'M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12, UI.hint, 'right');
     }
   }

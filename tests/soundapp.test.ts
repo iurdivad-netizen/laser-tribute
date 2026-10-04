@@ -105,6 +105,22 @@ describe('sound keys', () => {
   });
 });
 
+describe('sound hint placement', () => {
+  it('is shown on the equipment and end screens but not over the mission panel or the result card', () => {
+    const { app } = make();
+    const shown = (screen: 'equipment' | 'result' | 'end' | 'mission') => {
+      app.screen = screen;
+      const r = recorder();
+      app.draw(r.ctx, 0);
+      r.stop();
+      return r.texts.some((t) => t.text.includes('M: sound on/off'));
+    };
+    expect(shown('equipment')).toBe(true);
+    expect(shown('end')).toBe(true);
+    expect(shown('result')).toBe(false);
+  });
+});
+
 describe('interface clicks', () => {
   it('plays a click only when an equipment control changes the loadout', () => {
     const { app, sound, wait } = make();
