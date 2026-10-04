@@ -6,9 +6,9 @@ import {
 } from './core/campaign';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
-import { lootFrom } from './core/loot';
+import { addStash, capStash, lootFrom } from './core/loot';
 import { promotions, rankFor } from './core/ranks';
-import { describeStash } from './core/stash';
+import { describeStash, nextStash } from './core/stash';
 import { summarize, type MissionResult } from './core/result';
 import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
@@ -247,15 +247,27 @@ export class App {
     if (now - this.endedAt >= RESULT_DELAY_MS && !c.ui.busy) {
       const fallenBefore = this.campaign.fallen.length;
       const rosterBefore = this.campaign.roster;
+      const stashBefore = this.campaign.stash;
       this.result = summarize(c.state);
       this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
       this.promoted = promotions(rosterBefore, this.campaign.roster);
-      this.loot = c.state.status === 'won' ? describeStash(lootFrom(c.state)) : '';
+      this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
       this.screen = 'result';
       this.endedAt = null;
       this.lock();
     }
+  }
+
+  /** The loot of the dead enemies as text, with a note when the stash was too full to keep all of it. */
+  private lootText(stashBefore: Stash, finished: GameState): string {
+    const loot = lootFrom(finished);
+    const text = describeStash(loot);
+    if (!text) return '';
+    const total = addStash(nextStash(stashBefore, this.usedLoadout, finished), loot);
+    const capped = capStash(total);
+    const cut = capped.rifle !== total.rifle || capped.pistol !== total.pistol || capped.clip !== total.clip;
+    return cut ? `${text} (stash full)` : text;
   }
 
   private equipmentView(): EquipmentView {

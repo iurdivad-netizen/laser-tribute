@@ -111,3 +111,25 @@ describe('netSoldierCost', () => {
     expect(netSoldierCost(l, 1, { ...emptyStash(), rifle: 1 })).toBe(33); // the stash rifle goes to soldier 1 first, so soldier 2 pays in full
   });
 });
+
+describe('row prices and the total agree', () => {
+  it('the total cost is the sum of the four net prices, for uneven stash cover', () => {
+    const l: Loadout = [
+      { weapon: 'rifle', grenades: 3, clips: 1 },
+      { weapon: 'pistol', grenades: 0, clips: 4 },
+      { weapon: 'rifle', grenades: 1, clips: 2 },
+      { weapon: 'pistol', grenades: 1, clips: 1 },
+    ];
+    const stashes = [
+      emptyStash(),
+      { rifle: 1, pistol: 0, grenade: 2, clip: 3 },
+      { rifle: 0, pistol: 2, grenade: 9, clip: 1 },
+      { rifle: 9, pistol: 9, grenade: 9, clip: 9 },
+    ];
+    for (const stash of stashes) {
+      const sum = [0, 1, 2, 3].reduce((n, i) => n + netSoldierCost(l, i, stash), 0);
+      expect(sum, JSON.stringify(stash)).toBe(loadoutCost(l, stash));
+    }
+  });
+});
+

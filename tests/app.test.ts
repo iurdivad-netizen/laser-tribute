@@ -412,6 +412,20 @@ describe('loot after a mission', () => {
     expect(app.loot).toBe('1 rifle, 1 clip');
   });
 
+  it('says when the stash was already full and some loot was left behind', () => {
+    const { app } = make({
+      createMission: () => {
+        const s = makeState(corridorRows('PE'));
+        unit(s, 'e1').alive = false;
+        return s;
+      },
+    });
+    app.campaign.stash = { rifle: 4, pistol: 0, grenade: 0, clip: 4 };
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.loot).toBe('1 rifle, 1 clip (stash full)');
+  });
+
   it('a lost mission shows no loot', () => {
     const { app } = make({ createMission: loseAll });
     app.click(START);
