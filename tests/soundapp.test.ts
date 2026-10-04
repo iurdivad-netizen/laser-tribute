@@ -9,7 +9,7 @@ import { textWidth } from '../src/ui/font';
 import { onText } from '../src/ui/text';
 import { corridorRows, makeState } from './helpers';
 
-const START = { x: 240, y: 315 };
+const START = { x: 240, y: 345 };
 const CONTINUE = { x: 240, y: 235 };
 
 class FakeSound implements SoundPlayer {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { defaultLoadout, loadoutCost } from '../src/core/loadout';
+import { textWidth, unsupportedChars } from '../src/ui/font';
+import { onText } from '../src/ui/text';
 import {
-  applyEquipmentHit, blockReasonFor, changeGrenades, equipmentHit, grenadeBlockReason,
+  applyEquipmentHit, blockReasonFor, changeGrenades, drawEquipment, equipmentHit, grenadeBlockReason,
   toggleBlockReason, toggleWeapon,
 } from '../src/screens/equipment';
 
@@ -59,9 +61,9 @@ describe('equipmentHit', () => {
   it('finds the weapon, minus, plus and start buttons', () => {
     expect(equipmentHit(100, 68)).toEqual({ kind: 'weapon', index: 0 });
     expect(equipmentHit(100, 120)).toEqual({ kind: 'weapon', index: 1 });
-    expect(equipmentHit(260, 172)).toEqual({ kind: 'minus', index: 2 });
-    expect(equipmentHit(320, 224)).toEqual({ kind: 'plus', index: 3 });
-    expect(equipmentHit(240, 315)).toEqual({ kind: 'start' });
+    expect(equipmentHit(270, 172)).toEqual({ kind: 'minus', index: 2 });
+    expect(equipmentHit(330, 224)).toEqual({ kind: 'plus', index: 3 });
+    expect(equipmentHit(240, 345)).toEqual({ kind: 'start' });
   });
 
   it('returns null over empty space', () => {
@@ -115,5 +117,31 @@ describe('with a bigger budget', () => {
     l[3].weapon = 'rifle'; // cost 164
     expect(blockReasonFor(l, { kind: 'start' }, 120)).toMatch(/budget/);
     expect(blockReasonFor(l, { kind: 'start' }, 200)).toBeNull();
+  });
+});
+
+describe('drawEquipment', () => {
+  it('draws only supported text and keeps every label inside its button', () => {
+    const runs: { text: string; x: number; y: number; width: number; align: string }[] = [];
+    const stop = onText((r) => runs.push(r));
+    const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
+    drawEquipment(ctx, defaultLoadout(), null, {
+      budget: 200,
+      title: 'MISSION 3 OF 3: COMPOUND',
+      breakdown: 'Base 120 + wins 40 + kills 40',
+      soldiers: [
+        { name: 'Lindqvist 2', kills: 99, rank: 'Sergeant' },
+        { name: 'Alvarez', kills: 0, rank: 'Rookie' },
+        { name: 'Brandt', kills: 4, rank: 'Private' },
+        { name: 'Chen', kills: 12, rank: 'Captain' },
+      ],
+      stash: { rifle: 2, pistol: 1, grenade: 3 },
+    });
+    stop();
+    for (const r of runs) expect(unsupportedChars(r.text), r.text).toEqual([]);
+    const name = runs.find((r) => r.text === 'Lindqvist 2')!;
+    expect(name.x + textWidth(name.text)).toBeLessThanOrEqual(76); // clear of the weapon button at x 76
+    const start = runs.find((r) => r.text.startsWith('START MISSION'))!;
+    expect(textWidth(start.text) + 6).toBeLessThanOrEqual(140);
   });
 });

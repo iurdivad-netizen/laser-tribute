@@ -51,10 +51,10 @@ describe('spare clip controls', () => {
 
 describe('clip buttons', () => {
   it('are hit-tested on a second line under the grenade controls', () => {
-    expect(equipmentHit(260, 86)).toEqual({ kind: 'clipMinus', index: 0 });
-    expect(equipmentHit(320, 86)).toEqual({ kind: 'clipPlus', index: 0 });
-    expect(equipmentHit(260, 242)).toEqual({ kind: 'clipMinus', index: 3 });
-    expect(equipmentHit(260, 68)).toEqual({ kind: 'minus', index: 0 }); // the grenade line is unchanged
+    expect(equipmentHit(270, 86)).toEqual({ kind: 'clipMinus', index: 0 });
+    expect(equipmentHit(330, 86)).toEqual({ kind: 'clipPlus', index: 0 });
+    expect(equipmentHit(270, 242)).toEqual({ kind: 'clipMinus', index: 3 });
+    expect(equipmentHit(270, 68)).toEqual({ kind: 'minus', index: 0 }); // the grenade line is unchanged
     expect(equipmentHit(200, 86)).toBeNull();
   });
 

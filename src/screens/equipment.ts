@@ -5,6 +5,8 @@ import {
 import { describeStash, emptyStash, type Stash } from '../core/stash';
 import type { WeaponId } from '../core/types';
 import { VIEW } from '../render/layout';
+import { UI, drawButton, drawFrame, type ButtonState } from '../ui/frame';
+import { drawText } from '../ui/text';
 
 export type EquipmentHit =
   | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus'; index: number }
@@ -36,10 +38,10 @@ export const EQ = {
   rowStep: 52,
   btnH: 24,
   clipDy: 26,
-  weapon: { x: 60, w: 90 },
-  minus: { x: 250, w: 24 },
-  plus: { x: 310, w: 24 },
-  start: { x: 170, y: 300, w: 140, h: 30 },
+  weapon: { x: 76, w: 100 },
+  minus: { x: 262, w: 24 },
+  plus: { x: 322, w: 24 },
+  start: { x: 170, y: 330, w: 140, h: 30 },
 } as const;
 
 const rowY = (i: number) => EQ.rowTop + i * EQ.rowStep;
@@ -148,16 +150,7 @@ export function applyEquipmentHit(
   }
 }
 
-function button(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number,
-  label: string, enabled: boolean, hot: boolean,
-): void {
-  ctx.fillStyle = !enabled ? '#1c1f2e' : hot ? '#4da6ff' : '#2a2f45';
-  ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = !enabled ? '#555a70' : hot ? '#000' : '#e8e8f0';
-  ctx.fillText(label, x + 4, y + (h - 8) / 2);
-}
+const buttonState = (enabled: boolean, hot: boolean): ButtonState => (!enabled ? 'disabled' : hot ? 'hover' : 'raised');
 
 export function drawEquipment(
   ctx: CanvasRenderingContext2D,
@@ -166,22 +159,16 @@ export function drawEquipment(
   view: EquipmentView = DEFAULT_VIEW,
 ): void {
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
 
   const cost = loadoutCost(l, view.stash);
-  ctx.fillStyle = '#ffe14d';
-  ctx.fillText(view.title, 20, 8);
-  ctx.fillStyle = '#8a8fa8';
-  ctx.fillText(`Credits ${cost}/${view.budget}  (${view.budget - cost} left)`, 20, 22);
-  ctx.fillStyle = '#2a2f45';
-  ctx.fillRect(20, 34, 440, 8);
-  ctx.fillStyle = cost <= view.budget ? '#4da6ff' : '#ff5555';
-  ctx.fillRect(20, 34, 440 * Math.min(1, cost / view.budget), 8);
-  ctx.fillStyle = '#6a6f88';
-  ctx.fillText(view.breakdown, 20, 45);
+  drawText(ctx, view.title, 20, 8, UI.accent);
+  drawText(ctx, `Credits ${cost}/${view.budget}  (${view.budget - cost} left)`, 20, 22, UI.dim);
+  drawFrame(ctx, 18, 32, 444, 12, 'inset');
+  ctx.fillStyle = cost <= view.budget ? UI.blue : UI.red;
+  ctx.fillRect(20, 34, Math.round(440 * Math.min(1, cost / view.budget)), 8);
+  drawText(ctx, view.breakdown, 20, 47, UI.hint);
 
   l.forEach((s, i) => {
     const y = rowY(i);
@@ -189,47 +176,43 @@ export function drawEquipment(
       hover !== null && hover.kind !== 'start' && hover.kind === kind && hover.index === i;
     const who = view.soldiers[i];
     if (who) {
-      soldierLines(who).forEach((line, n) => {
-        ctx.fillStyle = n === 0 ? '#e8e8f0' : '#8a8fa8';
-        ctx.fillText(line, 8, y + 3 + n * 11);
-      });
+      soldierLines(who).forEach((line, n) => drawText(ctx, line, 8, y + 3 + n * 11, n === 0 ? UI.text : UI.dim));
     } else {
-      ctx.fillStyle = '#e8e8f0';
-      ctx.fillText(`P${i + 1}`, 8, y + 3);
+      drawText(ctx, `P${i + 1}`, 8, y + 3, UI.text);
     }
-    button(
-      ctx, EQ.weapon.x, y, EQ.weapon.w, EQ.btnH,
+    drawButton(
+      ctx, { x: EQ.weapon.x, y, w: EQ.weapon.w, h: EQ.btnH },
       `${WEAPONS[s.weapon].name} (${LOADOUT.prices[s.weapon]})`,
-      toggleBlockReason(l, i, view.budget, view.stash) === null, hot('weapon'),
+      buttonState(toggleBlockReason(l, i, view.budget, view.stash) === null, hot('weapon')),
     );
-    ctx.fillStyle = '#8a8fa8';
-    ctx.fillText('Grenades', 180, y + 8);
-    button(ctx, EQ.minus.x, y, EQ.minus.w, EQ.btnH, '-', grenadeBlockReason(l, i, -1, view.budget, view.stash) === null, hot('minus'));
-    ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`${s.grenades}`, 286, y + 8);
-    button(ctx, EQ.plus.x, y, EQ.plus.w, EQ.btnH, '+', grenadeBlockReason(l, i, 1, view.budget, view.stash) === null, hot('plus'));
+    drawText(ctx, 'Grenades', 190, y + 8, UI.dim);
+    drawButton(ctx, { x: EQ.minus.x, y, w: EQ.minus.w, h: EQ.btnH }, '-',
+      buttonState(grenadeBlockReason(l, i, -1, view.budget, view.stash) === null, hot('minus')));
+    drawText(ctx, `${s.grenades}`, 304, y + 8, UI.text, 'center');
+    drawButton(ctx, { x: EQ.plus.x, y, w: EQ.plus.w, h: EQ.btnH }, '+',
+      buttonState(grenadeBlockReason(l, i, 1, view.budget, view.stash) === null, hot('plus')));
+
     const cy = y + EQ.clipDy;
-    ctx.fillStyle = '#8a8fa8';
-    ctx.fillText('Spare clips', 180, cy + 8);
-    button(ctx, EQ.minus.x, cy, EQ.minus.w, EQ.btnH, '-', clipBlockReason(l, i, -1, view.budget, view.stash) === null, hot('clipMinus'));
-    ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(`${s.clips}`, 286, cy + 8);
-    button(ctx, EQ.plus.x, cy, EQ.plus.w, EQ.btnH, '+', clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus'));
-    ctx.fillStyle = '#8a8fa8';
-    ctx.fillText(`${soldierCost(s)} cr`, 380, y + 8);
+    drawText(ctx, 'Spare clips', 190, cy + 8, UI.dim);
+    drawButton(ctx, { x: EQ.minus.x, y: cy, w: EQ.minus.w, h: EQ.btnH }, '-',
+      buttonState(clipBlockReason(l, i, -1, view.budget, view.stash) === null, hot('clipMinus')));
+    drawText(ctx, `${s.clips}`, 304, cy + 8, UI.text, 'center');
+    drawButton(ctx, { x: EQ.plus.x, y: cy, w: EQ.plus.w, h: EQ.btnH }, '+',
+      buttonState(clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus')));
+    drawText(ctx, `${soldierCost(s)} cr`, 380, y + 8, UI.dim);
   });
 
   const reason = hover ? blockReasonFor(l, hover, view.budget, view.stash) : null;
-  ctx.fillStyle = reason ? '#ff9a4d' : '#6a6f88';
-  ctx.fillText(reason ?? 'Click a weapon to swap it; + and - for grenades and spare clips', 20, 272);
+  drawText(
+    ctx, reason ?? 'Click a weapon to swap it; + and - for grenades and spare clips', 20, 272,
+    reason ? UI.accent : UI.hint,
+  );
 
   const found = describeStash(view.stash);
-  if (found) {
-    ctx.fillStyle = '#7dff9a';
-    ctx.fillText(`Found gear is free: ${found}`, 20, 286);
-  }
+  if (found) drawText(ctx, `Found gear is free: ${found}`, 20, 286, UI.green);
 
   const valid = validateLoadout(l, view.budget, view.stash) === null;
   const st = EQ.start;
-  button(ctx, st.x, st.y, st.w, st.h, 'START MISSION (Enter)', valid, hover?.kind === 'start');
+  drawButton(ctx, { x: st.x, y: st.y, w: st.w, h: st.h }, 'START MISSION (Enter)',
+    buttonState(valid, hover?.kind === 'start'));
 }
