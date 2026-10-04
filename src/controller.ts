@@ -36,6 +36,12 @@ export class Controller {
     this.ui.messageUntil = performance.now() + ms;
   }
 
+  /** A refusal by the interface itself (not by the rules): show the message and buzz, on the player's turn. */
+  private refuse(text: string): void {
+    this.say(text);
+    if (this.state.turn === 'player') this.sound?.play('error', 0.9);
+  }
+
   private squad(): Unit[] {
     return this.state.units.filter((u) => u.side === 'player' && u.alive);
   }
@@ -48,7 +54,7 @@ export class Controller {
     const r = applyCommand(this.state, cmd);
     if (!r.ok) {
       this.say(r.reason);
-      this.sound?.play(r.reason === 'Out of ammo' ? 'empty' : 'error', 0.9);
+      if (this.state.turn === 'player') this.sound?.play(r.reason === 'Out of ammo' ? 'empty' : 'error', 0.9);
       return false;
     }
     const before = this.state;
@@ -120,17 +126,17 @@ export class Controller {
         return;
       }
       if (!sel) {
-        this.say('Select a soldier first');
+        this.refuse('Select a soldier first');
         return;
       }
       const path = findPath(this.state, sel.id, t, { seenBy: 'player' });
       if (!path) {
-        this.say('No path there');
+        this.refuse('No path there');
         return;
       }
       const cost = pathCost(sel.pos, path);
       if (cost > sel.ap) {
-        this.say(`Need ${cost} AP, have ${sel.ap}`);
+        this.refuse(`Need ${cost} AP, have ${sel.ap}`);
         return;
       }
       this.moveAlong(sel.id, path);
@@ -138,14 +144,14 @@ export class Controller {
     }
 
     if (!sel) {
-      this.say('Select a soldier first');
+      this.refuse('Select a soldier first');
       return;
     }
     const mode = this.ui.mode;
     this.ui.mode = 'move';
     if (mode === 'snap' || mode === 'aimed') {
       if (!clicked || clicked.side !== 'enemy') {
-        this.say('Click an enemy');
+        this.refuse('Click an enemy');
         return;
       }
       this.run({
@@ -155,7 +161,7 @@ export class Controller {
       });
     } else if (mode === 'stab') {
       if (!clicked || clicked.side !== 'enemy') {
-        this.say('Click an adjacent enemy');
+        this.refuse('Click an adjacent enemy');
         return;
       }
       this.run({ type: 'Stab', unitId: sel.id, targetId: clicked.id });
@@ -233,7 +239,7 @@ export class Controller {
     if (!sel || !this.canAct()) return;
     const item = this.state.items.find((i) => posEq(i.pos, sel.pos));
     if (!item) {
-      this.say('Nothing to pick up here');
+      this.refuse('Nothing to pick up here');
       return;
     }
     this.run({ type: 'PickUp', unitId: sel.id, itemId: item.id });

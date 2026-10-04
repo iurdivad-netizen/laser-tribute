@@ -100,3 +100,54 @@ describe('controller sounds', () => {
     expect(() => { c.key('q'); c.run({ type: 'Reload', unitId: 'p1' }); }).not.toThrow();
   });
 });
+
+describe('refusals made by the interface also buzz', () => {
+  it('a move that costs more AP than the soldier has', () => {
+    const { c, sound } = make(corridorRows('P......E'));
+    unit(c.state, 'p1').ap = 4;
+    c.clickTile({ x: 6, y: 1 });
+    expect(c.ui.message).toMatch(/Need .* AP/);
+    expect(sound.played).toEqual([{ name: 'error', volume: 0.9 }]);
+  });
+
+  it('a click with no path', () => {
+    const { c, sound } = make(corridorRows('P..E'));
+    c.clickTile({ x: 0, y: 0 }); // a wall
+    expect(c.ui.message).toBe('No path there');
+    expect(sound.names()).toEqual(['error']);
+  });
+
+  it('choosing a target that is not an enemy', () => {
+    const { c, sound } = make(corridorRows('P..E'));
+    c.key('s');
+    c.clickTile({ x: 2, y: 1 }); // empty floor
+    expect(c.ui.message).toBe('Click an enemy');
+    c.key('k');
+    c.clickTile({ x: 2, y: 1 });
+    expect(c.ui.message).toBe('Click an adjacent enemy');
+    expect(sound.names()).toEqual(['error', 'error']);
+  });
+
+  it('pressing pick up with nothing underfoot', () => {
+    const { c, sound } = make(corridorRows('P..E'));
+    c.key('p');
+    expect(c.ui.message).toBe('Nothing to pick up here');
+    expect(sound.names()).toEqual(['error']);
+  });
+
+  it('a successful move, "Enemy spotted" and "Your turn" stay silent', () => {
+    const { c, sound } = make(corridorRows('P..E'));
+    c.clickTile({ x: 2, y: 1 }); // a valid one-step move (a footstep sounds, but no error buzz)
+    expect(sound.names()).not.toContain('error');
+  });
+
+  it('a rejected command during the enemy turn does not buzz', () => {
+    const s = makeState(corridorRows('P..E'));
+    s.turn = 'enemy';
+    const sound = new RecordingSound();
+    const c = new Controller(s, createUiState('p1'), new Effects(), sound);
+    expect(c.run({ type: 'Reload', unitId: 'e1' })).toBe(false); // full magazine
+    expect(sound.played).toEqual([]);
+  });
+});
+
