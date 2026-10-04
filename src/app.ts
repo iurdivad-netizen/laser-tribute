@@ -1,3 +1,4 @@
+import { Sound, type SoundPlayer } from './audio/sound';
 import { Controller } from './controller';
 import {
   budgetBreakdown, campaignBudget, newCampaign, recordMission, totalKills,
@@ -11,7 +12,7 @@ import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
-import { screenToTile } from './render/layout';
+import { VIEW, screenToTile } from './render/layout';
 import { buttonAt } from './render/panel';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
@@ -33,6 +34,7 @@ export interface AppOptions {
     def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash,
   ) => GameState;
   clock?: () => number;
+  sound?: SoundPlayer;
 }
 
 export class App {
@@ -48,20 +50,38 @@ export class App {
   private lockedUntil = -Infinity;
   private fallenNow: string[] = [];
   private playedName = '';
+  private noticeText = '';
+  private noticeUntil = 0;
   private usedLoadout: Loadout = [];
   private readonly clock: () => number;
   private readonly newSeed: () => number;
   private readonly missions: MissionDef[];
   private readonly createMission: NonNullable<AppOptions['createMission']>;
+  readonly sound: SoundPlayer;
 
   constructor(opts: AppOptions = {}) {
     this.clock = opts.clock ?? (() => performance.now());
+    this.sound = opts.sound ?? new Sound();
     this.newSeed = opts.newSeed ?? (() => Math.floor(Math.random() * 2 ** 31));
     this.missions = opts.missions ?? MISSIONS;
     this.createMission =
       opts.createMission ??
       ((def, seed, roster, loadout, budget, stash) =>
         createMission(def, seed, roster, loadout, budget, stash));
+  }
+
+  private notice(text: string): void {
+    this.noticeText = text;
+    this.noticeUntil = this.clock() + 1500;
+  }
+
+  /** Sound keys work on every screen: M mutes, - and = change the volume. */
+  private soundKey(k: string): boolean {
+    if (k === 'm' || k === 'M') this.notice(this.sound.toggleMute());
+    else if (k === '-') this.notice(this.sound.changeVolume(-0.1));
+    else if (k === '=' || k === '+') this.notice(this.sound.changeVolume(0.1));
+    else return false;
+    return true;
   }
 
   private lock(): void {
@@ -87,13 +107,14 @@ export class App {
       def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash,
     );
     this.usedLoadout = this.loadout;
-    this.controller = new Controller(state, createUiState('p1'), new Effects());
+    this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
     this.playedName = def.name;
     this.result = null;
     this.promoted = [];
     this.endedAt = null;
     this.screen = 'mission';
     this.lock();
+    this.sound.play('click', 0.9);
   }
 
   /** From the result screen: the next mission's equipment while the campaign is active, else the end screen. */
@@ -108,6 +129,7 @@ export class App {
     this.endedAt = null;
     this.hover = null;
     this.lock();
+    this.sound.play('click', 0.9);
   }
 
   private newCampaignScreen(): void {
@@ -120,9 +142,11 @@ export class App {
     this.hover = null;
     this.screen = 'equipment';
     this.lock();
+    this.sound.play('click', 0.9);
   }
 
   click(p: Pos): void {
+    this.sound.unlock();
     if (this.locked()) return;
     switch (this.screen) {
       case 'equipment': {
@@ -132,7 +156,9 @@ export class App {
           this.startMission();
           return;
         }
-        this.loadout = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash);
+        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash);
+        if (next !== this.loadout) this.sound.play('click', 0.9);
+        this.loadout = next;
         return;
       }
       case 'mission': {
@@ -171,7 +197,9 @@ export class App {
   }
 
   key(k: string, repeat = false): boolean {
+    this.sound.unlock();
     if (repeat && k === 'Enter') return true; // a held key must not chain screens
+    if (this.soundKey(k)) return true;
     switch (this.screen) {
       case 'equipment':
         if (k === 'Enter') {
@@ -234,6 +262,25 @@ export class App {
   }
 
   draw(ctx: CanvasRenderingContext2D, now: number): void {
+    this.drawScreen(ctx, now);
+    this.drawSoundHint(ctx);
+  }
+
+  private drawSoundHint(ctx: CanvasRenderingContext2D): void {
+    ctx.font = '8px monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'right';
+    if (this.clock() < this.noticeUntil) {
+      ctx.fillStyle = '#ffe14d';
+      ctx.fillText(this.noticeText, VIEW.width - 6, 4);
+    } else if (this.screen !== 'mission') {
+      ctx.fillStyle = '#6a6f88';
+      ctx.fillText('M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  private drawScreen(ctx: CanvasRenderingContext2D, now: number): void {
     if (this.screen === 'equipment') {
       drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
       return;
