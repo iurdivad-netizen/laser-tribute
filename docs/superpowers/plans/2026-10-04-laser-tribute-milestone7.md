@@ -1015,7 +1015,6 @@ import { describe, expect, it } from 'vitest';
 import { Atlas, type CanvasLike } from '../src/art/atlas';
 import type { SpriteName } from '../src/art/sprites';
 import { createMission, MISSIONS } from '../src/core/missions';
-import { applyRank } from '../src/core/ranks';
 import { computeVisible } from '../src/core/vision';
 import { createUiState } from '../src/input/uiState';
 import { Effects } from '../src/render/effects';
