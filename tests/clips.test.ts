@@ -42,6 +42,7 @@ describe('spare clips in the loadout', () => {
     expect(fitLoadout(prev, 120)).toBe(prev);
     const tooBig = withClips([4, 4, 4, 4]);
     expect(fitLoadout(tooBig, 120).every((s) => s.clips === 1)).toBe(true);
+    expect(fitLoadout(tooBig, 120).map((s) => s.weapon)).toEqual(['rifle', 'rifle', 'pistol', 'pistol']);
   });
 
   it('applyLoadout sets the clips and refills ammo for the chosen weapon', () => {

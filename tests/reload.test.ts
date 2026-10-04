@@ -48,6 +48,12 @@ describe('Reload command', () => {
     expect(reason(applyCommand(s, reload()))).toBe('No spare clips');
   });
 
+  it('reports "full magazine" before the AP check', () => {
+    const s = makeState(corridorRows('P..E'));
+    unit(s, 'p1').ap = 0; // a clip, a full magazine and no AP
+    expect(reason(applyCommand(s, reload()))).toBe('Magazine is already full');
+  });
+
   it('ends the soldier alert like any other action', () => {
     const s = makeState(corridorRows('P..E'));
     unit(s, 'p1').ammo = 1;
@@ -81,6 +87,7 @@ describe('enemies and ammo', () => {
     unit(s, 'e1').clips = 0;
     const out = runEnemyTurn(s);
     expect(out.events.some((e) => e.type === 'shot')).toBe(false);
+    expect(out.events.some((e) => e.type === 'moved')).toBe(true); // it still advances
     expect(out.state.turn).toBe('player');
     expect(unit(out.state, 'p1').hp).toBe(50);
   });

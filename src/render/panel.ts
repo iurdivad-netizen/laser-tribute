@@ -52,6 +52,7 @@ export function actionBlocked(u: Unit, id: ButtonId): boolean {
   if (cost !== null && u.ap < cost) return true;
   if (id === 'reload') return u.clips < 1 || u.ammo >= WEAPONS[u.weapon].magazine;
   if (id === 'snap' || id === 'aimed') return u.ammo < 1;
+  if (id === 'throw') return u.grenades < 1;
   return false;
 }
 
@@ -97,7 +98,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     line = `${MODE_NAMES[ui.mode]}: ${actionCost(u, ui.mode as ButtonId)} AP`;
   }
   ctx.fillStyle = state.status === 'playing' ? '#ffe14d' : '#7dff9a';
-  ctx.fillText(line, 262, top + 2);
+  ctx.fillText(line, 272, top + 2);
 
   const modeButton: Partial<Record<UiState['mode'], ButtonId>> = {
     snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door', stab: 'stab',

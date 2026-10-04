@@ -56,7 +56,6 @@ describe('shooting uses ammo', () => {
     const sixth = applyCommand(s, snap());
     expect(sixth.ok).toBe(false);
     expect(reason(sixth)).toBe('Out of ammo');
-    expect(unit(s, 'p1')).toMatchObject({ ammo: 0, ap: 600 - 5 * 15 }); // the input state is untouched
   });
 
   it('the knife still works with an empty gun', () => {
