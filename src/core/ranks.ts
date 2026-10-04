@@ -1,3 +1,4 @@
+import type { RosterSoldier } from './campaign';
 import { CONFIG } from './config';
 import type { Unit } from './types';
 
@@ -38,4 +39,17 @@ export function applyRank(u: Unit, kills: number): void {
   u.maxAp = CONFIG.maxAp + r.ap;
   u.ap = u.maxAp;
   u.accuracy = r.accuracy;
+}
+
+/** "Name (Rank)" for every soldier in both rosters whose rank rose, matched by name. */
+export function promotions(before: RosterSoldier[], after: RosterSoldier[]): string[] {
+  const out: string[] = [];
+  for (const now of after) {
+    const old = before.find((b) => b.name === now.name);
+    if (!old) continue;
+    const was = rankFor(old.kills);
+    const is = rankFor(now.kills);
+    if (is.minKills > was.minKills) out.push(`${now.name} (${is.name})`);
+  }
+  return out;
 }

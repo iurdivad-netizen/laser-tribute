@@ -14,7 +14,7 @@ export interface EquipmentView {
   budget: number;
   title: string;
   breakdown: string;
-  soldiers: { name: string; kills: number }[];
+  soldiers: { name: string; kills: number; rank?: string }[];
   stash: Stash;
 }
 
@@ -25,6 +25,11 @@ export const DEFAULT_VIEW: EquipmentView = {
   soldiers: [],
   stash: emptyStash(),
 };
+
+/** The text lines beside a soldier's row: name, rank (if known), kills. */
+export function soldierLines(who: { name: string; kills: number; rank?: string }): string[] {
+  return who.rank ? [who.name, who.rank, `${who.kills} kills`] : [who.name, `${who.kills} kills`];
+}
 
 export const EQ = {
   rowTop: 56,
@@ -154,11 +159,14 @@ export function drawEquipment(
     const hot = (kind: 'weapon' | 'minus' | 'plus') =>
       hover !== null && hover.kind !== 'start' && hover.kind === kind && hover.index === i;
     const who = view.soldiers[i];
-    ctx.fillStyle = '#e8e8f0';
-    ctx.fillText(who ? who.name : `P${i + 1}`, 8, y + 3);
     if (who) {
-      ctx.fillStyle = '#8a8fa8';
-      ctx.fillText(`${who.kills} kills`, 8, y + 14);
+      soldierLines(who).forEach((line, n) => {
+        ctx.fillStyle = n === 0 ? '#e8e8f0' : '#8a8fa8';
+        ctx.fillText(line, 8, y + 3 + n * 11);
+      });
+    } else {
+      ctx.fillStyle = '#e8e8f0';
+      ctx.fillText(`P${i + 1}`, 8, y + 3);
     }
     button(
       ctx, EQ.weapon.x, y, EQ.weapon.w, EQ.btnH,

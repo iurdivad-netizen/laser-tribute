@@ -5,6 +5,7 @@ import {
 } from './core/campaign';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
+import { promotions, rankFor } from './core/ranks';
 import { summarize, type MissionResult } from './core/result';
 import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
@@ -40,6 +41,7 @@ export class App {
   loadout: Loadout = defaultLoadout();
   controller: Controller | null = null;
   result: MissionResult | null = null;
+  promoted: string[] = [];
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
@@ -88,6 +90,7 @@ export class App {
     this.controller = new Controller(state, createUiState('p1'), new Effects());
     this.playedName = def.name;
     this.result = null;
+    this.promoted = [];
     this.endedAt = null;
     this.screen = 'mission';
     this.lock();
@@ -112,6 +115,7 @@ export class App {
     this.loadout = defaultLoadout();
     this.controller = null;
     this.result = null;
+    this.promoted = [];
     this.endedAt = null;
     this.hover = null;
     this.screen = 'equipment';
@@ -207,8 +211,10 @@ export class App {
     if (this.endedAt === null) this.endedAt = now;
     if (now - this.endedAt >= RESULT_DELAY_MS && !c.ui.busy) {
       const fallenBefore = this.campaign.fallen.length;
+      const rosterBefore = this.campaign.roster;
       this.result = summarize(c.state);
       this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
+      this.promoted = promotions(rosterBefore, this.campaign.roster);
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
       this.screen = 'result';
       this.endedAt = null;
@@ -222,7 +228,7 @@ export class App {
       budget: this.budget(),
       title: `MISSION ${c.missionIndex + 1} OF ${this.missions.length}: ${this.mission().name.toUpperCase()}`,
       breakdown: budgetBreakdown(c),
-      soldiers: c.roster,
+      soldiers: c.roster.map((r) => ({ ...r, rank: rankFor(r.kills).name })),
       stash: c.stash,
     };
   }
@@ -253,6 +259,7 @@ export class App {
         missionName: this.playedName,
         fallen: this.fallenNow,
         nextBudget: this.campaign.status === 'active' ? this.budget() : null,
+        promoted: this.promoted,
       });
     }
   }

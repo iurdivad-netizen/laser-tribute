@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { applyCommand } from '../src/core/apply';
 import { hitChance } from '../src/core/combat';
 import { MISSIONS, createMission } from '../src/core/missions';
-import { RANKS, applyRank, rankFor, rankShort } from '../src/core/ranks';
+import { RANKS, applyRank, promotions, rankFor, rankShort } from '../src/core/ranks';
+import { soldierLines } from '../src/screens/equipment';
 import { corridorRows, makeState, ok, unit } from './helpers';
 
 describe('rankFor', () => {
@@ -133,5 +134,33 @@ describe('createMission applies ranks from the roster', () => {
     const r1 = ok(applyCommand(s, { type: 'EndTurn' }));
     const r2 = ok(applyCommand(r1.state, { type: 'EndTurn' }));
     expect(unit(r2.state, 'p1').ap).toBe(72);
+  });
+});
+
+describe('promotions', () => {
+  const r = (name: string, kills: number) => ({ name, kills });
+
+  it('lists soldiers whose rank went up, by name', () => {
+    const before = [r('A', 1), r('B', 4), r('C', 8), r('D', 0)];
+    const after = [r('A', 2), r('B', 5), r('C', 9), r('D', 1)];
+    expect(promotions(before, after)).toEqual(['A (Private)', 'B (Sergeant)', 'C (Captain)']);
+  });
+
+  it('ignores more kills without a new rank and soldiers not in the new roster', () => {
+    expect(promotions([r('A', 2), r('Dead', 4)], [r('A', 4), r('Rookie', 0)])).toEqual([]);
+  });
+
+  it('a skipped rank still announces the rank reached', () => {
+    expect(promotions([r('A', 0)], [r('A', 6)])).toEqual(['A (Sergeant)']);
+  });
+});
+
+describe('soldierLines', () => {
+  it('shows name, rank and kills on separate lines, so long names stay clear of the buttons', () => {
+    expect(soldierLines({ name: 'Chen', kills: 6, rank: 'Sergeant' })).toEqual(['Chen', 'Sergeant', '6 kills']);
+  });
+
+  it('works without a rank', () => {
+    expect(soldierLines({ name: 'P1', kills: 0 })).toEqual(['P1', '0 kills']);
   });
 });
