@@ -91,11 +91,26 @@ const FACING_STEP: Record<Facing, [number, number]> = {
   0: [0, -1], 1: [1, -1], 2: [1, 0], 3: [1, 1], 4: [0, 1], 5: [-1, 1], 6: [-1, 0], 7: [-1, -1],
 };
 
-/** The gun barrel as pixel offsets from the tile centre, along the facing: 3 for a pistol, 5 for a rifle. */
+/**
+ * The gun barrel as pixel offsets from the tile centre, held at the soldier's right hand and pointing along the
+ * facing: 3 pixels for a pistol, 6 for a rifle (4 on a diagonal, to stay inside the tile). Held beside the head,
+ * so it never covers the face.
+ */
 export function barrel(weapon: WeaponId, facing: Facing): { dx: number; dy: number }[] {
   const [vx, vy] = FACING_STEP[facing];
-  const length = weapon === 'rifle' ? 5 : 3;
-  return Array.from({ length }, (_, i) => ({ dx: vx * (3 + i) || 0, dy: vy * (3 + i) || 0 }));
+  const diagonal = vx !== 0 && vy !== 0;
+  const length = weapon === 'rifle' ? (diagonal ? 4 : 6) : 3;
+  const hx = -vy; // the right-hand side of the facing
+  const hy = vx;
+  const hand = diagonal ? 5 / Math.SQRT2 : 5;
+  const half = 8; // the tile centre sits between pixels 7 and 8
+  return Array.from({ length }, (_, i) => {
+    const k = i + 1;
+    return {
+      dx: Math.floor(half + vx * (k - 0.5) + hx * hand) - half || 0,
+      dy: Math.floor(half + vy * (k - 0.5) + hy * hand) - half || 0,
+    };
+  });
 }
 
 /** The sign of each axis from one tile to another. */

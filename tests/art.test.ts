@@ -133,21 +133,45 @@ describe('rankPips and pipPositions', () => {
 });
 
 describe('barrel', () => {
-  it('is 3 pixels for the pistol and 5 for the rifle, starting 3 pixels out', () => {
-    expect(barrel('pistol', 2)).toEqual([{ dx: 3, dy: 0 }, { dx: 4, dy: 0 }, { dx: 5, dy: 0 }]);
-    expect(barrel('rifle', 2)).toHaveLength(5);
-    expect(barrel('rifle', 2)[0]).toEqual({ dx: 3, dy: 0 });
+  it('is held at the right hand: 3 pixels for the pistol and 6 for the rifle (4 on a diagonal)', () => {
+    expect(barrel('pistol', 0)).toEqual([{ dx: 5, dy: -1 }, { dx: 5, dy: -2 }, { dx: 5, dy: -3 }]);
+    expect(barrel('pistol', 2)).toEqual([{ dx: 0, dy: 5 }, { dx: 1, dy: 5 }, { dx: 2, dy: 5 }]);
+    expect(barrel('pistol', 4)).toEqual([{ dx: -5, dy: 0 }, { dx: -5, dy: 1 }, { dx: -5, dy: 2 }]);
+    expect(barrel('pistol', 6)).toEqual([{ dx: -1, dy: -5 }, { dx: -2, dy: -5 }, { dx: -3, dy: -5 }]);
+    expect(barrel('rifle', 0)).toHaveLength(6);
+    expect(barrel('rifle', 0).slice(0, 3)).toEqual(barrel('pistol', 0));
   });
 
-  it('points along the facing for all eight facings', () => {
+  it('stays clear of the face: no pixel of the north barrel lies on the centre line', () => {
+    for (const p of barrel('rifle', 0)) expect(Math.abs(p.dx)).toBeGreaterThanOrEqual(4);
+  });
+
+  it('is symmetric for facing and for its mirror: the barrel of facing 6 mirrors facing 2 by a quarter turn of the hand', () => {
+    // the right hand of a westward soldier is on the north side, of an eastward soldier on the south side
+    expect(barrel('rifle', 2)[0].dy).toBeGreaterThan(0);
+    expect(barrel('rifle', 6)[0].dy).toBeLessThan(0);
+    expect(barrel('rifle', 0)[0].dx).toBeGreaterThan(0);
+    expect(barrel('rifle', 4)[0].dx).toBeLessThan(0);
+  });
+
+  it('runs along the facing for all eight facings, one pixel per step, and stays near the tile', () => {
     const vec: Record<Facing, [number, number]> = {
       0: [0, -1], 1: [1, -1], 2: [1, 0], 3: [1, 1], 4: [0, 1], 5: [-1, 1], 6: [-1, 0], 7: [-1, -1],
     };
     for (const f of [0, 1, 2, 3, 4, 5, 6, 7] as Facing[]) {
       const [vx, vy] = vec[f];
       const pixels = barrel('rifle', f);
-      expect(pixels[0]).toEqual({ dx: vx * 3 || 0, dy: vy * 3 || 0 });
-      expect(pixels[4]).toEqual({ dx: vx * 7 || 0, dy: vy * 7 || 0 });
+      expect(pixels).toHaveLength(vx !== 0 && vy !== 0 ? 4 : 6); // a shorter rifle on a diagonal keeps it inside the tile
+      for (let i = 1; i < pixels.length; i++) {
+        expect(pixels[i].dx - pixels[i - 1].dx).toBe(vx);
+        expect(pixels[i].dy - pixels[i - 1].dy).toBe(vy);
+      }
+      for (const p of pixels) {
+        expect(p.dx).toBeGreaterThanOrEqual(-8);
+        expect(p.dx).toBeLessThanOrEqual(9);
+        expect(p.dy).toBeGreaterThanOrEqual(-8);
+        expect(p.dy).toBeLessThanOrEqual(9);
+      }
     }
   });
 });
