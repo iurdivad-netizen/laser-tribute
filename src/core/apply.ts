@@ -4,6 +4,7 @@ import { handleEndTurn } from './actions/endTurn';
 import { handlePickUp } from './actions/item';
 import { handleMove, handleTurn } from './actions/move';
 import { handleShot } from './actions/shoot';
+import { handleStab } from './actions/stab';
 import { handleThrow } from './actions/throw';
 import type { Command, GameEvent, GameState, Result, Unit } from './types';
 import { updateEnemyMemory, updateExplored } from './vision';
@@ -51,6 +52,8 @@ function dispatch(s: GameState, cmd: UnitCommand, unit: Unit, events: GameEvent[
     case 'SnapShot':
     case 'AimedShot':
       return handleShot(s, cmd, unit, events);
+    case 'Stab':
+      return handleStab(s, cmd, unit, events);
     case 'Throw':
       return handleThrow(s, cmd, unit, events);
     case 'Alert':
