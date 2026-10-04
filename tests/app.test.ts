@@ -6,7 +6,7 @@ import type { GameState } from '../src/core/types';
 import { corridorRows, makeState, unit } from './helpers';
 
 const START = { x: 240, y: 315 }; // Start mission button
-const CONTINUE = { x: 240, y: 213 }; // Continue button on the result screen
+const CONTINUE = { x: 240, y: 235 }; // Continue button on the result screen
 const NEW_CAMPAIGN = { x: 240, y: 252 }; // New campaign button on the end screen
 
 /** A tiny winnable map: no enemies, so the first command ends the mission as a win. */
