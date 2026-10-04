@@ -1,3 +1,5 @@
+import { soundsFor } from './audio/mapping';
+import type { SoundPlayer } from './audio/sound';
 import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
 import { CONFIG, WEAPONS } from './core/config';
@@ -22,6 +24,7 @@ export class Controller {
     public state: GameState,
     public ui: UiState,
     public effects: Effects,
+    private sound: SoundPlayer | null = null,
   ) {}
 
   selected(): Unit | undefined {
@@ -45,16 +48,31 @@ export class Controller {
     const r = applyCommand(this.state, cmd);
     if (!r.ok) {
       this.say(r.reason);
+      this.sound?.play(r.reason === 'Out of ammo' ? 'empty' : 'error', 0.9);
       return false;
     }
     const before = this.state;
     this.state = r.state;
-    this.lastVisible = r.events.some((ev) => this.eventVisible(ev, before, r.state));
+    const flags = r.events.map((ev) => this.eventVisible(ev, before, r.state));
+    this.lastVisible = flags.some(Boolean);
     this.effects.add(r.events, performance.now());
+    if (this.sound) {
+      r.events.forEach((ev, i) => {
+        for (const hit of soundsFor(ev, r.state, flags[i] || this.isOwn(ev, r.state))) {
+          this.sound!.play(hit.name, hit.volume);
+        }
+      });
+    }
     for (const ev of r.events) this.onEvent(ev);
     if (!this.selected()) this.selectFirstAlive();
     this.updatePreview();
     return true;
+  }
+
+  /** True for an event made by one of the player's own soldiers (always audible to the player). */
+  private isOwn(ev: GameEvent, state: GameState): boolean {
+    if (!('unitId' in ev)) return false;
+    return state.units.find((u) => u.id === ev.unitId)?.side === 'player';
   }
 
   private onEvent(ev: GameEvent): void {
