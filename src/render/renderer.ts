@@ -58,13 +58,15 @@ export function drawGame(
     art.draw(ctx, `item_${item.kind}` as SpriteName, item.pos.x * T, item.pos.y * T);
   }
 
+  // Corpses first, in their own pass, so a living unit standing on (or sliding past) a corpse is drawn on top of it.
   for (const u of state.units) {
+    if (u.alive || !visible[u.pos.y][u.pos.x]) continue;
+    art.draw(ctx, u.side === 'player' ? 'corpse_player' : 'corpse_enemy', u.pos.x * T, u.pos.y * T);
+  }
+
+  for (const u of state.units) {
+    if (!u.alive) continue;
     const seen = visible[u.pos.y][u.pos.x];
-    if (!u.alive) {
-      if (!seen) continue;
-      art.draw(ctx, u.side === 'player' ? 'corpse_player' : 'corpse_enemy', u.pos.x * T, u.pos.y * T);
-      continue;
-    }
     if (u.side === 'enemy' && !seen) continue;
 
     const off = effects.unitOffset(u.id, now);

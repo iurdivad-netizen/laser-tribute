@@ -85,6 +85,33 @@ describe('drawGame with sprites', () => {
     expect(far.drawn.some((d) => d.name === 'corpse_enemy')).toBe(false);
   });
 
+  it('draws corpses before the living, so a soldier standing on a corpse stays visible', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const soldier = state.units.find((u) => u.side === 'player')!;
+    const enemy = state.units.find((u) => u.side === 'enemy')!;
+    enemy.alive = false;
+    enemy.pos = { ...soldier.pos }; // the dead lie where the soldier now stands
+    state.units.push(state.units.splice(state.units.indexOf(enemy), 1)[0]); // listed after the soldier: drawn after him unless corpses get their own pass
+    const { atlas, drawn } = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    const corpse = drawn.findIndex((d) => d.name === 'corpse_enemy');
+    const alive = drawn.findIndex((d) => d.name.startsWith('soldier_') && d.x === soldier.pos.x * 16 && d.y === soldier.pos.y * 16);
+    expect(corpse).toBeGreaterThanOrEqual(0);
+    expect(alive).toBeGreaterThan(corpse);
+  });
+
+  it('draws a corpse after the item lying under it', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const soldier = state.units.find((u) => u.side === 'player')!;
+    const enemy = state.units.find((u) => u.side === 'enemy')!;
+    enemy.alive = false;
+    enemy.pos = { x: soldier.pos.x + 1, y: soldier.pos.y };
+    state.items.push({ id: 'i77', pos: { ...enemy.pos }, kind: 'rifle' });
+    const { atlas, drawn } = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    expect(drawn.findIndex((d) => d.name === 'item_rifle')).toBeLessThan(drawn.findIndex((d) => d.name === 'corpse_enemy'));
+  });
+
   it('draws item icons where the player can see them', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const soldier = state.units.find((u) => u.side === 'player')!;
