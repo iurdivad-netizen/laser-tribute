@@ -9,11 +9,11 @@ class FakeParam {
 }
 
 function makeContext() {
-  const made = { osc: [] as { type: string; frequency: FakeParam; started?: number; stopped?: number }[], gain: [] as { gain: FakeParam }[], src: [] as { started?: number; stopped?: number }[] };
+  const made = { osc: [] as { type: string; frequency: FakeParam; started?: number; stopped?: number }[], gain: [] as { gain: FakeParam; target?: unknown }[], src: [] as { started?: number; stopped?: number; offset?: number }[], comp: [] as { target?: unknown }[] };
   const ctx = {
     currentTime: 0,
     sampleRate: 8000,
-    destination: {},
+    destination: { id: 'destination' } as unknown,
     state: 'running' as string,
     resumed: 0,
     resume() { this.resumed += 1; return Promise.resolve(); },
@@ -26,14 +26,19 @@ function makeContext() {
       return o;
     },
     createGain() {
-      const g = { gain: new FakeParam(), connect() {} };
+      const g = { gain: new FakeParam(), target: undefined as unknown, connect(to: unknown) { g.target = to; } };
       made.gain.push(g);
       return g;
     },
+    createDynamicsCompressor() {
+      const c = { target: undefined as unknown, connect(to: unknown) { c.target = to; } };
+      made.comp.push(c);
+      return c;
+    },
     createBuffer(_c: number, length: number) { return { getChannelData: () => new Float32Array(length) }; },
     createBufferSource() {
-      const s = { buffer: null as unknown, started: undefined as number | undefined, stopped: undefined as number | undefined,
-        connect() {}, start(t: number) { s.started = t; }, stop(t: number) { s.stopped = t; } };
+      const s = { buffer: null as unknown, started: undefined as number | undefined, stopped: undefined as number | undefined, offset: undefined as number | undefined,
+        connect() {}, start(t: number, offset?: number) { s.started = t; s.offset = offset; }, stop(t: number) { s.stopped = t; } };
       made.src.push(s);
       return s;
     },
@@ -65,7 +70,7 @@ describe('locked, muted and missing audio', () => {
     const { ctx, made } = makeContext();
     const sound = new Sound(() => ctx, new FakeStorage());
     sound.play('rifle');
-    expect(made.osc.length + made.src.length + made.gain.length).toBe(0);
+    expect(made.osc.length + made.src.length + made.gain.length + made.comp.length).toBe(0);
   });
 
   it('plays after unlock: the rifle is a noise burst and a sawtooth', () => {
@@ -113,7 +118,7 @@ describe('volume', () => {
   it('scales the gain by the event volume and the master volume (default 0.5)', () => {
     const { sound, made } = unlocked();
     sound.play('click', 0.5);
-    const first = made.gain[0].gain.calls[0];
+    const first = made.gain.at(-1)!.gain.calls[0];
     expect(first[0]).toBe('set');
     expect(first[1] as number).toBeCloseTo(EFFECTS.click[0].gain * 0.5 * 0.5, 5);
   });
@@ -121,7 +126,7 @@ describe('volume', () => {
   it('fades each sound out with a ramp to near silence at its end', () => {
     const { sound, made } = unlocked();
     sound.play('click');
-    const ramp = made.gain[0].gain.calls.find((c) => c[0] === 'ramp')!;
+    const ramp = made.gain.at(-1)!.gain.calls.find((c) => c[0] === 'ramp')!;
     expect(ramp[1] as number).toBeLessThan(0.001);
     expect(ramp[2] as number).toBeCloseTo(EFFECTS.click[0].dur, 5);
   });
@@ -192,5 +197,33 @@ describe('settings persistence', () => {
   it('works without any storage', () => {
     const sound = new Sound(() => null, null);
     expect(() => sound.toggleMute()).not.toThrow();
+  });
+});
+
+describe('master bus', () => {
+  it('routes every sound through a master gain and a compressor before the speakers', () => {
+    const { sound, ctx, made } = unlocked();
+    const master = made.gain[0];
+    const comp = made.comp[0];
+    expect(master.target).toBe(comp);
+    expect(comp.target).toBe(ctx.destination);
+    sound.play('click');
+    expect(made.gain[1].target).toBe(master);
+  });
+
+  it('falls back to the speakers directly when the browser has no compressor', () => {
+    const { ctx, made } = makeContext();
+    (ctx as unknown as { createDynamicsCompressor?: unknown }).createDynamicsCompressor = undefined;
+    const sound = new Sound(() => ctx, new FakeStorage());
+    sound.unlock();
+    expect(made.gain[0].target).toBe(ctx.destination);
+  });
+
+  it('starts each noise burst at a random point of the shared buffer, so simultaneous bursts do not add up', () => {
+    const { sound, made } = unlocked();
+    for (let i = 0; i < 6; i++) sound.play('rifle'); // 0.14 s of noise each
+    const offsets = made.src.map((s) => s.offset);
+    expect(offsets.every((o) => typeof o === 'number' && o >= 0 && o <= 1 - 0.14)).toBe(true);
+    expect(new Set(offsets).size).toBeGreaterThan(1);
   });
 });

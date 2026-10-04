@@ -29,7 +29,7 @@ interface OscillatorLike extends NodeLike {
 }
 interface SourceLike extends NodeLike {
   buffer: unknown;
-  start(time: number): void;
+  start(time: number, offset?: number): void;
   stop(time: number): void;
 }
 export interface AudioContextLike {
@@ -40,6 +40,7 @@ export interface AudioContextLike {
   resume?(): Promise<void>;
   createOscillator(): OscillatorLike;
   createGain(): NodeLike & { gain: ParamLike };
+  createDynamicsCompressor?(): NodeLike;
   createBuffer(channels: number, length: number, sampleRate: number): { getChannelData(c: number): Float32Array };
   createBufferSource(): SourceLike;
 }
@@ -74,6 +75,8 @@ export class Sound implements SoundPlayer {
 
   private ctx: AudioContextLike | null = null;
   private noise: { getChannelData(c: number): Float32Array } | null = null;
+  /** Every sound goes into this master gain, then a compressor, then the speakers, so loud mixes do not clip. */
+  private bus: NodeLike | null = null;
   /** End times (audio clock) of the sounds still playing. */
   private ends: number[] = [];
 
@@ -85,7 +88,10 @@ export class Sound implements SoundPlayer {
   }
 
   unlock(): void {
-    if (!this.ctx) this.ctx = this.createContext();
+    if (!this.ctx) {
+      this.ctx = this.createContext();
+      if (this.ctx) this.bus = this.makeBus(this.ctx);
+    }
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume?.()?.catch?.(() => undefined);
   }
 
@@ -113,18 +119,31 @@ export class Sound implements SoundPlayer {
     for (const seg of EFFECTS[name]) this.segment(ctx, seg, now, level);
   }
 
+  private makeBus(ctx: AudioContextLike): NodeLike {
+    const master = ctx.createGain();
+    if (ctx.createDynamicsCompressor) {
+      const compressor = ctx.createDynamicsCompressor();
+      master.connect(compressor);
+      compressor.connect(ctx.destination);
+    } else {
+      master.connect(ctx.destination);
+    }
+    return master;
+  }
+
   private segment(ctx: AudioContextLike, seg: Segment, now: number, level: number): void {
     const t0 = now + seg.start;
     const t1 = t0 + seg.dur;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(seg.gain * level, t0);
     gain.gain.exponentialRampToValueAtTime(0.0001, t1);
-    gain.connect(ctx.destination);
+    gain.connect(this.bus ?? ctx.destination);
     if (seg.wave === 'noise') {
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuffer(ctx);
       src.connect(gain);
-      src.start(t0);
+      // Start each burst at a random point so simultaneous bursts are not sample-identical and do not add up.
+      src.start(t0, Math.random() * Math.max(0, 1 - seg.dur));
       src.stop(t1);
     } else {
       const osc = ctx.createOscillator();
