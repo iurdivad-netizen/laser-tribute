@@ -46,6 +46,17 @@ export class Effects {
     return { x: 0, y: 0 };
   }
 
+  /** A walking unit bobs up one pixel for the first half of each step. */
+  unitBob(unitId: string, now: number): -1 | 0 {
+    for (const e of this.list) {
+      if (e.kind !== 'move' || e.unitId !== unitId) continue;
+      const p = (now - e.start) / e.dur;
+      if (p < 0 || p >= 1) continue;
+      return p < 0.5 ? -1 : 0;
+    }
+    return 0;
+  }
+
   draw(ctx: CanvasRenderingContext2D, now: number): void {
     this.list = this.list.filter((e) => now < e.start + e.dur);
     for (const e of this.list) {
