@@ -116,5 +116,5 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     }
   }
   ctx.fillStyle = '#6a6f88';
-  ctx.fillText('1-4 select  Q/E turn  Esc cancel', 4, top + 28);
+  ctx.fillText('1-4 sel  Q/E turn  Esc  M mute', 4, top + 28);
 }

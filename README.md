@@ -27,12 +27,18 @@ The game is a three-mission campaign with a persistent squad. Before each missio
 | D, then click a door | Open or close a door |
 | P | Pick up the item underfoot |
 | R | Reload the selected soldier (15 AP, uses a spare clip) |
+| M | Mute or unmute sound |
+| - and = | Lower and raise the volume |
 | L | Alert: keep the soldier's AP and fire once at each enemy that moves into his view |
 | Q / E | Turn left / right |
 | Space or Enter | End turn |
 | Esc or right-click | Cancel |
 
 Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens.
+
+## Sound
+
+Sound effects are generated in the browser (no sound files): shots, hits, stabs, grenades, doors, deaths, reloads, footsteps and a jingle when a mission ends. Gunfire, explosions, doors and deaths you cannot see are heard quietly. Browsers only allow sound after a click or key press. Mute and volume are remembered between visits.
 
 ## Ranks
 
