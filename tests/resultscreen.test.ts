@@ -3,8 +3,8 @@ import { resultHit } from '../src/screens/result';
 
 describe('resultHit', () => {
   it('finds the Play again button', () => {
-    expect(resultHit(240, 213)).toBe('again');
-    expect(resultHit(190, 200)).toBe('again');
+    expect(resultHit(240, 235)).toBe('again');
+    expect(resultHit(190, 222)).toBe('again');
   });
 
   it('ignores clicks elsewhere on the card or screen', () => {

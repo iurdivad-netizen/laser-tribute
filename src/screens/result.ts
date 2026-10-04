@@ -14,8 +14,13 @@ export interface ResultView {
 
 export const RESULT = {
   card: { x: 110, y: 50, w: 260, h: 210 },
-  again: { x: 190, y: 200, w: 100, h: 26 },
+  again: { x: 190, y: 222, w: 100, h: 26 },
 } as const;
+
+/** One line per promotion, at most four, so no name is cut off. */
+export function promotionLines(promoted: string[]): string[] {
+  return promoted.slice(0, 4).map((p) => `Promoted: ${p}`);
+}
 
 export function resultHit(px: number, py: number): 'again' | null {
   const b = RESULT.again;
@@ -51,10 +56,10 @@ export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
     v.nextBudget === null ? 'The campaign is over' : `Next mission budget: ${v.nextBudget}`,
     c.x + 30, c.y + 116,
   );
-  if (v.promoted.length > 0) {
-    ctx.fillStyle = '#7dff9a';
-    ctx.fillText(clip(`Promoted: ${v.promoted.join(', ')}`, 44), c.x + 30, c.y + 132);
-  }
+  ctx.fillStyle = '#7dff9a';
+  promotionLines(v.promoted).forEach((line, i) => {
+    ctx.fillText(clip(line, 44), c.x + 30, c.y + 128 + i * 10);
+  });
 
   const b = RESULT.again;
   ctx.fillStyle = '#4da6ff';
