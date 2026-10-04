@@ -1,3 +1,6 @@
+import type { Atlas } from '../art/atlas';
+import { directionTo, frameFor } from '../art/sprite';
+import type { SpriteName } from '../art/sprites';
 import { CONFIG } from '../core/config';
 import type { GameEvent, Pos } from '../core/types';
 
@@ -6,14 +9,24 @@ const T = CONFIG.tileSize;
 type Effect =
   | { kind: 'move'; unitId: string; from: Pos; to: Pos; start: number; dur: number }
   | { kind: 'shot'; from: Pos; to: Pos; hit: boolean; start: number; dur: number }
-  | { kind: 'slash'; from: Pos; to: Pos; hit: boolean; start: number; dur: number }
   | { kind: 'flash'; at: Pos; color: string; start: number; dur: number }
-  | { kind: 'boom'; at: Pos; start: number; dur: number };
+  | { kind: 'sprite'; frames: SpriteName[]; px: Pos; scale: number; fade: boolean; start: number; dur: number };
+
+/** What to draw for the effects alive at one moment (pure, so it can be tested). */
+export type EffectDraw =
+  | { type: 'sprite'; name: SpriteName; x: number; y: number; scale: number; alpha: number }
+  | { type: 'line'; from: Pos; to: Pos; hit: boolean }
+  | { type: 'rect'; x: number; y: number; w: number; h: number; color: string; alpha: number };
 
 const center = (p: Pos) => ({ x: p.x * T + T / 2, y: p.y * T + T / 2 });
+const tilePx = (p: Pos) => ({ x: p.x * T, y: p.y * T });
 
 export class Effects {
   private list: Effect[] = [];
+
+  private sprite(frames: SpriteName[], px: Pos, start: number, dur: number, opts: { scale?: number; fade?: boolean } = {}): void {
+    this.list.push({ kind: 'sprite', frames, px, scale: opts.scale ?? 1, fade: opts.fade ?? false, start, dur });
+  }
 
   add(events: GameEvent[], now: number): void {
     for (const e of events) {
@@ -21,16 +34,19 @@ export class Effects {
         this.list.push({ kind: 'move', unitId: e.unitId, from: e.from, to: e.to, start: now, dur: 120 });
       } else if (e.type === 'shot') {
         this.list.push({ kind: 'shot', from: e.from, to: e.impact, hit: e.hit, start: now, dur: 180 });
-        if (e.hit) this.list.push({ kind: 'flash', at: e.impact, color: '255,80,80', start: now + 80, dur: 250 });
+        const dir = directionTo(e.from, e.impact);
+        const muzzle = tilePx(e.from);
+        this.sprite(['flash_0', 'flash_1'], { x: muzzle.x + dir.x * 8, y: muzzle.y + dir.y * 8 }, now, 90);
+        if (e.hit) this.sprite(['spark'], tilePx(e.impact), now + 80, 220, { fade: true });
       } else if (e.type === 'stab') {
-        this.list.push({ kind: 'slash', from: e.from, to: e.at, hit: e.hit, start: now, dur: 220 });
-        if (e.hit) this.list.push({ kind: 'flash', at: e.at, color: '255,80,80', start: now + 60, dur: 300 });
+        this.sprite(['slash_0', 'slash_1'], tilePx(e.at), now, 220);
+        if (e.hit) this.sprite(['spark'], tilePx(e.at), now + 60, 220, { fade: true });
+      } else if (e.type === 'died') {
+        this.sprite(['splash'], tilePx(e.at), now, 450, { fade: true });
+      } else if (e.type === 'grenade') {
+        this.sprite(['boom_0', 'boom_1', 'boom_2', 'boom_3'], { x: (e.at.x - 1) * T, y: (e.at.y - 1) * T }, now, 450, { scale: 3 });
       } else if (e.type === 'reloaded') {
         this.list.push({ kind: 'flash', at: e.at, color: '120,200,255', start: now, dur: 250 });
-      } else if (e.type === 'died') {
-        this.list.push({ kind: 'flash', at: e.at, color: '255,255,255', start: now, dur: 400 });
-      } else if (e.type === 'grenade') {
-        this.list.push({ kind: 'boom', at: e.at, start: now, dur: 350 });
       }
     }
   }
@@ -57,39 +73,46 @@ export class Effects {
     return 0;
   }
 
-  draw(ctx: CanvasRenderingContext2D, now: number): void {
-    this.list = this.list.filter((e) => now < e.start + e.dur);
+  frames(now: number): EffectDraw[] {
+    const out: EffectDraw[] = [];
     for (const e of this.list) {
       const p = (now - e.start) / e.dur;
-      if (p < 0) continue;
+      if (p < 0 || p >= 1) continue;
       if (e.kind === 'shot') {
-        const a = center(e.from);
-        const b = center(e.to);
-        ctx.strokeStyle = e.hit ? '#ffe14d' : '#9aa0b5';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-      } else if (e.kind === 'slash') {
-        const a = center(e.from);
-        const b = center(e.to);
-        ctx.strokeStyle = e.hit ? '#ff5555' : '#9aa0b5';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-        ctx.lineWidth = 1;
+        out.push({ type: 'line', from: center(e.from), to: center(e.to), hit: e.hit });
       } else if (e.kind === 'flash') {
-        ctx.fillStyle = `rgba(${e.color},${1 - p})`;
-        ctx.fillRect(e.at.x * T, e.at.y * T, T, T);
-      } else if (e.kind === 'boom') {
-        const c = center(e.at);
-        ctx.fillStyle = `rgba(255,150,40,${1 - p})`;
+        out.push({ type: 'rect', x: e.at.x * T, y: e.at.y * T, w: T, h: T, color: e.color, alpha: 1 - p });
+      } else if (e.kind === 'sprite') {
+        out.push({
+          type: 'sprite',
+          name: e.frames[frameFor(p, e.frames.length)],
+          x: e.px.x,
+          y: e.px.y,
+          scale: e.scale,
+          alpha: e.fade ? 1 - p : 1,
+        });
+      }
+    }
+    return out;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, now: number, art?: Atlas): void {
+    this.list = this.list.filter((e) => now < e.start + e.dur);
+    for (const d of this.frames(now)) {
+      if (d.type === 'line') {
+        ctx.strokeStyle = d.hit ? '#ffe14d' : '#9aa0b5';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(c.x, c.y, T * 1.5 * (0.3 + p), 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(d.from.x, d.from.y);
+        ctx.lineTo(d.to.x, d.to.y);
+        ctx.stroke();
+      } else if (d.type === 'rect') {
+        ctx.fillStyle = `rgba(${d.color},${d.alpha})`;
+        ctx.fillRect(d.x, d.y, d.w, d.h);
+      } else if (art) {
+        ctx.globalAlpha = d.alpha;
+        art.draw(ctx, d.name, d.x, d.y, { scale: d.scale });
+        ctx.globalAlpha = 1;
       }
     }
   }

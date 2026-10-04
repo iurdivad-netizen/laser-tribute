@@ -105,6 +105,6 @@ export function drawGame(
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
   }
 
-  effects.draw(ctx, now);
+  effects.draw(ctx, now, art);
   drawPanel(ctx, state, ui, now);
 }
