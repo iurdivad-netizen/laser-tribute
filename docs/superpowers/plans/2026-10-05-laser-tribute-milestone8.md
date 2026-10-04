@@ -335,7 +335,7 @@ describe('FontAtlas', () => {
     const { ctx, calls } = fakeCtx();
     atlas.draw(ctx, 'é', 0, 0, '#fff');
     expect(calls).toHaveLength(1);
-    expect(canvases[0].ops.length).toBe(16); // the 7x5 outline has 16 lit cells
+    expect(canvases[0].ops.length).toBe(20); // the 7x5 outline has 20 lit cells
   });
 });
 
@@ -370,9 +370,7 @@ describe('clipText', () => {
   });
 
   it('gives the longest prefix that fits with the dots', () => {
-    const out = clipText('ABCDEFGHIJKLMNOP', 60);
-    expect(out).toBe('ABCDEFG...'.slice(0, out.length));
-    expect(textWidth(out + 'X')).toBeGreaterThan(60 - 0 === 60 ? 0 : 0);
+    expect(clipText('ABCDEFGHIJKLMNOP', 60)).toBe('ABCDEFG...'); // 10 characters = 59 px; one more would be 65
   });
 });
 ```
@@ -1370,13 +1368,17 @@ describe('every screen lays out inside the canvas, with the longest content', ()
   });
 
   it('the result card and the end screen', () => {
-    const app = new App({ clock: () => 0 });
-    app.screen = 'result';
-    app.result = { won: true, survivors: 2, squadSize: 4, enemiesKilled: 8, enemyCount: 8, turns: 12 };
-    app.promoted = ['Lindqvist 2 (Sergeant)', 'Alvarez (Captain)', 'Brandt (Private)', 'Chen (Sergeant)'];
-    // the card draws over the last mission view, so give it a controller to draw under it
-    app.controller = new (class extends Object {})() as never;
-    expect(true).toBe(true);
+    check('result', collect(() => drawResult(ctx, {
+      result: { won: true, survivors: 2, squadSize: 4, enemiesKilled: 8, enemyCount: 8, turns: 12 },
+      missionName: 'Compound',
+      fallen: ['Lindqvist 2', 'Kowalski', 'Fontaine', 'Eriksen'],
+      nextBudget: 215,
+      promoted: ['Lindqvist 2 (Sergeant)', 'Alvarez (Captain)', 'Brandt (Private)', 'Chen (Sergeant)'],
+    })));
+    check('end', collect(() => drawCampaignEnd(ctx, {
+      won: false, missionsWon: 1, missionCount: 3, totalKills: 9,
+      survivors: [], fallen: ['Lindqvist 2', 'Kowalski 2', 'Fontaine 2', 'Eriksen 2'],
+    })));
   });
 });
 
@@ -1398,25 +1400,7 @@ describe('no leftover system fonts', () => {
 });
 ```
 
-The third test above is a stub; replace its body with a real one when writing the file. Use `drawResult` and `drawCampaignEnd` directly (they take plain views, no `App` needed):
-
-```ts
-  it('the result card and the end screen', () => {
-    check('result', collect(() => drawResult(ctx, {
-      result: { won: true, survivors: 2, squadSize: 4, enemiesKilled: 8, enemyCount: 8, turns: 12 },
-      missionName: 'Compound',
-      fallen: ['Lindqvist 2', 'Kowalski', 'Fontaine', 'Eriksen'],
-      nextBudget: 215,
-      promoted: ['Lindqvist 2 (Sergeant)', 'Alvarez (Captain)', 'Brandt (Private)', 'Chen (Sergeant)'],
-    })));
-    check('end', collect(() => drawCampaignEnd(ctx, {
-      won: false, missionsWon: 1, missionCount: 3, totalKills: 9,
-      survivors: [], fallen: ['Lindqvist 2', 'Kowalski 2', 'Fontaine 2', 'Eriksen 2'],
-    })));
-  });
-```
-
-with the imports `drawResult` (from `../src/screens/result`) and `drawCampaignEnd` (from `../src/screens/end`); remove the stub lines (`app.screen = 'result'` ... `expect(true).toBe(true)`).
+The imports of this file also need `drawResult` (from `../src/screens/result`) and `drawCampaignEnd` (from `../src/screens/end`). If `tsc` says the `result` object in the tests of Tasks 6 and 7 lacks a field of `MissionResult`, add the missing field with a plausible value.
 
 - [ ] **Step 2: Run the layout tests**
 
@@ -1456,7 +1440,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 **Spec coverage:** font data and measurement (Task 1); `FontAtlas`, `drawText`, `clipText`, listener (Task 2); frames, buttons and UI colours (Task 3); 480x400 canvas, `index.html` aspect ratio, new panel with the agreed geometry, "!" mark (Task 4); equipment geometry and drawing (Task 5); result card, end screen, sound notice and hint, gallery font sample (Task 6); layout check across screens with the longest content, a leftover-`fillText`/`monospace` guard, README and a visual review (Task 7). The spec's "positions recorded in the plan" for result/end buttons: geometry is unchanged. A small addition not in the spec: the sound notice sits on an inset frame (the milestone 6 minor about readability).
 
-**Placeholders:** none; the one intentional stub in Task 7's test text is called out and replaced by the full test shown next to it.
+**Placeholders:** none.
 
 **Type consistency:** `FontAtlas`, `drawText(ctx, text, x, y, colour, align?, atlas?)`, `clipText`, `onText`, `TextRun` (Task 2) are used by `drawButton` (Task 3), the panel (Task 4), equipment (Task 5), result, end, app and gallery (Task 6) and the tests (Tasks 4 to 7); `UI`, `drawFrame`, `drawButton`, `ButtonState`, `Rect` (Task 3) are used in Tasks 4 to 6; `defaultCanvas` is exported from `atlas.ts` in Task 2 and used by `FontAtlas`.
 
