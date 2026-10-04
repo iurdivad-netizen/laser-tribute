@@ -16,7 +16,8 @@ export function isCovered(s: GameState, shooter: Pos, target: Pos): boolean {
 
 export function hitChance(s: GameState, shooter: Unit, target: Unit, mode: ShotMode): number {
   const w = WEAPONS[shooter.weapon];
-  const base = mode === 'snap' ? w.snapAccuracy : w.aimedAccuracy;
+  const weaponAccuracy = mode === 'snap' ? w.snapAccuracy : w.aimedAccuracy;
+  const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy);
   const rangeFactor = 1 - 0.5 * (distance(shooter.pos, target.pos) / w.range);
   const cover = isCovered(s, shooter.pos, target.pos) ? CONFIG.coverMultiplier : 1;
   return base * rangeFactor * cover;

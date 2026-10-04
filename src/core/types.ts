@@ -35,6 +35,10 @@ export interface Unit {
   alive: boolean;
   /** On alert: keeps AP for the other side's turn and fires at enemies that move into view. */
   alert: boolean;
+  /** Added to the weapon's accuracy. 0 for Rookies and enemies. */
+  accuracy: number;
+  /** Rank name for soldiers ('Rookie', 'Private', ...); '' for enemies. */
+  rank: string;
   /** Enemies killed in this mission, credited to the shooter or grenade thrower. */
   kills: number;
   patrol: Pos[];
@@ -70,6 +74,7 @@ export type Command =
   | { type: 'Turn'; unitId: string; facing: Facing }
   | { type: 'SnapShot'; unitId: string; targetId: string }
   | { type: 'AimedShot'; unitId: string; targetId: string }
+  | { type: 'Stab'; unitId: string; targetId: string }
   | { type: 'OpenDoor'; unitId: string; at: Pos }
   | { type: 'CloseDoor'; unitId: string; at: Pos }
   | { type: 'PickUp'; unitId: string; itemId: string }
@@ -91,6 +96,7 @@ export type GameEvent =
       from: Pos;
       impact: Pos;
     }
+  | { type: 'stab'; unitId: string; targetId: string; hit: boolean; damage: number; from: Pos; at: Pos }
   | { type: 'died'; unitId: string; at: Pos }
   | { type: 'doorChanged'; at: Pos; open: boolean }
   | { type: 'pickedUp'; unitId: string; itemId: string; kind: ItemKind }

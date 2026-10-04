@@ -22,6 +22,8 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     alive: true,
     alert: false,
     kills: 0,
+    accuracy: 0,
+    rank: side === 'player' ? 'Rookie' : '',
     patrol: [],
     patrolIndex: 0,
   };

@@ -8,6 +8,8 @@ export interface ResultView {
   fallen: string[];
   /** Budget for the next mission, or null when the campaign is over. */
   nextBudget: number | null;
+  /** 'Name (Rank)' for each soldier promoted by this mission. */
+  promoted: string[];
 }
 
 export const RESULT = {
@@ -49,6 +51,10 @@ export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
     v.nextBudget === null ? 'The campaign is over' : `Next mission budget: ${v.nextBudget}`,
     c.x + 30, c.y + 116,
   );
+  if (v.promoted.length > 0) {
+    ctx.fillStyle = '#7dff9a';
+    ctx.fillText(clip(`Promoted: ${v.promoted.join(', ')}`, 44), c.x + 30, c.y + 132);
+  }
 
   const b = RESULT.again;
   ctx.fillStyle = '#4da6ff';

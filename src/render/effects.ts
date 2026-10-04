@@ -6,6 +6,7 @@ const T = CONFIG.tileSize;
 type Effect =
   | { kind: 'move'; unitId: string; from: Pos; to: Pos; start: number; dur: number }
   | { kind: 'shot'; from: Pos; to: Pos; hit: boolean; start: number; dur: number }
+  | { kind: 'slash'; from: Pos; to: Pos; hit: boolean; start: number; dur: number }
   | { kind: 'flash'; at: Pos; color: string; start: number; dur: number }
   | { kind: 'boom'; at: Pos; start: number; dur: number };
 
@@ -21,6 +22,9 @@ export class Effects {
       } else if (e.type === 'shot') {
         this.list.push({ kind: 'shot', from: e.from, to: e.impact, hit: e.hit, start: now, dur: 180 });
         if (e.hit) this.list.push({ kind: 'flash', at: e.impact, color: '255,80,80', start: now + 80, dur: 250 });
+      } else if (e.type === 'stab') {
+        this.list.push({ kind: 'slash', from: e.from, to: e.at, hit: e.hit, start: now, dur: 220 });
+        if (e.hit) this.list.push({ kind: 'flash', at: e.at, color: '255,80,80', start: now + 60, dur: 300 });
       } else if (e.type === 'died') {
         this.list.push({ kind: 'flash', at: e.at, color: '255,255,255', start: now, dur: 400 });
       } else if (e.type === 'grenade') {
@@ -54,6 +58,16 @@ export class Effects {
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
         ctx.stroke();
+      } else if (e.kind === 'slash') {
+        const a = center(e.from);
+        const b = center(e.to);
+        ctx.strokeStyle = e.hit ? '#ff5555' : '#9aa0b5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
       } else if (e.kind === 'flash') {
         ctx.fillStyle = `rgba(${e.color},${1 - p})`;
         ctx.fillRect(e.at.x * T, e.at.y * T, T, T);

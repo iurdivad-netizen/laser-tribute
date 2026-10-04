@@ -354,3 +354,44 @@ describe('found gear carries to the next mission', () => {
     expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0 });
   });
 });
+
+describe('promotions after a mission', () => {
+  it('announces a soldier whose kills reach a new rank', () => {
+    const { app } = make({
+      createMission: () => {
+        const s = winTiny();
+        unit(s, 'p1').kills = 2; // two kills this mission: Rookie to Private
+        return s;
+      },
+    });
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.screen).toBe('result');
+    expect(app.promoted).toEqual(['Alvarez (Private)']);
+  });
+
+  it('announces nothing for a soldier who died, who is replaced by a Rookie', () => {
+    const { app } = make({
+      createMission: () => {
+        const s = winTiny();
+        unit(s, 'p1').kills = 9;
+        unit(s, 'p1').alive = false;
+        return s;
+      },
+    });
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.promoted).toEqual([]);
+    expect(app.campaign.roster[0].kills).toBe(0); // the replacement rookie
+  });
+
+  it('a later mission without promotions clears the list', () => {
+    const { app, wait } = make({ createMission: winTiny });
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.promoted).toEqual([]);
+    wait();
+    app.click(CONTINUE);
+    expect(app.promoted).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
-import { WEAPONS } from './core/config';
+import { CONFIG, WEAPONS } from './core/config';
 import { posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
 import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
@@ -135,6 +135,12 @@ export class Controller {
         unitId: sel.id,
         targetId: clicked.id,
       });
+    } else if (mode === 'stab') {
+      if (!clicked || clicked.side !== 'enemy') {
+        this.say('Click an adjacent enemy');
+        return;
+      }
+      this.run({ type: 'Stab', unitId: sel.id, targetId: clicked.id });
     } else if (mode === 'throw') {
       this.run({ type: 'Throw', unitId: sel.id, at: t });
     } else if (mode === 'door') {
@@ -184,6 +190,7 @@ export class Controller {
       aimed: `Aimed shot, ${w.aimedAp} AP: click an enemy`,
       throw: 'Grenade, 24 AP: click a tile',
       door: 'Door, 2 AP: click an adjacent door',
+      stab: `Stab, ${CONFIG.knife.apCost} AP: click an adjacent enemy`,
     };
     this.say(hint[mode], 4000);
     this.updatePreview();
@@ -194,6 +201,7 @@ export class Controller {
       case 'snap': this.setMode('snap'); break;
       case 'aimed': this.setMode('aimed'); break;
       case 'throw': this.setMode('throw'); break;
+      case 'stab': this.setMode('stab'); break;
       case 'door': this.setMode('door'); break;
       case 'pickup': this.pickup(); break;
       case 'alert': this.toggleAlert(); break;
@@ -258,6 +266,7 @@ export class Controller {
     switch (ev.type) {
       case 'moved': return seen(ev.from) || seen(ev.to);
       case 'shot': return seen(ev.from) || seen(ev.impact);
+      case 'stab': return seen(ev.from) || seen(ev.at);
       case 'died':
       case 'doorChanged':
       case 'grenade': return seen(ev.at);
@@ -279,6 +288,7 @@ export class Controller {
       case 's': this.setMode('snap'); return true;
       case 'a': this.setMode('aimed'); return true;
       case 't': this.setMode('throw'); return true;
+      case 'k': this.setMode('stab'); return true;
       case 'd': this.setMode('door'); return true;
       case 'p': this.pickup(); return true;
       case 'l': this.toggleAlert(); return true;
