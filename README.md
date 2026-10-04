@@ -34,7 +34,7 @@ The game is a three-mission campaign with a persistent squad. Before each missio
 | Space or Enter | End turn |
 | Esc or right-click | Cancel |
 
-Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens.
+Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens, and so does the loot from the enemies you killed (their weapons and spare clips; the stash keeps at most 4 weapons and 4 clips). Each soldier's row shows the net price after the stash.
 
 ## Graphics
 

@@ -16,7 +16,7 @@ describe('promotion lines on the result card', () => {
   });
 
   it('leaves room for four lines above the Continue button, inside the card', () => {
-    const firstLineY = RESULT.card.y + 128;
+    const firstLineY = RESULT.card.y + 140; // below the loot line
     expect(RESULT.again.y).toBeGreaterThanOrEqual(firstLineY + 4 * 10);
     expect(RESULT.again.y + RESULT.again.h).toBeLessThanOrEqual(RESULT.card.y + RESULT.card.h);
   });

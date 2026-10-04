@@ -23,6 +23,7 @@ describe('result card', () => {
       missionName: 'Compound',
       fallen: ['Lindqvist 2', 'Kowalski', 'Fontaine', 'Eriksen'],
       nextBudget: 215,
+      loot: '2 rifles, 2 pistols, 4 clips',
       promoted: ['Lindqvist 2 (Sergeant)', 'Alvarez (Captain)', 'Brandt (Private)', 'Chen (Sergeant)'],
     }));
     for (const r of runs) {
@@ -31,6 +32,7 @@ describe('result card', () => {
       expect(left(r) + r.width, r.text).toBeLessThanOrEqual(370 - 8);
     }
     expect(runs.filter((r) => r.text.startsWith('Promoted:'))).toHaveLength(4);
+    expect(runs.some((r) => r.text === 'Loot: 2 rifles, 2 pistols, 4 clips')).toBe(true);
     expect(runs.some((r) => r.text.includes('CONTINUE'))).toBe(true);
   });
 });

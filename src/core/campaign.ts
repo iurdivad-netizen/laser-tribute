@@ -1,4 +1,5 @@
 import type { Loadout } from './loadout';
+import { addStash, capStash, lootFrom } from './loot';
 import { emptyStash, nextStash, type Stash } from './stash';
 import type { GameState } from './types';
 
@@ -97,7 +98,7 @@ export function recordMission(
   });
 
   // A lost mission (or an unknown kit) leaves the stash as it was.
-  const stash = won && used ? nextStash(c.stash, used, finished) : { ...c.stash };
+  const stash = won && used ? capStash(addStash(nextStash(c.stash, used, finished), lootFrom(finished))) : { ...c.stash };
 
   return { missionIndex, missionsWon, roster, fallen, namesUsed, status, stash };
 }

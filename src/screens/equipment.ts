@@ -1,8 +1,8 @@
 import { CONFIG, WEAPONS } from '../core/config';
 import {
-  LOADOUT, SQUAD_SIZE, loadoutCost, soldierCost, validateLoadout, type Loadout,
+  LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, type Loadout,
 } from '../core/loadout';
-import { describeStash, emptyStash, type Stash } from '../core/stash';
+import { coverage, describeStash, emptyStash, type Stash } from '../core/stash';
 import type { WeaponId } from '../core/types';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type ButtonState } from '../ui/frame';
@@ -174,6 +174,7 @@ export function drawEquipment(
     const y = rowY(i);
     const hot = (kind: Exclude<EquipmentHit['kind'], 'start'>) =>
       hover !== null && hover.kind !== 'start' && hover.kind === kind && hover.index === i;
+    const cover = coverage(l, view.stash)[i];
     const who = view.soldiers[i];
     if (who) {
       soldierLines(who).forEach((line, n) => drawText(ctx, line, 8, y + 3 + n * 11, n === 0 ? UI.text : UI.dim));
@@ -182,7 +183,7 @@ export function drawEquipment(
     }
     drawButton(
       ctx, { x: EQ.weapon.x, y, w: EQ.weapon.w, h: EQ.btnH },
-      `${WEAPONS[s.weapon].name} (${LOADOUT.prices[s.weapon]})`,
+      `${WEAPONS[s.weapon].name} (${cover.weapon ? 'FREE' : LOADOUT.prices[s.weapon]})`,
       buttonState(toggleBlockReason(l, i, view.budget, view.stash) === null, hot('weapon')),
     );
     drawText(ctx, 'Grenades', 190, y + 8, UI.dim);
@@ -199,7 +200,8 @@ export function drawEquipment(
     drawText(ctx, `${s.clips}`, 304, cy + 8, UI.text, 'center');
     drawButton(ctx, { x: EQ.plus.x, y: cy, w: EQ.plus.w, h: EQ.btnH }, '+',
       buttonState(clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus')));
-    drawText(ctx, `${soldierCost(s)} cr`, 380, y + 8, UI.dim);
+    const net = netSoldierCost(l, i, view.stash);
+    drawText(ctx, net === 0 ? 'FREE' : `${net} cr`, 380, y + 8, net === 0 ? UI.green : UI.dim);
   });
 
   const reason = hover ? blockReasonFor(l, hover, view.budget, view.stash) : null;
