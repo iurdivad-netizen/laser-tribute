@@ -6,7 +6,9 @@ import {
 } from './core/campaign';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
+import { lootFrom } from './core/loot';
 import { promotions, rankFor } from './core/ranks';
+import { describeStash } from './core/stash';
 import { summarize, type MissionResult } from './core/result';
 import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
@@ -47,6 +49,8 @@ export class App {
   controller: Controller | null = null;
   result: MissionResult | null = null;
   promoted: string[] = [];
+  /** What the squad recovered from the dead enemies after the last won mission, as text. */
+  loot = '';
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
@@ -246,6 +250,7 @@ export class App {
       this.result = summarize(c.state);
       this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
       this.promoted = promotions(rosterBefore, this.campaign.roster);
+      this.loot = c.state.status === 'won' ? describeStash(lootFrom(c.state)) : '';
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
       this.screen = 'result';
       this.endedAt = null;
@@ -306,6 +311,7 @@ export class App {
         fallen: this.fallenNow,
         nextBudget: this.campaign.status === 'active' ? this.budget() : null,
         promoted: this.promoted,
+        loot: this.loot,
       });
     }
   }

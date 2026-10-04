@@ -10,13 +10,15 @@ export interface ResultView {
   fallen: string[];
   /** Budget for the next mission, or null when the campaign is over. */
   nextBudget: number | null;
+  /** What the squad recovered from the dead enemies, e.g. '2 rifles, 1 clip'; empty when nothing. */
+  loot: string;
   /** 'Name (Rank)' for each soldier promoted by this mission. */
   promoted: string[];
 }
 
 export const RESULT = {
-  card: { x: 110, y: 50, w: 260, h: 210 },
-  again: { x: 190, y: 222, w: 100, h: 26 },
+  card: { x: 110, y: 50, w: 260, h: 222 },
+  again: { x: 190, y: 234, w: 100, h: 26 },
 } as const;
 
 /** One line per promotion, at most four, so no name is cut off. */
@@ -51,8 +53,9 @@ export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
     ctx, v.nextBudget === null ? 'The campaign is over' : `Next mission budget: ${v.nextBudget}`,
     x, c.y + 116, UI.accent,
   );
+  if (v.loot) drawText(ctx, clipText(`Loot: ${v.loot}`, room), x, c.y + 128, UI.accent);
   promotionLines(v.promoted).forEach((line, i) => {
-    drawText(ctx, clipText(line, room), x, c.y + 128 + i * 10, UI.green);
+    drawText(ctx, clipText(line, room), x, c.y + 140 + i * 10, UI.green);
   });
 
   const b = RESULT.again;

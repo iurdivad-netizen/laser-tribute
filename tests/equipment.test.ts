@@ -145,3 +145,36 @@ describe('drawEquipment', () => {
     expect(textWidth(start.text) + 6).toBeLessThanOrEqual(140);
   });
 });
+
+describe('drawEquipment with a stash', () => {
+  const draw = (stash: { rifle: number; pistol: number; grenade: number; clip: number }) => {
+    const runs: { text: string; x: number; y: number }[] = [];
+    const stop = onText((r) => runs.push(r));
+    const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
+    drawEquipment(ctx, defaultLoadout(), null, {
+      budget: 120, title: 'T', breakdown: '', soldiers: [], stash,
+    });
+    stop();
+    return runs;
+  };
+
+  it('shows the net price of each soldier, FREE when the stash covers everything, and marks stash weapons', () => {
+    const runs = draw({ rifle: 1, pistol: 0, grenade: 1, clip: 0 });
+    const costs = runs.filter((r) => r.x === 380).map((r) => r.text);
+    expect(costs[0]).toBe('FREE'); // soldier 1: rifle and grenade both from the stash
+    expect(costs[1]).toBe('33 cr'); // soldier 2 pays in full
+    expect(runs.some((r) => r.text === 'Rifle (FREE)')).toBe(true);
+    expect(runs.filter((r) => r.text === 'Rifle (25)')).toHaveLength(1);
+  });
+
+  it('shows full prices with an empty stash', () => {
+    const runs = draw({ rifle: 0, pistol: 0, grenade: 0, clip: 0 });
+    expect(runs.filter((r) => r.x === 380).map((r) => r.text)).toEqual(['33 cr', '33 cr', '18 cr', '18 cr']);
+    expect(runs.some((r) => r.text.includes('FREE'))).toBe(false);
+  });
+
+  it('lists clips in the found-gear line', () => {
+    const runs = draw({ rifle: 1, pistol: 0, grenade: 0, clip: 2 });
+    expect(runs.some((r) => r.text === 'Found gear is free: 1 rifle, 2 clips')).toBe(true);
+  });
+});

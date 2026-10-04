@@ -300,10 +300,10 @@ describe('input guard after a screen switch', () => {
     wait();
     app.click(CONTINUE);
     expect(app.screen).toBe('equipment');
-    app.click({ x: 270, y: 224 }); // fourth soldier's grenade minus, overlapping the Continue button
+    app.click({ x: 270, y: 235 }); // fourth soldier's grenade minus, overlapping the Continue button
     expect(app.loadout[3].grenades).toBe(1);
     wait();
-    app.click({ x: 270, y: 224 });
+    app.click({ x: 270, y: 235 });
     expect(app.loadout[3].grenades).toBe(0);
   });
 
@@ -393,5 +393,31 @@ describe('promotions after a mission', () => {
     wait();
     app.click(CONTINUE);
     expect(app.promoted).toEqual([]);
+  });
+});
+
+describe('loot after a mission', () => {
+  it('a won mission puts the killed enemies weapons in the stash and shows them on the result card', () => {
+    const { app } = make({
+      createMission: () => {
+        const s = makeState(corridorRows('PE'));
+        unit(s, 'e1').alive = false; // killed: a rifle and a spare clip
+        return s;
+      },
+    });
+    app.click(START);
+    endWin(app, 1000);
+    expect(app.screen).toBe('result');
+    expect(app.campaign.stash).toMatchObject({ rifle: 1, clip: 1 });
+    expect(app.loot).toBe('1 rifle, 1 clip');
+  });
+
+  it('a lost mission shows no loot', () => {
+    const { app } = make({ createMission: loseAll });
+    app.click(START);
+    app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
+    app.update(1000);
+    app.update(2100);
+    expect(app.loot).toBe('');
   });
 });
