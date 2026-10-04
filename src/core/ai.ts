@@ -14,6 +14,7 @@ function firstStep(s: GameState, unit: Unit, goal: Pos): Pos | null {
 
 function candidates(s: GameState, unit: Unit): Command[] {
   const out: Command[] = [];
+  if (unit.ammo < 1 && unit.clips > 0) out.push({ type: 'Reload', unitId: unit.id });
   const targets = s.units.filter(
     (u) => u.side === 'player' && u.alive && visibleToSide(s, 'enemy', u.pos),
   );

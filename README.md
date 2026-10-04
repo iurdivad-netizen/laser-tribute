@@ -13,7 +13,7 @@ Locally:
 
 Open the printed local address, or double-click `play.bat` on Windows.
 
-The game is a three-mission campaign with a persistent squad. Before each mission you equip four named soldiers from a shared budget (pistol 10, rifle 25, grenade 8, up to 3 grenades each) and press Start (or Enter). The budget starts at 120 and grows with each won mission (+20) and with each kill by soldiers who are still alive (+5), so protect your veterans. A soldier who dies is gone for good and replaced by a rookie. After each mission a result screen shows how it went; Continue (or Enter) moves on. Win all three missions for Campaign complete; if all four soldiers die the campaign is lost, and New campaign starts again.
+The game is a three-mission campaign with a persistent squad. Before each mission you equip four named soldiers from a shared budget (pistol 10, rifle 25, grenade 8, up to 3 grenades each, extra spare clips 5 each up to 4) and press Start (or Enter). The budget starts at 120 and grows with each won mission (+20) and with each kill by soldiers who are still alive (+5), so protect your veterans. A soldier who dies is gone for good and replaced by a rookie. After each mission a result screen shows how it went; Continue (or Enter) moves on. Guns hold a limited magazine (pistol 8 rounds, rifle 5): reload with R, which costs 15 AP and uses a spare clip. Every soldier starts with one spare clip included in the weapon price. Enemies follow the same rules. Win all three missions for Campaign complete; if all four soldiers die the campaign is lost, and New campaign starts again.
 
 ## Controls
 
@@ -26,6 +26,7 @@ The game is a three-mission campaign with a persistent squad. Before each missio
 | K, then click an adjacent enemy | Stab with the combat knife (every soldier has one; 20 AP, very high damage) |
 | D, then click a door | Open or close a door |
 | P | Pick up the item underfoot |
+| R | Reload the selected soldier (15 AP, uses a spare clip) |
 | L | Alert: keep the soldier's AP and fire once at each enemy that moves into his view |
 | Q / E | Turn left / right |
 | Space or Enter | End turn |

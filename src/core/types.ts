@@ -39,6 +39,10 @@ export interface Unit {
   accuracy: number;
   /** Rank name for soldiers ('Rookie', 'Private', ...); '' for enemies. */
   rank: string;
+  /** Rounds left in the gun. */
+  ammo: number;
+  /** Spare clips: each reload uses one. Clips fit any weapon. */
+  clips: number;
   /** Enemies killed in this mission, credited to the shooter or grenade thrower. */
   kills: number;
   patrol: Pos[];
@@ -75,6 +79,7 @@ export type Command =
   | { type: 'SnapShot'; unitId: string; targetId: string }
   | { type: 'AimedShot'; unitId: string; targetId: string }
   | { type: 'Stab'; unitId: string; targetId: string }
+  | { type: 'Reload'; unitId: string }
   | { type: 'OpenDoor'; unitId: string; at: Pos }
   | { type: 'CloseDoor'; unitId: string; at: Pos }
   | { type: 'PickUp'; unitId: string; itemId: string }
@@ -97,6 +102,7 @@ export type GameEvent =
       impact: Pos;
     }
   | { type: 'stab'; unitId: string; targetId: string; hit: boolean; damage: number; from: Pos; at: Pos }
+  | { type: 'reloaded'; unitId: string; ammo: number; at: Pos }
   | { type: 'died'; unitId: string; at: Pos }
   | { type: 'doorChanged'; at: Pos; open: boolean }
   | { type: 'pickedUp'; unitId: string; itemId: string; kind: ItemKind }

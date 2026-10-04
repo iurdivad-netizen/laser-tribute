@@ -40,6 +40,7 @@ export function fireShot(
   mode: ShotMode,
   events: GameEvent[],
 ): void {
+  shooter.ammo -= 1;
   const hit = nextRandom(s) < hitChance(s, shooter, target, mode);
   let damage = 0;
   let impact: Pos = { ...target.pos };
@@ -73,6 +74,7 @@ export function applyReactionFire(s: GameState, mover: Unit, events: GameEvent[]
     if (!o.alive || !o.alert || o.side === mover.side) continue;
     const w = WEAPONS[o.weapon];
     if (o.ap < w.snapAp) continue;
+    if (o.ammo < 1) continue;
     if (distance(o.pos, mover.pos) > w.range) continue;
     if (!canSee(s, o, mover.pos)) continue;
     const key = `${o.id}>${mover.id}`;
@@ -80,6 +82,6 @@ export function applyReactionFire(s: GameState, mover: Unit, events: GameEvent[]
     s.reacted.push(key);
     o.ap -= w.snapAp;
     fireShot(s, o, mover, 'snap', events);
-    if (o.ap < w.snapAp) o.alert = false;
+    if (o.ap < w.snapAp || o.ammo < 1) o.alert = false;
   }
 }

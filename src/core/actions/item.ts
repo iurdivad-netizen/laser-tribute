@@ -22,6 +22,7 @@ export function handlePickUp(
   } else {
     const old = unit.weapon;
     unit.weapon = item.kind;
+    unit.ammo = WEAPONS[unit.weapon].magazine;
     item.kind = old;
   }
   events.push({ type: 'pickedUp', unitId: unit.id, itemId: item.id, kind: picked });

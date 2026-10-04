@@ -3,6 +3,7 @@ import { handleDoor } from './actions/door';
 import { handleEndTurn } from './actions/endTurn';
 import { handlePickUp } from './actions/item';
 import { handleMove, handleTurn } from './actions/move';
+import { handleReload } from './actions/reload';
 import { handleShot } from './actions/shoot';
 import { handleStab } from './actions/stab';
 import { handleThrow } from './actions/throw';
@@ -54,6 +55,8 @@ function dispatch(s: GameState, cmd: UnitCommand, unit: Unit, events: GameEvent[
       return handleShot(s, cmd, unit, events);
     case 'Stab':
       return handleStab(s, cmd, unit, events);
+    case 'Reload':
+      return handleReload(s, cmd, unit, events);
     case 'Throw':
       return handleThrow(s, cmd, unit, events);
     case 'Alert':

@@ -1,9 +1,10 @@
+import { CONFIG, WEAPONS } from './config';
 import { coverage, emptyStash, type Stash } from './stash';
 import type { GameState, WeaponId } from './types';
 
 export const LOADOUT = {
   budget: 120,
-  prices: { pistol: 10, rifle: 25, grenade: 8 },
+  prices: { pistol: 10, rifle: 25, grenade: 8, clip: 5 },
   maxGrenades: 3,
 } as const;
 
@@ -12,21 +13,23 @@ export const SQUAD_SIZE = 4;
 export interface SoldierLoadout {
   weapon: WeaponId;
   grenades: number;
+  /** Spare clips, 1 to 4; the first is included in the weapon price. */
+  clips: number;
 }
 
 export type Loadout = SoldierLoadout[];
 
 export function defaultLoadout(): Loadout {
   return [
-    { weapon: 'rifle', grenades: 1 },
-    { weapon: 'rifle', grenades: 1 },
-    { weapon: 'pistol', grenades: 1 },
-    { weapon: 'pistol', grenades: 1 },
+    { weapon: 'rifle', grenades: 1, clips: 1 },
+    { weapon: 'rifle', grenades: 1, clips: 1 },
+    { weapon: 'pistol', grenades: 1, clips: 1 },
+    { weapon: 'pistol', grenades: 1, clips: 1 },
   ];
 }
 
 export function soldierCost(s: SoldierLoadout): number {
-  return LOADOUT.prices[s.weapon] + LOADOUT.prices.grenade * s.grenades;
+  return LOADOUT.prices[s.weapon] + LOADOUT.prices.grenade * s.grenades + LOADOUT.prices.clip * (s.clips - 1);
 }
 
 /** Credits the loadout costs; gear covered by the stash is free. */
@@ -40,7 +43,7 @@ export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
 }
 
 export function cheapLoadout(): Loadout {
-  return Array.from({ length: SQUAD_SIZE }, () => ({ weapon: 'pistol' as const, grenades: 1 }));
+  return Array.from({ length: SQUAD_SIZE }, () => ({ weapon: 'pistol' as const, grenades: 1, clips: 1 }));
 }
 
 export function validateLoadout(
@@ -51,6 +54,9 @@ export function validateLoadout(
     if (s.weapon !== 'pistol' && s.weapon !== 'rifle') return `Soldier ${i + 1} needs a weapon`;
     if (!Number.isInteger(s.grenades) || s.grenades < 0 || s.grenades > LOADOUT.maxGrenades) {
       return `Soldier ${i + 1} must carry 0 to ${LOADOUT.maxGrenades} grenades`;
+    }
+    if (!Number.isInteger(s.clips) || s.clips < 1 || s.clips > CONFIG.maxClips) {
+      return `Soldier ${i + 1} must carry 1 to ${CONFIG.maxClips} spare clips`;
     }
   }
   const cost = loadoutCost(l, stash);
@@ -76,6 +82,8 @@ export function applyLoadout(
     .forEach((u, i) => {
       u.weapon = l[i].weapon;
       u.grenades = l[i].grenades;
+      u.clips = l[i].clips;
+      u.ammo = WEAPONS[l[i].weapon].magazine;
     });
   return next;
 }

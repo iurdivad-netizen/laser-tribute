@@ -1,4 +1,4 @@
-import { CONFIG } from './config';
+import { CONFIG, WEAPONS } from './config';
 import type { FloorItem, GameState, ItemKind, Side, Tile, Unit, WeaponId } from './types';
 
 const PLAYER_WEAPONS: WeaponId[] = ['rifle', 'rifle', 'pistol', 'pistol'];
@@ -24,6 +24,8 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     kills: 0,
     accuracy: 0,
     rank: side === 'player' ? 'Rookie' : '',
+    ammo: WEAPONS[weapon].magazine,
+    clips: CONFIG.spareClips,
     patrol: [],
     patrolIndex: 0,
   };

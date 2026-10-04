@@ -14,6 +14,7 @@ export function handleShot(
   const target = s.units.find((u) => u.id === cmd.targetId);
   if (!target || !target.alive) return 'No such target';
   if (target.side === unit.side) return 'Cannot shoot your own side';
+  if (unit.ammo < 1) return 'Out of ammo';
   const w = WEAPONS[unit.weapon];
   const cost = mode === 'snap' ? w.snapAp : w.aimedAp;
   if (unit.ap < cost) return NOT_ENOUGH_AP;

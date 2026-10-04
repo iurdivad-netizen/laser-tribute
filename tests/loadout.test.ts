@@ -6,7 +6,7 @@ import { createMission1 } from '../src/core/mission1';
 import { corridorRows, makeState, unit } from './helpers';
 
 const four = (weapon: 'pistol' | 'rifle', grenades: number): Loadout =>
-  Array.from({ length: 4 }, () => ({ weapon, grenades }));
+  Array.from({ length: 4 }, () => ({ weapon, grenades, clips: 1 }));
 
 describe('loadout cost and validity', () => {
   it("default loadout is milestone 1's kit: costs 102 and is valid", () => {
@@ -28,10 +28,10 @@ describe('loadout cost and validity', () => {
 
   it('accepts a loadout that spends exactly the budget', () => {
     const l: Loadout = [
-      { weapon: 'pistol', grenades: 3 },
-      { weapon: 'pistol', grenades: 3 },
-      { weapon: 'pistol', grenades: 3 },
-      { weapon: 'pistol', grenades: 1 },
+      { weapon: 'pistol', grenades: 3, clips: 1 },
+      { weapon: 'pistol', grenades: 3, clips: 1 },
+      { weapon: 'pistol', grenades: 3, clips: 1 },
+      { weapon: 'pistol', grenades: 1, clips: 1 },
     ];
     expect(loadoutCost(l)).toBe(120);
     expect(validateLoadout(l)).toBeNull();
@@ -65,10 +65,10 @@ describe('loadout cost and validity', () => {
 
 describe('applyLoadout', () => {
   const custom: Loadout = [
-    { weapon: 'rifle', grenades: 0 },
-    { weapon: 'pistol', grenades: 2 },
-    { weapon: 'rifle', grenades: 1 },
-    { weapon: 'pistol', grenades: 3 },
+    { weapon: 'rifle', grenades: 0, clips: 1 },
+    { weapon: 'pistol', grenades: 2, clips: 1 },
+    { weapon: 'rifle', grenades: 1, clips: 1 },
+    { weapon: 'pistol', grenades: 3, clips: 1 },
   ]; // cost 118
 
   it('sets weapon and grenades on the right soldiers without touching the input', () => {
@@ -95,20 +95,20 @@ describe('applyLoadout', () => {
 describe('createMission1 with a loadout', () => {
   it('uses the loadout and the seed', () => {
     const s = createMission1(5, [
-      { weapon: 'rifle', grenades: 0 },
-      { weapon: 'pistol', grenades: 2 },
-      { weapon: 'rifle', grenades: 1 },
-      { weapon: 'pistol', grenades: 3 },
+      { weapon: 'rifle', grenades: 0, clips: 1 },
+      { weapon: 'pistol', grenades: 2, clips: 1 },
+      { weapon: 'rifle', grenades: 1, clips: 1 },
+      { weapon: 'pistol', grenades: 3, clips: 1 },
     ]);
     expect(s.rngState).toBe(5);
-    expect(unit(s, 'p2')).toMatchObject({ weapon: 'pistol', grenades: 2 });
-    expect(unit(s, 'p4')).toMatchObject({ weapon: 'pistol', grenades: 3 });
+    expect(unit(s, 'p2')).toMatchObject({ weapon: 'pistol', grenades: 2, clips: 1 });
+    expect(unit(s, 'p4')).toMatchObject({ weapon: 'pistol', grenades: 3, clips: 1 });
   });
 
   it('is unchanged without a loadout', () => {
     const s = createMission1();
-    expect(unit(s, 'p1')).toMatchObject({ weapon: 'rifle', grenades: 1 });
-    expect(unit(s, 'p3')).toMatchObject({ weapon: 'pistol', grenades: 1 });
+    expect(unit(s, 'p1')).toMatchObject({ weapon: 'rifle', grenades: 1, clips: 1 });
+    expect(unit(s, 'p3')).toMatchObject({ weapon: 'pistol', grenades: 1, clips: 1 });
   });
 });
 
@@ -124,7 +124,7 @@ describe('budget parameter', () => {
   it('applyLoadout uses the given budget', () => {
     const s = createMission1();
     const next = applyLoadout(s, four('rifle', 3), 200);
-    expect(unit(next, 'p4')).toMatchObject({ weapon: 'rifle', grenades: 3 });
+    expect(unit(next, 'p4')).toMatchObject({ weapon: 'rifle', grenades: 3, clips: 1 });
     expect(() => applyLoadout(s, four('rifle', 3), 150)).toThrow(/budget/);
   });
 });

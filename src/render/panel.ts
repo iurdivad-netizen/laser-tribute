@@ -4,7 +4,7 @@ import type { GameState, Unit } from '../core/types';
 import type { UiState } from '../input/uiState';
 import { VIEW } from './layout';
 
-export type ButtonId = 'snap' | 'aimed' | 'throw' | 'stab' | 'door' | 'pickup' | 'alert' | 'end';
+export type ButtonId = 'snap' | 'aimed' | 'throw' | 'stab' | 'reload' | 'door' | 'pickup' | 'alert' | 'end';
 
 export interface PanelButton {
   id: ButtonId;
@@ -19,16 +19,17 @@ export interface PanelButton {
 const DEFS: [ButtonId, string, string][] = [
   ['snap', 'SNAP', 'S'],
   ['aimed', 'AIM', 'A'],
-  ['throw', 'THROW', 'T'],
+  ['throw', 'GREN', 'T'],
   ['stab', 'STAB', 'K'],
+  ['reload', 'LOAD', 'R'],
   ['door', 'DOOR', 'D'],
   ['pickup', 'TAKE', 'P'],
-  ['alert', 'ALERT', 'L'],
-  ['end', 'END', 'Spc'],
+  ['alert', 'ALRT', 'L'],
+  ['end', 'END', 'Sp'],
 ];
 
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) => ({
-  id, label, key, x: 172 + i * 38, y: VIEW.mapHeight + 13, w: 36, h: 13,
+  id, label, key, x: 172 + i * 34, y: VIEW.mapHeight + 13, w: 33, h: 13,
 }));
 
 /** AP the soldier pays for the action behind this button; null for buttons that cost nothing. */
@@ -38,10 +39,20 @@ export function actionCost(u: Unit, id: ButtonId): number | null {
     case 'aimed': return WEAPONS[u.weapon].aimedAp;
     case 'throw': return CONFIG.grenade.apCost;
     case 'stab': return CONFIG.knife.apCost;
+    case 'reload': return CONFIG.reloadAp;
     case 'door': return CONFIG.doorCost;
     case 'pickup': return CONFIG.pickupCost;
     default: return null;
   }
+}
+
+/** True when the button's action cannot be used right now (not enough AP, empty gun, nothing to reload). */
+export function actionBlocked(u: Unit, id: ButtonId): boolean {
+  const cost = actionCost(u, id);
+  if (cost !== null && u.ap < cost) return true;
+  if (id === 'reload') return u.clips < 1 || u.ammo >= WEAPONS[u.weapon].magazine;
+  if (id === 'snap' || id === 'aimed') return u.ammo < 1;
+  return false;
 }
 
 const MODE_NAMES: Partial<Record<UiState['mode'], string>> = {
@@ -67,7 +78,10 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   if (u) {
     const tag = rankShort(u.rank);
     ctx.fillText(`${tag ? `${tag} ` : ''}${u.name}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
-    ctx.fillText(`${WEAPONS[u.weapon].name}  Grenades ${u.grenades}${u.alert ? '  ALERT' : ''}`, 4, top + 15);
+    ctx.fillText(
+      `${WEAPONS[u.weapon].name} ${u.ammo}/${WEAPONS[u.weapon].magazine} +${u.clips}  Grenades ${u.grenades}${u.alert ? '  ALERT' : ''}`,
+      4, top + 15,
+    );
   } else {
     ctx.fillText('No soldier selected', 4, top + 4);
   }
@@ -96,7 +110,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     ctx.fillText(`${b.key} ${b.label}`, b.x + 2, b.y + 3);
     const cost = u ? actionCost(u, b.id) : null;
     if (cost !== null) {
-      ctx.fillStyle = u!.ap < cost ? '#ff5555' : '#8a8fa8';
+      ctx.fillStyle = actionBlocked(u!, b.id) ? '#ff5555' : '#8a8fa8';
       ctx.fillText(`${cost} AP`, b.x + 2, b.y + 15);
     }
   }
