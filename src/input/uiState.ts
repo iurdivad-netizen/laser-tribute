@@ -1,6 +1,6 @@
 import type { Pos } from '../core/types';
 
-export type Mode = 'move' | 'snap' | 'aimed' | 'throw' | 'door';
+export type Mode = 'move' | 'snap' | 'aimed' | 'throw' | 'door' | 'stab';
 
 export interface UiState {
   selectedId: string | null;
