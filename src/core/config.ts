@@ -18,6 +18,9 @@ export const CONFIG = {
   maxHitChance: 0.95,
   grenade: { apCost: 24, range: 8, damage: 40, radius: 1 },
   knife: { apCost: 20, damage: 60, accuracy: 0.9 },
+  reloadAp: 15,
+  spareClips: 1,
+  maxClips: 4,
 } as const;
 
 export interface WeaponDef {
@@ -28,15 +31,17 @@ export interface WeaponDef {
   aimedAp: number;
   snapAccuracy: number;
   aimedAccuracy: number;
+  /** Rounds in a full magazine. */
+  magazine: number;
 }
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   pistol: {
     name: 'Pistol', damage: 18, range: 8,
-    snapAp: 12, aimedAp: 24, snapAccuracy: 0.55, aimedAccuracy: 0.75,
+    snapAp: 12, aimedAp: 24, snapAccuracy: 0.55, aimedAccuracy: 0.75, magazine: 8,
   },
   rifle: {
     name: 'Rifle', damage: 30, range: 14,
-    snapAp: 15, aimedAp: 30, snapAccuracy: 0.5, aimedAccuracy: 0.85,
+    snapAp: 15, aimedAp: 30, snapAccuracy: 0.5, aimedAccuracy: 0.85, magazine: 5,
   },
 };

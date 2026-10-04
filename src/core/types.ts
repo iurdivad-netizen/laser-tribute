@@ -39,6 +39,10 @@ export interface Unit {
   accuracy: number;
   /** Rank name for soldiers ('Rookie', 'Private', ...); '' for enemies. */
   rank: string;
+  /** Rounds left in the gun. */
+  ammo: number;
+  /** Spare clips: each reload uses one. Clips fit any weapon. */
+  clips: number;
   /** Enemies killed in this mission, credited to the shooter or grenade thrower. */
   kills: number;
   patrol: Pos[];
