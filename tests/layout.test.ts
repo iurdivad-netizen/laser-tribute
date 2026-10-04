@@ -54,7 +54,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
     later.campaign.roster = [
       { name: 'Lindqvist 2', kills: 99 }, { name: 'Kowalski 2', kills: 12 }, { name: 'Fontaine', kills: 5 }, { name: 'Dubois', kills: 2 },
     ];
-    later.campaign.stash = { rifle: 2, pistol: 1, grenade: 3 };
+    later.campaign.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 0 };
     check('equipment (late)', collect(() => later.draw(ctx, 0)));
   });
 

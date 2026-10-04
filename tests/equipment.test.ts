@@ -135,7 +135,7 @@ describe('drawEquipment', () => {
         { name: 'Brandt', kills: 4, rank: 'Private' },
         { name: 'Chen', kills: 12, rank: 'Captain' },
       ],
-      stash: { rifle: 2, pistol: 1, grenade: 3 },
+      stash: { rifle: 2, pistol: 1, grenade: 3, clip: 0 },
     });
     stop();
     for (const r of runs) expect(unsupportedChars(r.text), r.text).toEqual([]);

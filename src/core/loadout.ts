@@ -36,10 +36,22 @@ export function soldierCost(s: SoldierLoadout): number {
 export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
   const gross = l.reduce((sum, s) => sum + soldierCost(s), 0);
   const free = coverage(l, stash).reduce(
-    (sum, c, i) => sum + (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) + c.grenades * LOADOUT.prices.grenade,
+    (sum, c, i) =>
+      sum + (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) + c.grenades * LOADOUT.prices.grenade + c.clips * LOADOUT.prices.clip,
     0,
   );
   return gross - free;
+}
+
+/** What soldier `i` costs after the stash covers part of the kit (0 when everything is free). */
+export function netSoldierCost(l: Loadout, i: number, stash: Stash = emptyStash()): number {
+  const c = coverage(l, stash)[i];
+  return (
+    soldierCost(l[i]) -
+    (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) -
+    c.grenades * LOADOUT.prices.grenade -
+    c.clips * LOADOUT.prices.clip
+  );
 }
 
 export function cheapLoadout(): Loadout {

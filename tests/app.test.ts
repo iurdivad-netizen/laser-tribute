@@ -345,13 +345,13 @@ describe('found gear carries to the next mission', () => {
     expect(app.loadout[0].weapon).toBe('pistol');
     app.click(START);
     endWin(app, 1000);
-    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0 });
+    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0 });
     wait();
     app.click(CONTINUE); // on to the next equipment screen
     expect(app.screen).toBe('equipment');
     wait();
     app.click(START);
-    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0 });
+    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0 });
   });
 });
 
