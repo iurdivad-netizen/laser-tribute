@@ -1,4 +1,4 @@
-import { WEAPONS } from '../core/config';
+import { CONFIG, WEAPONS } from '../core/config';
 import {
   LOADOUT, SQUAD_SIZE, loadoutCost, soldierCost, validateLoadout, type Loadout,
 } from '../core/loadout';
@@ -7,7 +7,7 @@ import type { WeaponId } from '../core/types';
 import { VIEW } from '../render/layout';
 
 export type EquipmentHit =
-  | { kind: 'weapon' | 'minus' | 'plus'; index: number }
+  | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus'; index: number }
   | { kind: 'start' };
 
 export interface EquipmentView {
@@ -35,6 +35,7 @@ export const EQ = {
   rowTop: 56,
   rowStep: 52,
   btnH: 24,
+  clipDy: 26,
   weapon: { x: 60, w: 90 },
   minus: { x: 250, w: 24 },
   plus: { x: 310, w: 24 },
@@ -85,6 +86,27 @@ export function changeGrenades(
   return l.map((s, j) => (j === i ? { ...s, grenades: s.grenades + delta } : s));
 }
 
+export function clipBlockReason(
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): string | null {
+  const next = l[i].clips + delta;
+  if (next < 1) return 'At least 1 spare clip';
+  if (next > CONFIG.maxClips) return `Max ${CONFIG.maxClips} spare clips`;
+  if (delta === 1) {
+    const after = l.map((s, j) => (j === i ? { ...s, clips: next } : s));
+    const need = loadoutCost(after, stash) - budget;
+    if (need > 0) return `Need ${need} more credits`;
+  }
+  return null;
+}
+
+export function changeClips(
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): Loadout {
+  if (clipBlockReason(l, i, delta, budget, stash)) return l;
+  return l.map((s, j) => (j === i ? { ...s, clips: s.clips + delta } : s));
+}
+
 export function equipmentHit(px: number, py: number): EquipmentHit | null {
   const s = EQ.start;
   if (inRect(px, py, s.x, s.y, s.w, s.h)) return { kind: 'start' };
@@ -93,6 +115,9 @@ export function equipmentHit(px: number, py: number): EquipmentHit | null {
     if (inRect(px, py, EQ.weapon.x, y, EQ.weapon.w, EQ.btnH)) return { kind: 'weapon', index: i };
     if (inRect(px, py, EQ.minus.x, y, EQ.minus.w, EQ.btnH)) return { kind: 'minus', index: i };
     if (inRect(px, py, EQ.plus.x, y, EQ.plus.w, EQ.btnH)) return { kind: 'plus', index: i };
+    const cy = y + EQ.clipDy;
+    if (inRect(px, py, EQ.minus.x, cy, EQ.minus.w, EQ.btnH)) return { kind: 'clipMinus', index: i };
+    if (inRect(px, py, EQ.plus.x, cy, EQ.plus.w, EQ.btnH)) return { kind: 'clipPlus', index: i };
   }
   return null;
 }
@@ -104,6 +129,8 @@ export function blockReasonFor(
     case 'weapon': return toggleBlockReason(l, hit.index, budget, stash);
     case 'minus': return grenadeBlockReason(l, hit.index, -1, budget, stash);
     case 'plus': return grenadeBlockReason(l, hit.index, 1, budget, stash);
+    case 'clipMinus': return clipBlockReason(l, hit.index, -1, budget, stash);
+    case 'clipPlus': return clipBlockReason(l, hit.index, 1, budget, stash);
     case 'start': return validateLoadout(l, budget, stash);
   }
 }
@@ -115,6 +142,8 @@ export function applyEquipmentHit(
     case 'weapon': return toggleWeapon(l, hit.index, budget, stash);
     case 'minus': return changeGrenades(l, hit.index, -1, budget, stash);
     case 'plus': return changeGrenades(l, hit.index, 1, budget, stash);
+    case 'clipMinus': return changeClips(l, hit.index, -1, budget, stash);
+    case 'clipPlus': return changeClips(l, hit.index, 1, budget, stash);
     case 'start': return l;
   }
 }
@@ -156,7 +185,7 @@ export function drawEquipment(
 
   l.forEach((s, i) => {
     const y = rowY(i);
-    const hot = (kind: 'weapon' | 'minus' | 'plus') =>
+    const hot = (kind: Exclude<EquipmentHit['kind'], 'start'>) =>
       hover !== null && hover.kind !== 'start' && hover.kind === kind && hover.index === i;
     const who = view.soldiers[i];
     if (who) {
@@ -179,13 +208,20 @@ export function drawEquipment(
     ctx.fillStyle = '#e8e8f0';
     ctx.fillText(`${s.grenades}`, 286, y + 8);
     button(ctx, EQ.plus.x, y, EQ.plus.w, EQ.btnH, '+', grenadeBlockReason(l, i, 1, view.budget, view.stash) === null, hot('plus'));
+    const cy = y + EQ.clipDy;
+    ctx.fillStyle = '#8a8fa8';
+    ctx.fillText('Spare clips', 180, cy + 8);
+    button(ctx, EQ.minus.x, cy, EQ.minus.w, EQ.btnH, '-', clipBlockReason(l, i, -1, view.budget, view.stash) === null, hot('clipMinus'));
+    ctx.fillStyle = '#e8e8f0';
+    ctx.fillText(`${s.clips}`, 286, cy + 8);
+    button(ctx, EQ.plus.x, cy, EQ.plus.w, EQ.btnH, '+', clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus'));
     ctx.fillStyle = '#8a8fa8';
     ctx.fillText(`${soldierCost(s)} cr`, 380, y + 8);
   });
 
   const reason = hover ? blockReasonFor(l, hover, view.budget, view.stash) : null;
   ctx.fillStyle = reason ? '#ff9a4d' : '#6a6f88';
-  ctx.fillText(reason ?? 'Click a weapon to swap it, + and - for grenades', 20, 272);
+  ctx.fillText(reason ?? 'Click a weapon to swap it; + and - for grenades and spare clips', 20, 272);
 
   const found = describeStash(view.stash);
   if (found) {
