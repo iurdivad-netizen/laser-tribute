@@ -5,14 +5,15 @@ import { VIEW } from '../src/render/layout';
 import { corridorRows, makeState, unit } from './helpers';
 
 describe('panel buttons', () => {
-  it('has eight buttons including STAB, all inside the panel and not overlapping', () => {
+  it('has nine buttons including STAB and LOAD, all inside the panel, not overlapping, labels short', () => {
     expect(PANEL_BUTTONS.map((b) => b.id)).toEqual(
-      ['snap', 'aimed', 'throw', 'stab', 'door', 'pickup', 'alert', 'end'],
+      ['snap', 'aimed', 'throw', 'stab', 'reload', 'door', 'pickup', 'alert', 'end'],
     );
     for (const b of PANEL_BUTTONS) {
       expect(b.x).toBeGreaterThanOrEqual(0);
       expect(b.x + b.w).toBeLessThanOrEqual(VIEW.width);
       expect(b.y + b.h).toBeLessThanOrEqual(VIEW.height);
+      expect(`${b.key} ${b.label}`.length).toBeLessThanOrEqual(6);
     }
     for (let i = 1; i < PANEL_BUTTONS.length; i++) {
       const prev = PANEL_BUTTONS[i - 1];

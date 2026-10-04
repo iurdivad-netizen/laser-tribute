@@ -25,6 +25,8 @@ export class Effects {
       } else if (e.type === 'stab') {
         this.list.push({ kind: 'slash', from: e.from, to: e.at, hit: e.hit, start: now, dur: 220 });
         if (e.hit) this.list.push({ kind: 'flash', at: e.at, color: '255,80,80', start: now + 60, dur: 300 });
+      } else if (e.type === 'reloaded') {
+        this.list.push({ kind: 'flash', at: e.at, color: '120,200,255', start: now, dur: 250 });
       } else if (e.type === 'died') {
         this.list.push({ kind: 'flash', at: e.at, color: '255,255,255', start: now, dur: 400 });
       } else if (e.type === 'grenade') {

@@ -204,6 +204,7 @@ export class Controller {
       case 'stab': this.setMode('stab'); break;
       case 'door': this.setMode('door'); break;
       case 'pickup': this.pickup(); break;
+      case 'reload': this.reload(); break;
       case 'alert': this.toggleAlert(); break;
       case 'end': this.endTurn(); break;
     }
@@ -218,6 +219,12 @@ export class Controller {
       return;
     }
     this.run({ type: 'PickUp', unitId: sel.id, itemId: item.id });
+  }
+
+  private reload(): void {
+    const sel = this.selected();
+    if (!sel || !this.canAct()) return;
+    if (this.run({ type: 'Reload', unitId: sel.id })) this.say(`${sel.name} reloaded`);
   }
 
   private toggleAlert(): void {
@@ -267,6 +274,7 @@ export class Controller {
       case 'moved': return seen(ev.from) || seen(ev.to);
       case 'shot': return seen(ev.from) || seen(ev.impact);
       case 'stab': return seen(ev.from) || seen(ev.at);
+      case 'reloaded': return seen(ev.at);
       case 'died':
       case 'doorChanged':
       case 'grenade': return seen(ev.at);
@@ -291,6 +299,7 @@ export class Controller {
       case 'k': this.setMode('stab'); return true;
       case 'd': this.setMode('door'); return true;
       case 'p': this.pickup(); return true;
+      case 'r': this.reload(); return true;
       case 'l': this.toggleAlert(); return true;
       case ' ':
       case 'Enter': this.endTurn(); return true;
