@@ -21,9 +21,11 @@ export function handlePickUp(
     s.items = s.items.filter((i) => i !== item);
   } else {
     const old = unit.weapon;
+    const droppedAmmo = unit.ammo;
     unit.weapon = item.kind;
-    unit.ammo = WEAPONS[unit.weapon].magazine;
+    unit.ammo = item.ammo ?? WEAPONS[unit.weapon].magazine;
     item.kind = old;
+    item.ammo = droppedAmmo; // the weapon left behind keeps its rounds, so swapping cannot create ammo
   }
   events.push({ type: 'pickedUp', unitId: unit.id, itemId: item.id, kind: picked });
   return null;
