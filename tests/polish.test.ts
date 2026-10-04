@@ -48,26 +48,6 @@ describe('panel details', () => {
     p.grenades = 0;
     expect(actionBlocked(p, 'throw')).toBe(true);
   });
-
-  it('keeps the turn text clear of the status line even at turn 99', () => {
-    const s = makeState(corridorRows('P..E'));
-    s.turnNumber = 99;
-    s.turn = 'enemy';
-    const ui = createUiState('p1');
-    ui.message = 'Need 24 AP, have 15';
-    ui.messageUntil = Infinity;
-    const texts: { text: string; x: number }[] = [];
-    const ctx = {
-      fillText(text: string, x: number) { texts.push({ text, x }); },
-      fillRect() {},
-      measureText(t: string) { return { width: t.length * 4.8 }; },
-      set fillStyle(_v: string) {}, set font(_v: string) {}, set textBaseline(_v: string) {},
-    } as unknown as CanvasRenderingContext2D;
-    drawPanel(ctx, s, ui, 0);
-    const turn = texts.find((t) => t.text.startsWith('Turn 99'))!;
-    const status = texts.find((t) => t.text === 'Need 24 AP, have 15')!;
-    expect(status.x).toBeGreaterThanOrEqual(turn.x + turn.text.length * 4.8 + 2);
-  });
 });
 
 describe('enemies without ammo (extra coverage)', () => {

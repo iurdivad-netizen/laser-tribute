@@ -5,6 +5,8 @@ import { App, type AppOptions } from '../src/app';
 import type { GameState } from '../src/core/types';
 import { createUiState } from '../src/input/uiState';
 import { drawPanel } from '../src/render/panel';
+import { textWidth } from '../src/ui/font';
+import { onText } from '../src/ui/text';
 import { corridorRows, makeState } from './helpers';
 
 const START = { x: 240, y: 315 };
@@ -32,14 +34,12 @@ function make(opts: AppOptions = {}) {
   return { app, sound, wait: () => { t += 500; } };
 }
 
-/** A canvas stand-in that records the text drawn. */
+/** Records the text drawn through drawText while a canvas stand-in swallows the rest. Call stop() after drawing. */
 function recorder() {
   const texts: { text: string; x: number }[] = [];
-  const ctx = new Proxy({}, {
-    get: (_t, prop) => (prop === 'fillText' ? (text: string, x: number) => { texts.push({ text, x }); } : () => ({ width: 0 })),
-    set: () => true,
-  }) as unknown as CanvasRenderingContext2D;
-  return { ctx, texts };
+  const stop = onText((r) => texts.push({ text: r.text, x: r.x }));
+  const ctx = new Proxy({}, { get: () => () => ({ width: 0 }), set: () => true }) as unknown as CanvasRenderingContext2D;
+  return { ctx, texts, stop };
 }
 
 describe('unlocking audio', () => {
@@ -84,8 +84,9 @@ describe('sound keys', () => {
   it('shows the message for a moment on any screen', () => {
     const { app } = make();
     app.key('m');
-    const { ctx, texts } = recorder();
+    const { ctx, texts, stop } = recorder();
     app.draw(ctx, 0);
+    stop();
     expect(texts.some((t) => t.text === 'Sound off')).toBe(true);
   });
 
@@ -93,11 +94,13 @@ describe('sound keys', () => {
     const { app, wait } = make({ createMission: winTiny });
     let r = recorder();
     app.draw(r.ctx, 0);
+    r.stop();
     expect(r.texts.some((t) => t.text.includes('M: sound on/off'))).toBe(true);
     app.click(START);
     wait();
     r = recorder();
     app.draw(r.ctx, 0);
+    r.stop();
     expect(r.texts.some((t) => t.text.includes('M: sound on/off'))).toBe(false);
   });
 });
@@ -138,13 +141,14 @@ describe('interface clicks', () => {
 });
 
 describe('panel hint', () => {
-  it('shows the mute key and stays clear of the buttons', () => {
+  it('shows the mute key and stays inside the left well', () => {
     const s = makeState(corridorRows('P..E'));
     const ui = createUiState('p1');
-    const { ctx, texts } = recorder();
+    const { ctx, texts, stop } = recorder();
     drawPanel(ctx, s, ui, 0);
-    const hint = texts.find((t) => t.text.includes('M mute'))!;
+    stop();
+    const hint = texts.find((t) => t.text.includes('M MUTE'))!;
     expect(hint).toBeDefined();
-    expect(hint.x + hint.text.length * 4.8).toBeLessThanOrEqual(172);
+    expect(hint.x + textWidth(hint.text)).toBeLessThanOrEqual(148);
   });
 });
