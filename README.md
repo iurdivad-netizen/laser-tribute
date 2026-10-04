@@ -38,7 +38,7 @@ Every action button shows its AP cost. Found weapons and grenades from a won mis
 
 ## Graphics
 
-The pixel art is drawn in code: every sprite is a 16x16 grid of letters in `src/art/sprites.ts` (one soldier is rotated to eight facings, the enemy is a red recolour). In dev mode (`npm run dev`) type `gallery()` in the browser console to see every sprite enlarged.
+The pixel art is drawn in code: every sprite is a 16x16 grid of letters in `src/art/sprites.ts` (one soldier is rotated to eight facings, the enemy is a red recolour). The interface uses a 5x7 pixel font (capitals only) and beveled frames, also drawn in code (`src/ui`); the canvas is 480x400. In dev mode (`npm run dev`) type `gallery()` in the browser console to see every sprite enlarged.
 
 ## Sound
 

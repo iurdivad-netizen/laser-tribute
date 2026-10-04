@@ -2,6 +2,8 @@ import { CONFIG, WEAPONS } from '../core/config';
 import { rankShort } from '../core/ranks';
 import type { GameState, Unit } from '../core/types';
 import type { UiState } from '../input/uiState';
+import { UI, drawFrame, type ButtonState } from '../ui/frame';
+import { clipText, drawText } from '../ui/text';
 import { VIEW } from './layout';
 
 export type ButtonId = 'snap' | 'aimed' | 'throw' | 'stab' | 'reload' | 'door' | 'pickup' | 'alert' | 'end';
@@ -19,18 +21,23 @@ export interface PanelButton {
 const DEFS: [ButtonId, string, string][] = [
   ['snap', 'SNAP', 'S'],
   ['aimed', 'AIM', 'A'],
-  ['throw', 'GREN', 'T'],
+  ['throw', 'THROW', 'T'],
   ['stab', 'STAB', 'K'],
-  ['reload', 'LOAD', 'R'],
+  ['reload', 'RELOAD', 'R'],
   ['door', 'DOOR', 'D'],
   ['pickup', 'TAKE', 'P'],
-  ['alert', 'ALRT', 'L'],
-  ['end', 'END', 'Sp'],
+  ['alert', 'ALERT', 'L'],
+  ['end', 'END TURN', 'SPC'],
 ];
 
-export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) => ({
-  id, label, key, x: 172 + i * 34, y: VIEW.mapHeight + 13, w: 33, h: 13,
-}));
+const TOP = VIEW.mapHeight;
+
+/** Row 1: five buttons 60 wide from x 156; row 2: four buttons 76 wide from x 156. */
+export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) =>
+  i < 5
+    ? { id, label, key, x: 156 + i * 64, y: TOP + 28, w: 60, h: 22 }
+    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 76, h: 22 },
+);
 
 /** AP the soldier pays for the action behind this button; null for buttons that cost nothing. */
 export function actionCost(u: Unit, id: ButtonId): number | null {
@@ -66,28 +73,24 @@ export function buttonAt(px: number, py: number): ButtonId | null {
 }
 
 export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: UiState, now: number): void {
-  const top = VIEW.mapHeight;
-  ctx.fillStyle = '#14161f';
-  ctx.fillRect(0, top, VIEW.width, VIEW.height - top);
-  ctx.fillStyle = '#3a3f55';
-  ctx.fillRect(0, top, VIEW.width, 1);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
+  drawFrame(ctx, 0, TOP, VIEW.width, VIEW.height - TOP, 'raised');
+  drawFrame(ctx, 4, TOP + 4, 144, 72, 'inset');
 
   const u = state.units.find((x) => x.id === ui.selectedId && x.alive);
-  ctx.fillStyle = '#e8e8f0';
   if (u) {
     const tag = rankShort(u.rank);
-    ctx.fillText(`${tag ? `${tag} ` : ''}${u.name}  HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 4, top + 4);
-    ctx.fillText(
-      `${WEAPONS[u.weapon].name} ${u.ammo}/${WEAPONS[u.weapon].magazine} +${u.clips}  Grenades ${u.grenades}${u.alert ? '  ALERT' : ''}`,
-      4, top + 15,
-    );
+    const weapon = WEAPONS[u.weapon];
+    drawText(ctx, `${tag ? `${tag} ` : ''}${u.name}`, 8, TOP + 8, UI.text);
+    drawText(ctx, `HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 8, TOP + 19, UI.dim);
+    drawText(ctx, `${weapon.name} ${u.ammo}/${weapon.magazine} +${u.clips}  GREN ${u.grenades}`, 8, TOP + 30, UI.text);
+    if (u.alert) drawText(ctx, 'ALERT', 8, TOP + 41, UI.accent);
   } else {
-    ctx.fillText('No soldier selected', 4, top + 4);
+    drawText(ctx, 'NO SOLDIER SELECTED', 8, TOP + 8, UI.dim);
   }
-  ctx.fillStyle = '#8a8fa8';
-  ctx.fillText(`Turn ${state.turnNumber}  ${state.turn === 'player' ? 'YOUR MOVE' : 'ENEMY MOVE'}`, 172, top + 2);
+  drawText(ctx, '1-4 SELECT  Q/E TURN', 8, TOP + 54, UI.hint);
+  drawText(ctx, 'ESC CANCEL  M MUTE', 8, TOP + 65, UI.hint);
+
+  drawText(ctx, `TURN ${state.turnNumber}  ${state.turn === 'player' ? 'YOUR MOVE' : 'ENEMY MOVE'}`, 156, TOP + 6, UI.dim);
 
   let line = '';
   if (state.status === 'won') line = 'MISSION COMPLETE';
@@ -97,24 +100,18 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   else if (u && MODE_NAMES[ui.mode]) {
     line = `${MODE_NAMES[ui.mode]}: ${actionCost(u, ui.mode as ButtonId)} AP`;
   }
-  ctx.fillStyle = state.status === 'playing' ? '#ffe14d' : '#7dff9a';
-  ctx.fillText(line, 272, top + 2);
+  drawText(ctx, clipText(line, 320), 156, TOP + 17, state.status === 'playing' ? UI.accent : UI.green);
 
   const modeButton: Partial<Record<UiState['mode'], ButtonId>> = {
     snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door', stab: 'stab',
   };
   for (const b of PANEL_BUTTONS) {
     const active = modeButton[ui.mode] === b.id || (b.id === 'alert' && !!u?.alert);
-    ctx.fillStyle = active ? '#4da6ff' : '#2a2f45';
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.fillStyle = active ? '#000' : '#e8e8f0';
-    ctx.fillText(`${b.key} ${b.label}`, b.x + 2, b.y + 3);
+    const blocked = !!u && actionBlocked(u, b.id);
+    const style: ButtonState = active ? 'pressed' : blocked ? 'disabled' : 'raised';
+    drawFrame(ctx, b.x, b.y, b.w, b.h, style);
+    drawText(ctx, `${b.key} ${b.label}`, b.x + 3, b.y + 4, active ? UI.accent : blocked ? UI.disabledText : UI.text);
     const cost = u ? actionCost(u, b.id) : null;
-    if (cost !== null) {
-      ctx.fillStyle = actionBlocked(u!, b.id) ? '#ff5555' : '#8a8fa8';
-      ctx.fillText(`${cost} AP`, b.x + 2, b.y + 15);
-    }
+    if (cost !== null) drawText(ctx, `${cost} AP`, b.x + 3, b.y + 12, blocked ? UI.red : UI.dim);
   }
-  ctx.fillStyle = '#6a6f88';
-  ctx.fillText('1-4 sel  Q/E turn  Esc  M mute', 4, top + 28);
 }

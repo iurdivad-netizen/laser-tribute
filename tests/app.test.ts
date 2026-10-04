@@ -5,7 +5,7 @@ import { cheapLoadout, defaultLoadout, type Loadout } from '../src/core/loadout'
 import type { GameState } from '../src/core/types';
 import { corridorRows, makeState, unit } from './helpers';
 
-const START = { x: 240, y: 315 }; // Start mission button
+const START = { x: 240, y: 345 }; // Start mission button
 const CONTINUE = { x: 240, y: 235 }; // Continue button on the result screen
 const NEW_CAMPAIGN = { x: 240, y: 252 }; // New campaign button on the end screen
 
@@ -285,7 +285,7 @@ describe('input guard after a screen switch', () => {
     app.click(START);
     const p1 = () => unit(app.controller!.state, 'p1').pos;
     const before = { ...p1() };
-    app.click({ x: 200, y: 301 }); // top strip of the Start button is a map tile
+    app.click({ x: 200, y: 301 }); // a map tile (the Start button now sits below the map)
     expect(p1()).toEqual(before);
     expect(app.controller!.ui.busy).toBe(false);
     wait();
@@ -300,10 +300,10 @@ describe('input guard after a screen switch', () => {
     wait();
     app.click(CONTINUE);
     expect(app.screen).toBe('equipment');
-    app.click({ x: 260, y: 224 }); // fourth soldier's grenade minus, overlapping the Continue button
+    app.click({ x: 270, y: 224 }); // fourth soldier's grenade minus, overlapping the Continue button
     expect(app.loadout[3].grenades).toBe(1);
     wait();
-    app.click({ x: 260, y: 224 });
+    app.click({ x: 270, y: 224 });
     expect(app.loadout[3].grenades).toBe(0);
   });
 

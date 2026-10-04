@@ -1,6 +1,8 @@
 import type { MissionResult } from '../core/result';
 import { VIEW } from '../render/layout';
-import { clip } from './end';
+import { ADVANCE } from '../ui/font';
+import { UI, drawButton, drawFrame } from '../ui/frame';
+import { clipText, drawText } from '../ui/text';
 
 export interface ResultView {
   result: MissionResult;
@@ -33,37 +35,26 @@ export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
 
   const c = RESULT.card;
-  ctx.fillStyle = '#14161f';
-  ctx.fillRect(c.x, c.y, c.w, c.h);
-  ctx.strokeStyle = '#3a3f55';
-  ctx.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+  drawFrame(ctx, c.x, c.y, c.w, c.h, 'raised');
+  drawFrame(ctx, c.x + 8, c.y + 8, c.w - 16, 28, 'inset');
+  drawText(ctx, r.won ? 'MISSION COMPLETE' : 'MISSION FAILED', c.x + c.w / 2, c.y + 12, r.won ? UI.green : UI.red, 'center');
+  drawText(ctx, v.missionName, c.x + c.w / 2, c.y + 24, UI.dim, 'center');
 
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = r.won ? '#7dff9a' : '#ff5555';
-  ctx.fillText(r.won ? 'MISSION COMPLETE' : 'MISSION FAILED', c.x + c.w / 2, c.y + 14);
-  ctx.fillStyle = '#8a8fa8';
-  ctx.fillText(v.missionName, c.x + c.w / 2, c.y + 28);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#e8e8f0';
-  ctx.fillText(`Survivors     ${r.survivors} of ${r.squadSize}`, c.x + 30, c.y + 52);
-  ctx.fillText(`Enemies down  ${r.enemiesKilled} of ${r.enemyCount}`, c.x + 30, c.y + 68);
-  ctx.fillText(`Turns taken   ${r.turns}`, c.x + 30, c.y + 84);
-  ctx.fillText(`Fallen: ${clip(v.fallen.length > 0 ? v.fallen.join(', ') : 'none', 30)}`, c.x + 30, c.y + 100);
-  ctx.fillStyle = '#ffe14d';
-  ctx.fillText(
-    v.nextBudget === null ? 'The campaign is over' : `Next mission budget: ${v.nextBudget}`,
-    c.x + 30, c.y + 116,
+  const x = c.x + 30;
+  const room = c.w - 30 - 8; // 222 px of card to the right of the text start
+  drawText(ctx, `Survivors     ${r.survivors} of ${r.squadSize}`, x, c.y + 52, UI.text);
+  drawText(ctx, `Enemies down  ${r.enemiesKilled} of ${r.enemyCount}`, x, c.y + 68, UI.text);
+  drawText(ctx, `Turns taken   ${r.turns}`, x, c.y + 84, UI.text);
+  const fallen = v.fallen.length > 0 ? v.fallen.join(', ') : 'none';
+  drawText(ctx, `Fallen: ${clipText(fallen, room - 'Fallen: '.length * ADVANCE)}`, x, c.y + 100, UI.text);
+  drawText(
+    ctx, v.nextBudget === null ? 'The campaign is over' : `Next mission budget: ${v.nextBudget}`,
+    x, c.y + 116, UI.accent,
   );
-  ctx.fillStyle = '#7dff9a';
   promotionLines(v.promoted).forEach((line, i) => {
-    ctx.fillText(clip(line, 44), c.x + 30, c.y + 128 + i * 10);
+    drawText(ctx, clipText(line, room), x, c.y + 128 + i * 10, UI.green);
   });
 
   const b = RESULT.again;
-  ctx.fillStyle = '#4da6ff';
-  ctx.fillRect(b.x, b.y, b.w, b.h);
-  ctx.fillStyle = '#000';
-  ctx.fillText('CONTINUE (Enter)', b.x + 6, b.y + (b.h - 8) / 2);
+  drawButton(ctx, { x: b.x, y: b.y, w: b.w, h: b.h }, 'CONTINUE (Enter)', 'raised');
 }

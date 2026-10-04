@@ -20,6 +20,9 @@ import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { drawResult, resultHit } from './screens/result';
+import { textWidth } from './ui/font';
+import { UI, drawFrame } from './ui/frame';
+import { drawText } from './ui/text';
 
 export type Screen = 'equipment' | 'mission' | 'result' | 'end';
 
@@ -267,17 +270,13 @@ export class App {
   }
 
   private drawSoundHint(ctx: CanvasRenderingContext2D): void {
-    ctx.font = '8px monospace';
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'right';
     if (this.clock() < this.noticeUntil) {
-      ctx.fillStyle = '#ffe14d';
-      ctx.fillText(this.noticeText, VIEW.width - 6, 4);
-    } else if (this.screen !== 'mission') {
-      ctx.fillStyle = '#6a6f88';
-      ctx.fillText('M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12);
+      const w = textWidth(this.noticeText) + 10;
+      drawFrame(ctx, VIEW.width - 6 - w, 2, w, 13, 'inset');
+      drawText(ctx, this.noticeText, VIEW.width - 11, 5, UI.accent, 'right');
+    } else if (this.screen === 'equipment' || this.screen === 'end') {
+      drawText(ctx, 'M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12, UI.hint, 'right');
     }
-    ctx.textAlign = 'left';
   }
 
   private drawScreen(ctx: CanvasRenderingContext2D, now: number): void {

@@ -7,6 +7,7 @@ import { computeVisible } from '../core/vision';
 import type { UiState } from '../input/uiState';
 import type { Effects } from './effects';
 import { VIEW } from './layout';
+import { drawText } from '../ui/text';
 import { drawPanel } from './panel';
 
 const T = CONFIG.tileSize;
@@ -89,10 +90,7 @@ export function drawGame(
     ctx.fillStyle = '#7dff9a';
     ctx.fillRect(cx - 6, cy - 9, (12 * u.hp) / u.maxHp, 2);
     if (u.alert) {
-      ctx.font = '8px monospace';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = COLORS.select;
-      ctx.fillText('!', cx + 5, cy - 17);
+      drawText(ctx, '!', cx + 5, cy - 17, COLORS.select);
     }
     if (u.id === ui.selectedId) {
       ctx.strokeStyle = COLORS.select;

@@ -8,7 +8,7 @@ export interface CanvasLike {
   getContext(type: '2d'): { fillStyle: unknown; fillRect(x: number, y: number, w: number, h: number): void } | null;
 }
 
-function defaultCanvas(width: number, height: number): CanvasLike | null {
+export function defaultCanvas(width: number, height: number): CanvasLike | null {
   try {
     if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height) as unknown as CanvasLike;
     if (typeof document !== 'undefined') {
