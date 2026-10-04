@@ -53,6 +53,8 @@ export interface FloorItem {
   id: string;
   pos: Pos;
   kind: ItemKind;
+  /** Rounds in a weapon lying on the floor; absent means a full magazine (map-placed weapons). */
+  ammo?: number;
 }
 
 export type GameStatus = 'playing' | 'won' | 'lost';

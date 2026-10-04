@@ -68,10 +68,11 @@ describe('pickup', () => {
   it('swaps weapons and leaves the old one on the floor', () => {
     const s = makeState(rows);
     unit(s, 'p1').weapon = 'pistol';
+    unit(s, 'p1').ammo = 8;
     itemAt(s, 'rifle');
     const r = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i9' }));
     expect(unit(r.state, 'p1').weapon).toBe('rifle');
-    expect(r.state.items).toEqual([{ id: 'i9', pos: { x: 1, y: 1 }, kind: 'pistol' }]);
+    expect(r.state.items).toEqual([{ id: 'i9', pos: { x: 1, y: 1 }, kind: 'pistol', ammo: 8 }]);
     expect(unit(r.state, 'p1').ap).toBe(57);
     expect(r.events).toEqual([{ type: 'pickedUp', unitId: 'p1', itemId: 'i9', kind: 'rifle' }]);
   });

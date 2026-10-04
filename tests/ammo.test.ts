@@ -111,16 +111,33 @@ describe('picking up a weapon', () => {
     expect(unit(r.state, 'p1')).toMatchObject({ weapon: 'rifle', ammo: 5, clips: 3 });
   });
 
-  it('swapping back and forth never gives more than a full magazine', () => {
+  it('swapping back and forth never creates ammo: a weapon keeps the rounds it was dropped with', () => {
     let s = makeState(corridorRows('P..E'));
     const p = unit(s, 'p1');
     p.weapon = 'pistol';
     p.ammo = 0;
     p.clips = 0;
-    s.items.push({ id: 'i1', pos: { ...p.pos }, kind: 'rifle' });
-    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i1' })).state; // rifle, ammo 5, floor now has a pistol
+    s.items.push({ id: 'i1', pos: { ...p.pos }, kind: 'rifle' }); // a map-placed rifle: full
+    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i1' })).state;
     expect(unit(s, 'p1')).toMatchObject({ weapon: 'rifle', ammo: 5, clips: 0 });
-    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i1' })).state; // back to the pistol
-    expect(unit(s, 'p1')).toMatchObject({ weapon: 'pistol', ammo: 8, clips: 0 });
+    expect(s.items[0]).toMatchObject({ kind: 'pistol', ammo: 0 }); // the empty pistol stays empty on the floor
+    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i1' })).state; // back to the empty pistol
+    expect(unit(s, 'p1')).toMatchObject({ weapon: 'pistol', ammo: 0, clips: 0 });
+    expect(s.items[0]).toMatchObject({ kind: 'rifle', ammo: 5 }); // the rifle he dropped keeps its 5 rounds
+  });
+
+  it('a dropped weapon keeps its rounds for a teammate to pick up', () => {
+    let s = makeState(corridorRows('PP.E'));
+    const a = unit(s, 'p1');
+    a.weapon = 'pistol';
+    a.ammo = 3;
+    s.items.push({ id: 'i1', pos: { ...a.pos }, kind: 'rifle' });
+    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p1', itemId: 'i1' })).state; // p1 now holds the rifle; his pistol (3 rounds) is on the floor
+    expect(s.items[0]).toMatchObject({ kind: 'pistol', ammo: 3 });
+    // p2 stands on the same tile and takes the pistol
+    unit(s, 'p2').pos = { ...unit(s, 'p1').pos };
+    unit(s, 'p2').weapon = 'rifle';
+    s = ok(applyCommand(s, { type: 'PickUp', unitId: 'p2', itemId: 'i1' })).state;
+    expect(unit(s, 'p2')).toMatchObject({ weapon: 'pistol', ammo: 3 });
   });
 });
