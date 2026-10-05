@@ -68,6 +68,17 @@ describe('crit messages and the scope tag', () => {
     expect(c.ui.message).toBe('ENEMY CRITICAL HIT: 32 DAMAGE');
   });
 
+  it('the Your turn message does not wipe a crit message that is still showing', () => {
+    const { state, c } = duel();
+    state.turn = 'enemy';
+    const p = unit(state, 'p1');
+    p.hp = p.maxHp = 100;
+    c.run({ type: 'SnapShot', unitId: 'e1', targetId: 'p1' });
+    expect(c.ui.message).toBe('ENEMY CRITICAL HIT: 45 DAMAGE');
+    c.run({ type: 'EndTurn' }); // the AI ends its turn a moment later
+    expect(c.ui.message).toBe('ENEMY CRITICAL HIT: 45 DAMAGE');
+  });
+
   it('a normal hit sets no crit message', () => {
     const { state, c } = duel();
     state.critState = seedForCrit((n) => n >= 0.5);

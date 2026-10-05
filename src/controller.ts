@@ -31,6 +31,8 @@ export class Controller {
     return this.state.units.find((u) => u.id === this.ui.selectedId && u.alive);
   }
 
+  private critMessageUntil = 0;
+
   private say(text: string, ms = 2000): void {
     this.ui.message = text;
     this.ui.messageUntil = performance.now() + ms;
@@ -87,6 +89,7 @@ export class Controller {
     } else if (ev.type === 'shot' && ev.hit && ev.crit) {
       const shooterIsPlayer = this.state.units.find((u) => u.id === ev.unitId)?.side === 'player';
       this.say(`${shooterIsPlayer ? '' : 'ENEMY '}CRITICAL HIT: ${ev.damage} DAMAGE`, 3000);
+      this.critMessageUntil = performance.now() + 3000;
     } else if (ev.type === 'healed') {
       const name = (id: string) => this.state.units.find((u) => u.id === id)?.name ?? id;
       this.say(`${name(ev.unitId)} heals ${name(ev.targetId)}: +${ev.amount} HP`, 3000);
@@ -95,7 +98,8 @@ export class Controller {
       this.say(n === 0 ? 'SCAN: NO ENEMIES NEARBY' : `SCAN: ${n} ${n === 1 ? 'ENEMY' : 'ENEMIES'} NEARBY`, 3000);
     } else if (ev.type === 'turnEnded' && ev.side === 'enemy') {
       this.selectFirstAlive();
-      this.say('Your turn');
+      // a critical hit that ended the enemy turn keeps its message; the panel already says YOUR MOVE
+      if (performance.now() >= this.critMessageUntil) this.say('Your turn');
     }
   }
 
