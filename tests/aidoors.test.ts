@@ -51,6 +51,19 @@ describe('enemies hunting through doors', () => {
     expect(aiNextCommand(s)).toEqual({ type: 'Move', unitId: 'e1', to: { x: 2, y: 1 } });
   });
 
+  it('keeps chasing along an open route when the cheaper door route is beyond the radius', () => {
+    // a 19-tile route through the door (cost 78) beats the open detour (cost 84), but is too long to hunt
+    const s = enemyTurn([
+      '######################',
+      '#E.........+........P#',
+      '#..........#.........#',
+      '#....................#',
+      '######################',
+    ]);
+    s.enemyMemory = { x: 20, y: 1 };
+    expect(aiNextCommand(s).type).toBe('Move');
+  });
+
   it('a patrolling enemy with no memory never opens a door', () => {
     const s = enemyTurn(corridorRows('E...+.P'));
     unit(s, 'e1').patrol = [{ x: 6, y: 1 }, { x: 1, y: 1 }];

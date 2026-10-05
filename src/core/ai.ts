@@ -21,7 +21,8 @@ function stepToward(s: GameState, unit: Unit, goal: Pos, hunting: boolean): Comm
       const t = tileAt(s, p);
       return t.kind === 'door' && !t.open;
     };
-    if (path.length > CONFIG.huntRadius && path.some(closed)) return null;
+    // too far to go through a door: take the door-free route instead (none means stay put)
+    if (path.length > CONFIG.huntRadius && path.some(closed)) return stepToward(s, unit, goal, false);
     if (closed(next)) {
       return unit.ap >= CONFIG.doorCost ? { type: 'OpenDoor', unitId: unit.id, at: { ...next } } : null;
     }
