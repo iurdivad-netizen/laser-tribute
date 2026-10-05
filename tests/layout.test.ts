@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { App } from '../src/app';
+import { defaultLoadout } from '../src/core/loadout';
 import { createMission, MISSIONS } from '../src/core/missions';
 import { createUiState } from '../src/input/uiState';
 import { VIEW } from '../src/render/layout';
 import { Effects } from '../src/render/effects';
 import { drawGame } from '../src/render/renderer';
 import { drawCampaignEnd } from '../src/screens/end';
+import { drawEquipment } from '../src/screens/equipment';
 import { drawResult } from '../src/screens/result';
 import { drawTitle } from '../src/screens/title';
 import { unsupportedChars } from '../src/ui/font';
@@ -93,6 +95,15 @@ describe('every screen lays out inside the canvas, with the longest content', ()
         missionNumber: 3, missionCount: 3, soldiers: 4, budget: 9999, armed,
       })));
     }
+  });
+
+  it('the equipment screen with gadgets, the longest names and a full stash line', () => {
+    const l = defaultLoadout().map((s) => ({ ...s, gadget: 'scanner' as const }));
+    check('equipment gadgets', collect(() => drawEquipment(ctx, l, null, {
+      budget: 999, title: 'MISSION 3 OF 3: COMPOUND', breakdown: 'Base 120 + wins 40 + kills 55',
+      soldiers: Array.from({ length: 4 }, () => ({ name: 'Lindqvist 2', kills: 9, rank: 'Captain' })),
+      stash: { rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4 },
+    })));
   });
 });
 
