@@ -1,4 +1,5 @@
 import { CAMPAIGN, type Campaign, type RosterSoldier } from './core/campaign';
+import { GADGET_IDS } from './core/config';
 import { defaultLoadout, type Loadout } from './core/loadout';
 import type { Stash } from './core/stash';
 
@@ -42,8 +43,13 @@ function soldiers(v: unknown, exactly?: number): RosterSoldier[] | null {
 function stash(v: unknown): Stash | null {
   if (!isObj(v)) return null;
   const { rifle, pistol, grenade, clip } = v;
+  const optional = (n: unknown): number | null => (n === undefined ? 0 : isInt(n, 0, 99) ? n : null);
+  const medkit = optional(v.medkit);
+  const armour = optional(v.armour);
+  const scanner = optional(v.scanner);
   if (!isInt(rifle, 0, 99) || !isInt(pistol, 0, 99) || !isInt(grenade, 0, 99) || !isInt(clip, 0, 99)) return null;
-  return { rifle, pistol, grenade, clip, medkit: 0, armour: 0, scanner: 0 };
+  if (medkit === null || armour === null || scanner === null) return null;
+  return { rifle, pistol, grenade, clip, medkit, armour, scanner };
 }
 
 /** The saved loadout when it is well formed; the default one otherwise (the app then fits it to the budget). */
@@ -53,7 +59,11 @@ function loadout(v: unknown): Loadout {
   for (const s of v) {
     if (!isObj(s) || (s.weapon !== 'pistol' && s.weapon !== 'rifle')) return defaultLoadout();
     if (!isInt(s.grenades, 0, 3) || !isInt(s.clips, 1, 4)) return defaultLoadout();
-    out.push({ weapon: s.weapon, grenades: s.grenades, clips: s.clips });
+    if (s.gadget !== undefined && !GADGET_IDS.includes(s.gadget as never)) return defaultLoadout();
+    out.push({
+      weapon: s.weapon, grenades: s.grenades, clips: s.clips,
+      ...(s.gadget !== undefined ? { gadget: s.gadget as (typeof GADGET_IDS)[number] } : {}),
+    });
   }
   return out;
 }
