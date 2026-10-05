@@ -335,6 +335,7 @@ export class Controller {
       const target = this.state.units.find((u) => u.id === `p${lower}` && u.alive);
       if (target && this.canAct()) {
         this.ui.selectedId = target.id;
+        if (this.ui.mode === 'heal') this.ui.mode = 'move'; // the new soldier may carry no medkit
         this.updatePreview();
       }
       return true;
@@ -364,7 +365,10 @@ export class Controller {
       case 'Tab': {
         const squad = this.squad();
         const i = squad.findIndex((u) => u.id === this.ui.selectedId);
-        if (squad.length > 0 && this.canAct()) this.ui.selectedId = squad[(i + 1) % squad.length].id;
+        if (squad.length > 0 && this.canAct()) {
+          this.ui.selectedId = squad[(i + 1) % squad.length].id;
+          if (this.ui.mode === 'heal') this.ui.mode = 'move';
+        }
         return true;
       }
       default:

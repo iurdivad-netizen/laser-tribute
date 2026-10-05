@@ -186,6 +186,26 @@ describe('gadget markers', () => {
     armoured.gadget = 'armour';
     const worn = recorder();
     drawGame(worn.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
-    expect(worn.fills).toContainEqual({ style: '#4da6ff', x: armoured.pos.x * 16 + 1, y: armoured.pos.y * 16 + 13, w: 2, h: 2 });
+    expect(worn.fills).toContainEqual({ style: '#4da6ff', x: armoured.pos.x * 16 + 13, y: armoured.pos.y * 16 + 13, w: 2, h: 2 });
+  });
+
+  it('keeps the armour pip clear of the rank pips of a promoted soldier', () => {
+    const state = createMission(MISSIONS[0], 1, roster); // roster[0] has 9 kills: a Captain with three pips
+    const p1 = state.units.find((u) => u.id === 'p1')!;
+    p1.gadget = 'armour';
+    const r = recorder();
+    drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    const x0 = p1.pos.x * 16;
+    const y0 = p1.pos.y * 16;
+    const near = (f: { x: number; y: number }) => f.x >= x0 && f.x < x0 + 16 && f.y >= y0 + 10 && f.y < y0 + 16;
+    const pips = r.fills.filter((f) => f.style === '#ffe14d' && f.w === 1 && f.h === 2 && near(f));
+    const armour = r.fills.filter((f) => f.style === '#4da6ff' && near(f));
+    expect(pips).toHaveLength(3);
+    expect(armour).toHaveLength(1);
+    const a = armour[0];
+    for (const p of pips) {
+      const overlap = a.x < p.x + p.w && p.x < a.x + a.w && a.y < p.y + p.h && p.y < a.y + a.h;
+      expect(overlap, `armour pip overlaps a rank pip at ${p.x},${p.y}`).toBe(false);
+    }
   });
 });

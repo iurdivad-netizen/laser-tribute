@@ -104,7 +104,8 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   else if (now < ui.messageUntil) line = ui.message;
   else if (ui.previewCost !== null) line = `Move: ${ui.previewCost} AP`;
   else if (u && MODE_NAMES[ui.mode]) {
-    line = `${MODE_NAMES[ui.mode]}: ${actionCost(u, ui.mode === 'heal' ? 'gadget' : (ui.mode as ButtonId))} AP`;
+    const cost = actionCost(u, ui.mode === 'heal' ? 'gadget' : (ui.mode as ButtonId));
+    line = cost === null ? MODE_NAMES[ui.mode]! : `${MODE_NAMES[ui.mode]}: ${cost} AP`;
   }
   drawText(ctx, clipText(line, 320), 156, TOP + 17, state.status === 'playing' ? UI.accent : UI.green);
 

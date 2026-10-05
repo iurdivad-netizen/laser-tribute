@@ -87,7 +87,7 @@ export function drawGame(
       for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y, 1, 2);
       if (u.gadget === 'armour') {
         ctx.fillStyle = COLORS.armour;
-        ctx.fillRect(x0 + 1, y0 + 13, 2, 2);
+        ctx.fillRect(x0 + 13, y0 + 13, 2, 2); // the right-hand corner, clear of up to three rank pips on the left
       }
     }
 

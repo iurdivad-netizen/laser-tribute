@@ -105,3 +105,30 @@ describe('using gadgets from the controller', () => {
     expect(c.selected()!.ap).toBe(60);
   });
 });
+
+describe('heal mode and selection', () => {
+  it('changing the selected soldier cancels heal mode, so no stale "Heal: null AP"', () => {
+    const { state, c } = setup();
+    unit(state, 'p1').gadget = 'medkit';
+    c.key('g');
+    expect(c.ui.mode).toBe('heal');
+    c.key('2');
+    expect(c.ui.mode).toBe('move');
+    c.key('1');
+    c.key('g');
+    c.key('Tab');
+    expect(c.ui.mode).toBe('move');
+  });
+
+  it('the status line never prints a null cost', () => {
+    const { state } = setup();
+    const ui = createUiState('p2'); // p2 has no gadget
+    ui.mode = 'heal';
+    const texts: string[] = [];
+    const stop = onText((r) => texts.push(r.text));
+    const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
+    drawPanel(ctx, state, ui, 0);
+    stop();
+    expect(texts.some((t) => t.includes('null'))).toBe(false);
+  });
+});
