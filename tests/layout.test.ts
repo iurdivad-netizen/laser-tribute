@@ -106,6 +106,15 @@ describe('every screen lays out inside the canvas, with the longest content', ()
       stash: { rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 0 },
     })));
   });
+
+  it('the equipment screen with every control filled: weapon, gadget, scope, long names, a full stash', () => {
+    const l = defaultLoadout().map((s) => ({ ...s, gadget: 'scanner' as const, attachment: 'scope' as const, clips: 4, grenades: 3 }));
+    check('equipment full', collect(() => drawEquipment(ctx, l, null, {
+      budget: 999, title: 'MISSION 3 OF 3: COMPOUND', breakdown: 'Base 120 + wins 40 + kills 55',
+      soldiers: Array.from({ length: 4 }, () => ({ name: 'Lindqvist 2', kills: 99, rank: 'Captain' })),
+      stash: { rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 4 },
+    })));
+  });
 });
 
 describe('the layout checker itself', () => {

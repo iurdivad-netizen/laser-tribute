@@ -1,4 +1,4 @@
-import { CONFIG, GADGETS, GADGET_IDS, WEAPONS } from '../core/config';
+import { ATTACHMENTS, CONFIG, GADGETS, GADGET_IDS, WEAPONS } from '../core/config';
 import {
   LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, type Loadout,
 } from '../core/loadout';
@@ -10,7 +10,7 @@ import { textWidth } from '../ui/font';
 import { clipText, drawText } from '../ui/text';
 
 export type EquipmentHit =
-  | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus' | 'gadget'; index: number }
+  | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus' | 'gadget' | 'scope'; index: number }
   | { kind: 'start' };
 
 export interface EquipmentView {
@@ -41,10 +41,34 @@ export const EQ = {
   clipDy: 26,
   weapon: { x: 76, w: 100 },
   gadget: { x: 76, w: 100 },
+  scope: { x: 352, w: 100 },
   minus: { x: 262, w: 24 },
   plus: { x: 322, w: 24 },
   start: { x: 170, y: 330, w: 140, h: 30 },
 } as const;
+
+export function scopeBlockReason(
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): string | null {
+  if (l[i].attachment) return null; // taking it off is always allowed
+  const after = l.map((s, j) => (j === i ? { ...s, attachment: 'scope' as const } : s));
+  const need = loadoutCost(after, stash) - budget;
+  return need > 0 ? `Need ${need} more credits` : null;
+}
+
+export function toggleScope(
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): Loadout {
+  if (l[i].attachment) {
+    return l.map((s, j) => {
+      if (j !== i) return s;
+      const { attachment: _attachment, ...rest } = s;
+      return rest;
+    });
+  }
+  if (scopeBlockReason(l, i, budget, stash)) return l;
+  return l.map((s, j) => (j === i ? { ...s, attachment: 'scope' as const } : s));
+}
 
 const GADGET_CYCLE: (GadgetId | undefined)[] = [undefined, ...GADGET_IDS];
 
@@ -138,6 +162,7 @@ export function equipmentHit(px: number, py: number): EquipmentHit | null {
     if (inRect(px, py, EQ.minus.x, cy, EQ.minus.w, EQ.btnH)) return { kind: 'clipMinus', index: i };
     if (inRect(px, py, EQ.plus.x, cy, EQ.plus.w, EQ.btnH)) return { kind: 'clipPlus', index: i };
     if (inRect(px, py, EQ.gadget.x, cy, EQ.gadget.w, EQ.btnH)) return { kind: 'gadget', index: i };
+    if (inRect(px, py, EQ.scope.x, cy, EQ.scope.w, EQ.btnH)) return { kind: 'scope', index: i };
   }
   return null;
 }
@@ -152,6 +177,7 @@ export function blockReasonFor(
     case 'clipMinus': return clipBlockReason(l, hit.index, -1, budget, stash);
     case 'clipPlus': return clipBlockReason(l, hit.index, 1, budget, stash);
     case 'gadget': return null;
+    case 'scope': return scopeBlockReason(l, hit.index, budget, stash);
     case 'start': return validateLoadout(l, budget, stash);
   }
 }
@@ -166,6 +192,7 @@ export function applyEquipmentHit(
     case 'clipMinus': return changeClips(l, hit.index, -1, budget, stash);
     case 'clipPlus': return changeClips(l, hit.index, 1, budget, stash);
     case 'gadget': return cycleGadget(l, hit.index, budget, stash);
+    case 'scope': return toggleScope(l, hit.index, budget, stash);
     case 'start': return l;
   }
 }
@@ -225,6 +252,11 @@ export function drawEquipment(
       ctx, { x: EQ.gadget.x, y: cy, w: EQ.gadget.w, h: EQ.btnH },
       g ? `${GADGETS[g].name.toUpperCase()} (${cover.gadget ? 'FREE' : GADGETS[g].price})` : 'NO GADGET',
       buttonState(true, hot('gadget')),
+    );
+    drawButton(
+      ctx, { x: EQ.scope.x, y: cy, w: EQ.scope.w, h: EQ.btnH },
+      s.attachment ? `SCOPE (${cover.attachment ? 'FREE' : ATTACHMENTS.scope.price})` : 'NO SCOPE',
+      buttonState(scopeBlockReason(l, i, view.budget, view.stash) === null, hot('scope')),
     );
     const net = netSoldierCost(l, i, view.stash);
     drawText(ctx, net === 0 ? 'FREE' : `${net} cr`, 380, y + 8, net === 0 ? UI.green : UI.dim);
