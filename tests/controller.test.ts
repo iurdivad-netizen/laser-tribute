@@ -3,6 +3,7 @@ import { Controller } from '../src/controller';
 import { createMission1 } from '../src/core/mission1';
 import { Effects } from '../src/render/effects';
 import { createUiState } from '../src/input/uiState';
+import { ADVANCE, textWidth } from '../src/ui/font';
 import { corridorRows, makeState } from './helpers';
 
 function setup() {
@@ -89,6 +90,8 @@ describe('Controller', () => {
     c.key('l');
     expect(c.selected()!.alert).toBe(true);
     expect(c.ui.message).toMatch(/alert/i);
+    const longestName = 'Lindqvist 2'.length - c.selected()!.name.length;
+    expect(textWidth(c.ui.message) + longestName * ADVANCE).toBeLessThanOrEqual(320); // the panel clips at 320 px
     c.key('L');
     expect(c.selected()!.alert).toBe(false);
     c.pressButton('alert');

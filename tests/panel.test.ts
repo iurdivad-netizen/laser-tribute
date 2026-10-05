@@ -17,7 +17,7 @@ describe('panel buttons', () => {
       expect(b.x + b.w).toBeLessThanOrEqual(VIEW.width);
       expect(b.y).toBeGreaterThanOrEqual(VIEW.mapHeight);
       expect(b.y + b.h).toBeLessThanOrEqual(VIEW.height);
-      expect(textWidth(`${b.key} ${b.label}`) + 4, b.id).toBeLessThanOrEqual(b.w); // drawn 3 px from the left edge
+      expect(textWidth(`${b.key} ${b.label}`) + 6, b.id).toBeLessThanOrEqual(b.w); // drawn 3 px from the left edge, so 3 px are left on the right
       expect(textWidth('15 AP') + 4, b.id).toBeLessThanOrEqual(b.w);
     }
     for (let i = 0; i < PANEL_BUTTONS.length; i++) {
@@ -37,7 +37,7 @@ describe('panel buttons', () => {
       [156, 348, 60, 22], [220, 348, 60, 22], [284, 348, 60, 22], [348, 348, 60, 22], [412, 348, 60, 22],
     ]);
     expect(row(2).map((b) => [b.x, b.y, b.w, b.h])).toEqual([
-      [156, 372, 76, 22], [236, 372, 76, 22], [316, 372, 76, 22], [396, 372, 76, 22],
+      [156, 372, 78, 22], [236, 372, 78, 22], [316, 372, 78, 22], [396, 372, 78, 22],
     ]);
   });
 

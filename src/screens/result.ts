@@ -18,7 +18,7 @@ export interface ResultView {
 
 export const RESULT = {
   card: { x: 110, y: 50, w: 260, h: 222 },
-  again: { x: 190, y: 234, w: 100, h: 26 },
+  again: { x: 186, y: 234, w: 108, h: 26 },
 } as const;
 
 /** One line per promotion, at most four, so no name is cut off. */
@@ -54,8 +54,9 @@ export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
     x, c.y + 116, UI.accent,
   );
   if (v.loot) drawText(ctx, clipText(`Loot: ${v.loot}`, room), x, c.y + 128, UI.accent);
+  const promoTop = v.loot ? c.y + 140 : c.y + 128;
   promotionLines(v.promoted).forEach((line, i) => {
-    drawText(ctx, clipText(line, room), x, c.y + 140 + i * 10, UI.green);
+    drawText(ctx, clipText(line, room), x, promoTop + i * 10, UI.green);
   });
 
   const b = RESULT.again;

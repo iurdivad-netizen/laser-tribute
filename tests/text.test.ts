@@ -122,6 +122,10 @@ describe('clipText', () => {
     for (let w = 0; w <= 260; w++) expect(textWidth(clipText(text, w)), `width ${w}`).toBeLessThanOrEqual(w);
   });
 
+  it('does not leave a space before the dots', () => {
+    expect(clipText('AAAA BBBB', 47)).toBe('AAAA...'); // "AAAA ..." would fit, but looks wrong
+  });
+
   it('gives the longest prefix that fits with the dots', () => {
     expect(clipText('ABCDEFGHIJKLMNOP', 60)).toBe('ABCDEFG...'); // 10 characters = 59 px; one more would be 65
   });
