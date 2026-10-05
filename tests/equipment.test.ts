@@ -148,7 +148,7 @@ describe('drawEquipment', () => {
 });
 
 describe('drawEquipment with a stash', () => {
-  const draw = (stash: { rifle: number; pistol: number; grenade: number; clip: number }) => {
+  const draw = (stash: Stash) => {
     const runs: { text: string; x: number; y: number }[] = [];
     const stop = onText((r) => runs.push(r));
     const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
