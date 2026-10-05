@@ -30,18 +30,18 @@ export function attachInput(canvas: HTMLCanvasElement, app: App): void {
       // not every pointer can be captured; the gesture still works inside the canvas
     }
     const p = toCss(e);
-    g.down(p.x, p.y, kindOf(e), performance.now());
+    g.down(p.x, p.y, kindOf(e), performance.now(), e.pointerId);
     stopTimer();
     timer = window.setInterval(() => g.tick(performance.now()), 100);
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = toCss(e);
-    if (e.buttons || e.pressure > 0) g.move(p.x, p.y, performance.now());
+    if (e.buttons || e.pressure > 0) g.move(p.x, p.y, performance.now(), e.pointerId);
     else if (e.pointerType === 'mouse') app.move(p);
   });
   canvas.addEventListener('pointerup', (e) => {
     const p = toCss(e);
-    g.up(p.x, p.y, performance.now());
+    g.up(p.x, p.y, performance.now(), e.pointerId);
     stopTimer();
   });
   canvas.addEventListener('pointercancel', () => {

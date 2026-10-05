@@ -72,7 +72,7 @@ export class App {
   private height: number;
   private dpr: number;
   /** What the camera last saw of the selection and the turn, to follow when they change. */
-  private watch = { id: '', x: -1, y: -1, enemyTurn: false };
+  private watch = { id: '', x: -1, y: -1, enemyTurn: false, event: '' };
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
@@ -124,7 +124,7 @@ export class App {
     const sel = c?.selected();
     if (!c || !sel) return;
     this.camera = followTile(this.camera, sel.pos, this.layout, c.state.width, c.state.height);
-    this.watch = { id: sel.id, x: sel.pos.x, y: sel.pos.y, enemyTurn: c.state.turn === 'enemy' };
+    this.watch = { id: sel.id, x: sel.pos.x, y: sel.pos.y, enemyTurn: c.state.turn === 'enemy', event: this.watch.event };
   }
 
   /** The window changed size (or turned): new layout, the camera back on the selected soldier, no half-made action. */
@@ -161,8 +161,17 @@ export class App {
   }
 
   /** A long press on the map leaves the current mode (the touch version of right-click). */
-  longPress(_p: Pos): void {
-    if (this.screen === 'mission') this.controller?.cancel();
+  longPress(p: Pos): void {
+    const c = this.controller;
+    if (this.screen === 'mission' && c) {
+      const L = this.layout;
+      const onControl = soundHit(L, p.x, p.y) || (c.ui.mode !== 'move' && cancelHit(L, p.x, p.y));
+      if (!onControl && screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y)) {
+        c.cancel(); // holding still on the map leaves the current mode
+        return;
+      }
+    }
+    this.click(p, 'touch'); // anywhere else a slow press is just a press
   }
 
   private tileOnScreen(pos: Pos, c: Controller): boolean {
@@ -177,8 +186,13 @@ export class App {
   private trackCamera(c: Controller): void {
     const sel = c.selected();
     if (c.state.turn === 'enemy') {
+      // follow each new visible event that is off screen once; a pan by hand stands until the next event
       const at = c.lastEventAt;
-      if (at && !this.tileOnScreen(at, c)) this.camera = followTile(this.camera, at, this.layout, c.state.width, c.state.height);
+      const key = at ? `${at.x},${at.y}` : '';
+      if (at && key !== this.watch.event && !this.tileOnScreen(at, c)) {
+        this.camera = followTile(this.camera, at, this.layout, c.state.width, c.state.height);
+      }
+      this.watch.event = key;
       this.watch.enemyTurn = true;
       return;
     }
@@ -391,6 +405,10 @@ export class App {
         }
         return false;
       case 'mission':
+        if (k === 'z' || k === 'Z') {
+          this.toggleZoom();
+          return true;
+        }
         return this.controller ? this.controller.key(k) : false;
       case 'result':
         if (k === 'Enter') {
@@ -465,6 +483,7 @@ export class App {
 
   draw(ctx: CanvasRenderingContext2D, now: number): void {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false; // scaled pixel art and text stay crisp
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.width, this.height);
     this.drawScreen(ctx, now);

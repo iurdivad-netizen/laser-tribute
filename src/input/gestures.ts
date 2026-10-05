@@ -12,6 +12,7 @@ export interface GestureHandlers {
 }
 
 interface Press {
+  id: number;
   kind: PointerKind;
   startX: number;
   startY: number;
@@ -25,10 +26,12 @@ interface Press {
 /**
  * Turns pointer events into taps, drags and long presses. A press that stays inside the slop and ends before the
  * long-press time is a tap; leaving the slop makes it a drag (no tap on release); staying still for the long-press
- * time fires one long press (and no tap). Pure: the caller supplies the clock.
+ * time fires one long press (and no tap), for touch and pen only (a slow mouse click is still a click). A second
+ * pointer spoils the gesture: nothing fires until the first pointer lifts. Pure: the caller supplies the clock.
  */
 export class GestureRecognizer {
   private press: Press | null = null;
+  private spoiled = false;
   private readonly longMs: number;
   private readonly touchSlop: number;
   private readonly mouseSlop: number;
@@ -42,13 +45,18 @@ export class GestureRecognizer {
     this.mouseSlop = opts.mouseSlop ?? 4;
   }
 
-  down(x: number, y: number, kind: PointerKind, now: number): void {
-    this.press = { kind, startX: x, startY: y, lastX: x, lastY: y, startAt: now, dragging: false, fired: false };
+  down(x: number, y: number, kind: PointerKind, now: number, id = 0): void {
+    if (this.press && this.press.id !== id) {
+      this.spoiled = true; // a second finger: pinches and two-finger touches are not taps
+      return;
+    }
+    this.spoiled = false;
+    this.press = { id, kind, startX: x, startY: y, lastX: x, lastY: y, startAt: now, dragging: false, fired: false };
   }
 
-  move(x: number, y: number, _now: number): void {
+  move(x: number, y: number, _now: number, id = 0): void {
     const p = this.press;
-    if (!p || p.fired) return;
+    if (!p || p.id !== id || p.fired || this.spoiled) return;
     if (!p.dragging) {
       const slop = p.kind === 'mouse' ? this.mouseSlop : this.touchSlop;
       if (Math.hypot(x - p.startX, y - p.startY) <= slop) return;
@@ -59,11 +67,16 @@ export class GestureRecognizer {
     p.lastY = y;
   }
 
-  up(x: number, y: number, now: number): void {
+  up(x: number, y: number, now: number, id = 0): void {
     const p = this.press;
+    if (!p || p.id !== id) return;
     this.press = null;
-    if (!p || p.dragging) return;
-    if (!p.fired && now - p.startAt >= this.longMs) {
+    if (this.spoiled) {
+      this.spoiled = false;
+      return;
+    }
+    if (p.dragging) return;
+    if (!p.fired && p.kind !== 'mouse' && now - p.startAt >= this.longMs) {
       this.handlers.longPress({ x: p.startX, y: p.startY }, p.kind);
       return;
     }
@@ -72,12 +85,13 @@ export class GestureRecognizer {
 
   cancel(): void {
     this.press = null;
+    this.spoiled = false;
   }
 
   /** Call regularly while a pointer is down; fires the long press once. */
   tick(now: number): void {
     const p = this.press;
-    if (!p || p.dragging || p.fired) return;
+    if (!p || p.dragging || p.fired || p.kind === 'mouse' || this.spoiled) return;
     if (now - p.startAt >= this.longMs) {
       p.fired = true;
       this.handlers.longPress({ x: p.startX, y: p.startY }, p.kind);

@@ -70,12 +70,22 @@ export class Controller {
     if (this.state.turn === 'player') this.sound?.play('error', 0.9);
   }
 
+  /** Forgets a touch preview: the pending tile and the path shown for it (a mouse hover is left alone). */
+  private clearPending(): void {
+    if (!this.ui.pendingTile) return;
+    this.ui.pendingTile = null;
+    this.ui.hover = null;
+    this.ui.preview = [];
+    this.ui.previewCost = null;
+  }
+
   /** Selects one of the player's living soldiers (the squad strip, the number keys). */
   select(id: string): boolean {
     const u = this.state.units.find((x) => x.id === id && x.side === 'player' && x.alive);
     if (!u || !this.canAct()) return false;
     this.ui.selectedId = u.id;
-    this.ui.pendingTile = null;
+    this.clearPending();
+    if (this.ui.mode === 'heal') this.ui.mode = 'move'; // the new soldier may carry no medkit
     this.updatePreview();
     return true;
   }
@@ -174,7 +184,7 @@ export class Controller {
     if (this.ui.mode === 'move') {
       if (clicked && clicked.side === 'player') {
         this.ui.selectedId = clicked.id;
-        this.ui.pendingTile = null;
+        this.clearPending();
         this.updatePreview();
         return;
       }
@@ -287,7 +297,7 @@ export class Controller {
     const sel = this.selected();
     if (!sel || !this.canAct()) return;
     this.ui.mode = mode;
-    this.ui.pendingTile = null;
+    this.clearPending();
     const w = WEAPONS[sel.weapon];
     const hint: Record<Mode, string> = {
       move: '',
@@ -356,7 +366,7 @@ export class Controller {
 
   cancel(): void {
     this.ui.mode = 'move';
-    this.ui.pendingTile = null;
+    this.clearPending();
     this.updatePreview();
   }
 
@@ -364,7 +374,8 @@ export class Controller {
     if (!this.canAct()) return;
     if (!this.run({ type: 'EndTurn' })) return;
     this.ui.mode = 'move';
-    this.ui.pendingTile = null;
+    this.clearPending();
+    this.lastEventAt = null; // the enemy turn starts with no event to follow
     this.ui.busy = true;
     setTimeout(this.enemyStep, ENEMY_STEP_MS);
   }
@@ -409,7 +420,7 @@ export class Controller {
       const target = this.state.units.find((u) => u.id === `p${lower}` && u.alive);
       if (target && this.canAct()) {
         this.ui.selectedId = target.id;
-        this.ui.pendingTile = null;
+        this.clearPending();
         if (this.ui.mode === 'heal') this.ui.mode = 'move'; // the new soldier may carry no medkit
         this.updatePreview();
       }
@@ -443,7 +454,7 @@ export class Controller {
         const i = squad.findIndex((u) => u.id === this.ui.selectedId);
         if (squad.length > 0 && this.canAct()) {
           this.ui.selectedId = squad[(i + 1) % squad.length].id;
-          this.ui.pendingTile = null;
+          this.clearPending();
           if (this.ui.mode === 'heal') this.ui.mode = 'move';
         }
         return true;

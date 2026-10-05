@@ -82,3 +82,53 @@ describe('GestureRecognizer', () => {
     expect(log).toEqual(['tap 9,9 touch']);
   });
 });
+
+describe('long press only for touch and pen', () => {
+  it('a slow mouse click is a tap, not a long press', () => {
+    const { g, log } = setup();
+    g.down(10, 10, 'mouse', 0);
+    g.tick(900);
+    g.up(10, 10, 1000);
+    expect(log).toEqual(['tap 10,10 mouse']);
+  });
+
+  it('a pen can long-press like a finger', () => {
+    const { g, log } = setup();
+    g.down(10, 10, 'pen', 0);
+    g.tick(600);
+    expect(log).toEqual(['long 10,10']);
+  });
+});
+
+describe('a second finger', () => {
+  it('spoils the gesture: no tap, no drag, no long press, and the first finger lifting fires nothing', () => {
+    const { g, log } = setup();
+    g.down(10, 10, 'touch', 0, 1);
+    g.down(80, 80, 'touch', 20, 2);
+    g.move(40, 10, 40, 1);
+    g.move(90, 90, 40, 2);
+    g.tick(900);
+    g.up(80, 80, 950, 2);
+    g.up(40, 10, 960, 1);
+    expect(log).toEqual([]);
+  });
+
+  it('after the spoiled gesture a new single tap works again', () => {
+    const { g, log } = setup();
+    g.down(10, 10, 'touch', 0, 1);
+    g.down(80, 80, 'touch', 20, 2);
+    g.up(10, 10, 100, 1);
+    g.up(80, 80, 110, 2);
+    g.down(30, 30, 'touch', 200, 3);
+    g.up(30, 30, 260, 3);
+    expect(log).toEqual(['tap 30,30 touch']);
+  });
+
+  it('events from another pointer id than the active press are ignored', () => {
+    const { g, log } = setup();
+    g.down(10, 10, 'touch', 0, 1);
+    g.move(200, 200, 10, 5);
+    g.up(10, 10, 60, 1);
+    expect(log).toEqual(['tap 10,10 touch']);
+  });
+});

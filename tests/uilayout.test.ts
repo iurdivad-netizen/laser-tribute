@@ -87,3 +87,23 @@ describe('orientation', () => {
     expect(d.panel.y).toBeGreaterThan(d.map.y);
   });
 });
+
+describe.each([[568, 263, 2], [640, 290, 2], [667, 375, 2], [812, 260, 3]])('short landscape %i x %i at dpr %i', (w, h, dpr) => {
+  const l = computeLayout(w, h, dpr);
+
+  it('keeps every interactive rectangle on screen, none overlapping, labels fitting', () => {
+    expect(l.orientation).toBe('landscape');
+    for (const it of interactive(l)) expect(inside(it.rect, w, h), it.name).toBe(true);
+    const items = interactive(l);
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) expect(overlap(items[i].rect, items[j].rect), `${items[i].name}/${items[j].name}`).toBe(false);
+    }
+    for (const a of l.actions) expect(textWidth(a.label) * l.text + 6, a.id).toBeLessThanOrEqual(a.rect.w);
+  });
+
+  it('END TURN is reachable', () => {
+    const end = l.actions.find((a) => a.id === 'end')!.rect;
+    expect(end.y + end.h).toBeLessThanOrEqual(h + 0.001);
+    expect(end.h).toBeGreaterThanOrEqual(30);
+  });
+});

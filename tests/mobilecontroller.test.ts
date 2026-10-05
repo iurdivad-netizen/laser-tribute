@@ -154,3 +154,26 @@ describe('the two-tap move preview for touch', () => {
     expect(c.ui.pendingTile).toBeNull();
   });
 });
+
+describe('cleanup after a touch preview', () => {
+  it('a selection clears the preview of the old tile, so no stale Move line is shown', () => {
+    const { c } = room();
+    c.clickTile({ x: 6, y: 4 }, true);
+    expect(c.ui.previewCost).toBe(8);
+    c.select('p1');
+    expect(c.ui.pendingTile).toBeNull();
+    expect(c.ui.hover).toBeNull();
+    expect(c.ui.previewCost).toBeNull();
+  });
+
+  it('selecting from the squad strip leaves heal mode, like the number keys', () => {
+    const rows = ['#######', '#.....#', '#.PP..#', '#..E..#', '#######'];
+    const state = makeState(rows);
+    unit(state, 'p1').gadget = 'medkit';
+    const c = new Controller(state, createUiState('p1'), new Effects());
+    c.pressButton('gadget');
+    expect(c.ui.mode).toBe('heal');
+    c.select('p2');
+    expect(c.ui.mode).toBe('move');
+  });
+});

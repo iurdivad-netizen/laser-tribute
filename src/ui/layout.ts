@@ -96,17 +96,22 @@ export function computeLayout(width: number, height: number, dpr = 1): Layout {
     };
   }
 
-  const colW = clamp(Math.round(width * 0.24), 150, 220);
+  // a short window (a phone with browser bars) gets a wider column with three columns of buttons, so END TURN stays on screen
+  const short = height < 330;
+  const colW = short ? clamp(Math.round(width * 0.32), 150, 260) : clamp(Math.round(width * 0.24), 150, 220);
+  const sqH = short ? 28 : 34;
+  const cols = short ? 3 : 2;
+  const rowsN = 12 / cols;
   const map = R(0, 0, width - colW, height);
   const panel = R(width - colW, 0, colW, height);
   const sound = R(map.w - PAD - 28, PAD, 28, statusH);
   const cancel = R(sound.x - GAP - 80, PAD, 80, statusH);
   const status = R(PAD, PAD, cancel.x - GAP - PAD, statusH);
   const detail = R(PAD, map.h - detailH - PAD, map.w - 2 * PAD, detailH);
-  const squad = grid(panel.x + PAD, PAD, colW - 2 * PAD, 2, 4, 34);
-  const y0 = PAD + 2 * 34 + GAP + GAP;
-  const bh = clamp(Math.floor((height - PAD - y0 - 5 * GAP) / 6), 32, 44);
-  const rects = grid(panel.x + PAD, y0, colW - 2 * PAD, 2, 12, bh);
+  const squad = grid(panel.x + PAD, PAD, colW - 2 * PAD, 2, 4, sqH);
+  const y0 = PAD + 2 * sqH + GAP + GAP;
+  const bh = clamp(Math.floor((height - PAD - y0 - (rowsN - 1) * GAP) / rowsN), short ? 30 : 32, 44);
+  const rects = grid(panel.x + PAD, y0, colW - 2 * PAD, cols, 12, bh);
   const actions = ACTIONS.map((a, i) => ({ ...a, rect: rects[i] }));
   return {
     width, height, dpr, orientation: 'landscape', map, panel, overlay: true, status, detail, cancel, sound, squad, actions,

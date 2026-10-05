@@ -85,8 +85,10 @@ describe('resizing a mission', () => {
   it('clears a mode and a pending preview', () => {
     const { app } = inMission(390, 844, 3);
     app.controller!.pressButton('snap');
+    app.controller!.ui.pendingTile = { x: 13, y: 12 };
     app.resize(844, 390, 3);
     expect(app.controller!.ui.mode).toBe('move');
+    expect(app.controller!.ui.pendingTile).toBeNull();
   });
 });
 
@@ -244,5 +246,70 @@ describe('drawing at phone and desktop sizes', () => {
     app.click({ x: m.x + START.x * m.scale, y: m.y + START.y * m.scale });
     expect(app.screen).toBe('mission');
     expect(() => app.draw(ctx, 0)).not.toThrow();
+  });
+});
+
+describe('review fixes', () => {
+  it('the Z key toggles the zoom in a mission', () => {
+    const { app } = inMission(390, 844, 3);
+    const start = app.camera.zoom;
+    expect(app.key('z')).toBe(true);
+    expect(app.camera.zoom).not.toBe(start);
+    expect(app.key('Z')).toBe(true);
+    expect(app.camera.zoom).toBe(start);
+  });
+
+  it('a long press on a button or a menu acts as a tap, and only a long press on the map cancels a mode', () => {
+    const { app } = inMission(390, 844, 3);
+    const c = app.controller!;
+    app.longPress(centre(app.layout.actions[0].rect)); // SNAP button
+    expect(c.ui.mode).toBe('snap');
+    app.longPress(centre(app.layout.map));
+    expect(c.ui.mode).toBe('move');
+    const menu = make();
+    const t = menu.app.menuTransform();
+    menu.app.longPress({ x: t.x + START.x * t.scale, y: t.y + START.y * t.scale }); // a slow press on START
+    expect(menu.app.screen).toBe('mission');
+  });
+
+  it('a tap on CANCEL, which sits over the map in landscape, never also hits the tile under it', () => {
+    const { app } = inMission(844, 390, 3);
+    const c = app.controller!;
+    c.pressButton('snap');
+    const hint = c.ui.message; // 'Snap shot, 15 AP: click an enemy'
+    app.click(centre(app.layout.cancel));
+    expect(c.ui.mode).toBe('move');
+    expect(c.ui.message).toBe(hint); // a fall-through to the tile would have said 'Click an enemy'
+  });
+
+  it('during the enemy turn a pan is respected until a new event happens', () => {
+    const { app } = inMission(390, 844, 3);
+    const c = app.controller!;
+    c.state.turn = 'enemy';
+    c.lastEventAt = { x: 2, y: 2 };
+    app.update(0);
+    app.pan(60, 60);
+    const panned = { ...app.camera };
+    app.update(1);
+    app.update(2);
+    expect(app.camera.cx).toBeCloseTo(panned.cx, 6);
+    expect(app.camera.cy).toBeCloseTo(panned.cy, 6);
+    c.lastEventAt = { x: 27, y: 17 };
+    app.update(3);
+    expect(app.camera.cx).not.toBeCloseTo(panned.cx, 3);
+  });
+
+  it('draws with image smoothing off, so scaled pixel art and text stay crisp on every screen', () => {
+    const sets: boolean[] = [];
+    const rec = new Proxy({}, {
+      get: () => () => ({ width: 0 }),
+      set: (_t, k, v) => { if (k === 'imageSmoothingEnabled') sets.push(v as boolean); return true; },
+    }) as unknown as CanvasRenderingContext2D;
+    const { app } = make({ width: 1920, height: 1080, dpr: 1 });
+    app.screen = 'title';
+    app.draw(rec, 0);
+    expect(sets.length).toBeGreaterThan(0);
+    expect(sets[0]).toBe(false);
+    expect(sets.every((v) => v === false)).toBe(true);
   });
 });
