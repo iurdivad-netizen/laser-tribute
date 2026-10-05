@@ -77,7 +77,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
       missionName: 'Compound',
       fallen: ['Lindqvist 2', 'Kowalski', 'Fontaine', 'Eriksen'],
       nextBudget: 215,
-      loot: '4 rifles, 4 clips, 3 grenades',
+      loot: '4 rifles, 4 clips, 12 grenades (stash full)',
       promoted: ['Lindqvist 2 (Sergeant)', 'Alvarez (Captain)', 'Brandt (Private)', 'Chen (Sergeant)'],
     })));
     check('end', collect(() => drawCampaignEnd(ctx, {

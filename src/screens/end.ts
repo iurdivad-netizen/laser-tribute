@@ -23,11 +23,6 @@ export function endHit(px: number, py: number): 'new' | null {
   return px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h ? 'new' : null;
 }
 
-/** Shortens text to at most `max` characters, ending in "..." when it was cut. */
-export function clip(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 3)}...`;
-}
-
 export function drawCampaignEnd(ctx: CanvasRenderingContext2D, v: EndView): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);

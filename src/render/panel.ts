@@ -36,7 +36,7 @@ const TOP = VIEW.mapHeight;
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) =>
   i < 5
     ? { id, label, key, x: 156 + i * 64, y: TOP + 28, w: 60, h: 22 }
-    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 76, h: 22 },
+    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 78, h: 22 },
 );
 
 /** AP the soldier pays for the action behind this button; null for buttons that cost nothing. */

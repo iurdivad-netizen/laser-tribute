@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { drawCampaignEnd } from '../src/screens/end';
-import { drawResult } from '../src/screens/result';
+import { RESULT, drawResult } from '../src/screens/result';
 import { textWidth, unsupportedChars } from '../src/ui/font';
 import { onText } from '../src/ui/text';
 
@@ -17,6 +17,17 @@ const left = (r: { x: number; width: number; align: string }) =>
   r.align === 'left' ? r.x : r.align === 'right' ? r.x - r.width : r.x - Math.floor(r.width / 2);
 
 describe('result card', () => {
+  it('closes the gap when there is no loot line, and keeps the button label off the bevel', () => {
+    const view = (loot: string) => ({
+      result: { won: true, survivors: 4, squadSize: 4, enemiesKilled: 8, enemyCount: 8, turns: 12 },
+      missionName: 'Compound', fallen: [], nextBudget: 215, loot, promoted: ['Alvarez (Captain)'],
+    });
+    const promo = (loot: string) => collect((ctx) => drawResult(ctx, view(loot))).find((r) => r.text.includes('CAPTAIN') || r.text.includes('Captain'))!;
+    expect(promo('1 rifle').y - promo('').y).toBe(12);
+    const button = collect((ctx) => drawResult(ctx, view(''))).find((r) => r.text.startsWith('CONTINUE'))!;
+    expect(button.width + 6).toBeLessThanOrEqual(RESULT.again.w);
+  });
+
   it('keeps every line inside the card, with four promotions and long fallen names', () => {
     const runs = collect((ctx) => drawResult(ctx, {
       result: { won: true, survivors: 2, squadSize: 4, enemiesKilled: 8, enemyCount: 8, turns: 12 },

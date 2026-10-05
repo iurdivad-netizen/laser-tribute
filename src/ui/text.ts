@@ -77,7 +77,7 @@ export function drawText(
 export function clipText(text: string, maxPx: number): string {
   if (textWidth(text) <= maxPx) return text;
   for (let n = text.length - 1; n >= 0; n--) {
-    const out = `${text.slice(0, n)}...`;
+    const out = `${text.slice(0, n).trimEnd()}...`;
     if (textWidth(out) <= maxPx) return out;
   }
   // not even "..." fits: as many dots as fit
