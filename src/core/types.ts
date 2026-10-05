@@ -92,6 +92,8 @@ export type Command =
   | { type: 'PickUp'; unitId: string; itemId: string }
   | { type: 'Throw'; unitId: string; at: Pos }
   | { type: 'Alert'; unitId: string; on: boolean }
+  | { type: 'Heal'; unitId: string; targetId: string }
+  | { type: 'Scan'; unitId: string }
   | { type: 'EndTurn' };
 
 export type GameEvent =
@@ -120,6 +122,8 @@ export type GameEvent =
       hits: { unitId: string; damage: number }[];
       doorsDestroyed: Pos[];
     }
+  | { type: 'healed'; unitId: string; targetId: string; amount: number; at: Pos }
+  | { type: 'scanned'; unitId: string; found: Pos[] }
   | { type: 'turnEnded'; side: Side }
   | { type: 'gameOver'; winner: Side };
 

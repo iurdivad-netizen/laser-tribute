@@ -1,9 +1,11 @@
 import { handleAlert } from './actions/alert';
 import { handleDoor } from './actions/door';
 import { handleEndTurn } from './actions/endTurn';
+import { handleHeal } from './actions/heal';
 import { handlePickUp } from './actions/item';
 import { handleMove, handleTurn } from './actions/move';
 import { handleReload } from './actions/reload';
+import { handleScan } from './actions/scan';
 import { handleShot } from './actions/shoot';
 import { handleStab } from './actions/stab';
 import { handleThrow } from './actions/throw';
@@ -61,6 +63,10 @@ function dispatch(s: GameState, cmd: UnitCommand, unit: Unit, events: GameEvent[
       return handleThrow(s, cmd, unit, events);
     case 'Alert':
       return handleAlert(s, cmd, unit, events);
+    case 'Heal':
+      return handleHeal(s, cmd, unit, events);
+    case 'Scan':
+      return handleScan(s, cmd, unit, events);
   }
 }
 
