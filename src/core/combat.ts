@@ -1,6 +1,6 @@
-import { CONFIG, GADGETS, WEAPONS } from './config';
+import { ATTACHMENTS, CONFIG, CRIT, GADGETS, WEAPONS } from './config';
 import { NEIGHBORS_4, distance, inBounds, tileAt } from './geometry';
-import { nextRandom } from './rng';
+import { nextCrit, nextRandom } from './rng';
 import type { GameEvent, GameState, Pos, ShotMode, Unit } from './types';
 import { canSee } from './vision';
 
@@ -14,10 +14,16 @@ export function isCovered(s: GameState, shooter: Pos, target: Pos): boolean {
   });
 }
 
+/** The chance that a hit is critical: 8% snap, 15% aimed, 10 points more with a sightscope. */
+export function critChance(shooter: Unit, mode: ShotMode): number {
+  return CRIT[mode] + (shooter.attachment === 'scope' ? ATTACHMENTS.scope.crit : 0);
+}
+
 export function hitChance(s: GameState, shooter: Unit, target: Unit, mode: ShotMode): number {
   const w = WEAPONS[shooter.weapon];
   const weaponAccuracy = mode === 'snap' ? w.snapAccuracy : w.aimedAccuracy;
-  const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy);
+  const scope = shooter.attachment === 'scope' ? ATTACHMENTS.scope.accuracy : 0;
+  const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy + scope);
   const rangeFactor = 1 - 0.5 * (distance(shooter.pos, target.pos) / w.range);
   const cover = isCovered(s, shooter.pos, target.pos) ? CONFIG.coverMultiplier : 1;
   return base * rangeFactor * cover;
@@ -49,9 +55,12 @@ export function fireShot(
   shooter.ammo -= 1;
   const hit = nextRandom(s) < hitChance(s, shooter, target, mode);
   let damage = 0;
+  let crit = false;
   let impact: Pos = { ...target.pos };
   if (hit) {
-    damage = damageTaken(target, WEAPONS[shooter.weapon].damage);
+    const raw = WEAPONS[shooter.weapon].damage;
+    crit = nextCrit(s) < critChance(shooter, mode);
+    damage = damageTaken(target, crit ? Math.floor(raw * CRIT.multiplier) : raw);
     target.hp = Math.max(0, target.hp - damage);
   } else {
     impact = missImpact(s, target.pos);
@@ -62,6 +71,7 @@ export function fireShot(
     targetId: target.id,
     mode,
     hit,
+    crit,
     damage,
     from: { ...shooter.pos },
     impact,

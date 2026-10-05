@@ -17,6 +17,7 @@ export interface Tile {
 
 export type WeaponId = 'pistol' | 'rifle';
 export type GadgetId = 'medkit' | 'armour' | 'scanner';
+export type AttachmentId = 'scope';
 export type ItemKind = WeaponId | 'grenade';
 export type ShotMode = 'snap' | 'aimed';
 
@@ -48,6 +49,8 @@ export interface Unit {
   kills: number;
   /** The one gadget carried: 'medkit' and 'scanner' are used up, 'armour' is worn for the whole mission. */
   gadget: GadgetId | null;
+  /** The weapon attachment carried (a sightscope), separate from the gadget; worn for the whole mission. */
+  attachment: AttachmentId | null;
   patrol: Pos[];
   patrolIndex: number;
 }
@@ -71,6 +74,8 @@ export interface GameState {
   turn: Side;
   turnNumber: number;
   rngState: number;
+  /** A second seeded stream for critical-hit draws, so crits never change the hit and miss sequence. */
+  critState: number;
   explored: boolean[][]; // explored[y][x], the player's map memory
   enemyMemory: Pos | null; // where the enemy side last saw a player unit
   /** Enemy positions found by a scan this turn; cleared when the player ends the turn. Never read by the AI. */
@@ -106,6 +111,7 @@ export type GameEvent =
       targetId: string;
       mode: ShotMode;
       hit: boolean;
+      crit: boolean;
       damage: number;
       from: Pos;
       impact: Pos;

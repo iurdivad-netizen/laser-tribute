@@ -53,7 +53,7 @@ describe('SnapShot and AimedShot', () => {
     expect(unit(r.state, 'p1').ap).toBe(45);
     expect(r.events).toEqual([
       {
-        type: 'shot', unitId: 'p1', targetId: 'e1', mode: 'snap', hit: true, damage: 30,
+        type: 'shot', unitId: 'p1', targetId: 'e1', mode: 'snap', hit: true, crit: false, damage: 30,
         from: { x: 1, y: 1 }, impact: { x: 5, y: 1 },
       },
     ]);

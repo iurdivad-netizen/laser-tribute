@@ -7,7 +7,7 @@ const names = (fx: Effects, now: number) => sprites(fx, now).map((d) => (d as { 
 
 describe('shot effects', () => {
   const shot = (hit: boolean) => ({
-    type: 'shot' as const, unitId: 'p1', targetId: 'e1', mode: 'snap' as const, hit, damage: hit ? 30 : 0,
+    type: 'shot' as const, unitId: 'p1', targetId: 'e1', mode: 'snap' as const, hit, crit: false, damage: hit ? 30 : 0,
     from: { x: 2, y: 3 }, impact: { x: 6, y: 3 },
   });
 
