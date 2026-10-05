@@ -16,6 +16,15 @@ const ENEMY_STEP_MS = 300;
 /** Longest stretch of unseen enemy commands run in one block before handing control back to the browser. */
 const ENEMY_BATCH_MS = 10;
 
+/** The facing (0 north, clockwise) from one tile toward another, or null for the same tile. */
+export function faceToward(from: Pos, to: Pos): Facing | null {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dx === 0 && dy === 0) return null;
+  const steps = Math.round(Math.atan2(dx, -dy) / (Math.PI / 4));
+  return (((steps % 8) + 8) % 8) as Facing;
+}
+
 export class Controller {
   /** True when the last applied command had an effect the player could see. */
   private lastVisible = false;
@@ -135,7 +144,7 @@ export class Controller {
     return !this.ui.busy && this.state.status === 'playing' && this.state.turn === 'player';
   }
 
-  clickTile(t: Pos): void {
+  clickTile(t: Pos, touch = false): void {
     if (!this.canAct()) return;
     const sel = this.selected();
     const clicked = this.state.units.find(
@@ -145,6 +154,7 @@ export class Controller {
     if (this.ui.mode === 'move') {
       if (clicked && clicked.side === 'player') {
         this.ui.selectedId = clicked.id;
+        this.ui.pendingTile = null;
         this.updatePreview();
         return;
       }
@@ -152,6 +162,23 @@ export class Controller {
         this.refuse('Select a soldier first');
         return;
       }
+      if (touch) {
+        // no hover on a touchscreen: the first tap shows the path and cost, a second tap on the same tile moves
+        const pending = this.ui.pendingTile;
+        if (!pending || !posEq(pending, t)) {
+          this.ui.hover = { ...t };
+          this.updatePreview();
+          if (this.ui.previewCost === null) {
+            this.ui.pendingTile = null;
+            this.refuse('No path there');
+            return;
+          }
+          this.ui.pendingTile = { ...t };
+          this.say(`Tap again to move: ${this.ui.previewCost} AP`, 4000);
+          return;
+        }
+      }
+      this.ui.pendingTile = null;
       const path = findPath(this.state, sel.id, t, { seenBy: 'player', doorView: this.state.doorMemory });
       if (!path) {
         this.refuse('No path there');
@@ -193,6 +220,10 @@ export class Controller {
     } else if (mode === 'door') {
       const tile = this.state.tiles[t.y][t.x];
       this.run({ type: tile.open ? 'CloseDoor' : 'OpenDoor', unitId: sel.id, at: t });
+    } else if (mode === 'turn') {
+      const facing = faceToward(sel.pos, t);
+      if (facing === null || facing === sel.facing) return;
+      this.run({ type: 'Turn', unitId: sel.id, facing });
     } else if (mode === 'heal') {
       if (!clicked || clicked.side !== 'player') {
         this.refuse('Click a soldier');
@@ -236,6 +267,7 @@ export class Controller {
     const sel = this.selected();
     if (!sel || !this.canAct()) return;
     this.ui.mode = mode;
+    this.ui.pendingTile = null;
     const w = WEAPONS[sel.weapon];
     const hint: Record<Mode, string> = {
       move: '',
@@ -259,6 +291,8 @@ export class Controller {
       case 'stab': this.setMode('stab'); break;
       case 'door': this.setMode('door'); break;
       case 'gadget': this.useGadget(); break;
+      case 'turn': this.setMode('turn'); break;
+      case 'zoom': break; // the app owns the camera
       case 'pickup': this.pickup(); break;
       case 'reload': this.reload(); break;
       case 'alert': this.toggleAlert(); break;
@@ -302,6 +336,7 @@ export class Controller {
 
   cancel(): void {
     this.ui.mode = 'move';
+    this.ui.pendingTile = null;
     this.updatePreview();
   }
 
@@ -309,6 +344,7 @@ export class Controller {
     if (!this.canAct()) return;
     if (!this.run({ type: 'EndTurn' })) return;
     this.ui.mode = 'move';
+    this.ui.pendingTile = null;
     this.ui.busy = true;
     setTimeout(this.enemyStep, ENEMY_STEP_MS);
   }
@@ -353,6 +389,7 @@ export class Controller {
       const target = this.state.units.find((u) => u.id === `p${lower}` && u.alive);
       if (target && this.canAct()) {
         this.ui.selectedId = target.id;
+        this.ui.pendingTile = null;
         if (this.ui.mode === 'heal') this.ui.mode = 'move'; // the new soldier may carry no medkit
         this.updatePreview();
       }
@@ -365,6 +402,7 @@ export class Controller {
       case 'k': this.setMode('stab'); return true;
       case 'd': this.setMode('door'); return true;
       case 'g': this.useGadget(); return true;
+      case 'f': this.setMode('turn'); return true;
       case 'p': this.pickup(); return true;
       case 'r': this.reload(); return true;
       case 'l': this.toggleAlert(); return true;
@@ -385,6 +423,7 @@ export class Controller {
         const i = squad.findIndex((u) => u.id === this.ui.selectedId);
         if (squad.length > 0 && this.canAct()) {
           this.ui.selectedId = squad[(i + 1) % squad.length].id;
+          this.ui.pendingTile = null;
           if (this.ui.mode === 'heal') this.ui.mode = 'move';
         }
         return true;
