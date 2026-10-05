@@ -77,6 +77,7 @@ export function parseMap(rows: string[], seed = 1): GameState {
     rngState: seed,
     critState: (seed ^ 0x5bd1e995) | 0,
     explored: Array.from({ length: height }, () => Array<boolean>(width).fill(false)),
+    doorMemory: Array.from({ length: height }, () => Array<boolean>(width).fill(false)),
     enemyMemory: null,
     scanned: [],
     reacted: [],

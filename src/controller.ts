@@ -114,7 +114,7 @@ export class Controller {
     const u = this.selected();
     const t = this.ui.hover;
     if (!u || !t || this.ui.mode !== 'move' || this.ui.busy || this.state.turn !== 'player') return;
-    const path = findPath(this.state, u.id, t, { seenBy: 'player' });
+    const path = findPath(this.state, u.id, t, { seenBy: 'player', doorView: this.state.doorMemory });
     if (path) {
       this.ui.preview = path;
       this.ui.previewCost = pathCost(u.pos, path);
@@ -142,7 +142,7 @@ export class Controller {
         this.refuse('Select a soldier first');
         return;
       }
-      const path = findPath(this.state, sel.id, t, { seenBy: 'player' });
+      const path = findPath(this.state, sel.id, t, { seenBy: 'player', doorView: this.state.doorMemory });
       if (!path) {
         this.refuse('No path there');
         return;

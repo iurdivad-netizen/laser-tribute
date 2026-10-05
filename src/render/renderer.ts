@@ -27,7 +27,7 @@ const COLORS = {
 function tileSprite(state: GameState, x: number, y: number): SpriteName {
   const tile = state.tiles[y][x];
   if (tile.kind === 'wall') return 'wall';
-  if (tile.kind === 'door') return tile.open ? 'door_open' : 'door_closed';
+  if (tile.kind === 'door') return state.doorMemory[y][x] ? 'door_open' : 'door_closed'; // as the player last saw it
   return `floor_${floorVariant(x, y)}` as SpriteName;
 }
 
