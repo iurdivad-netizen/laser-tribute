@@ -138,3 +138,54 @@ describe('Effects.unitBob', () => {
     expect(fx.unitBob('p2', 1010)).toBe(0);
   });
 });
+
+describe('gadget markers', () => {
+  /** A canvas stand-in that records every fillRect with the fill style in force. */
+  function recorder() {
+    const fills: { style: string; x: number; y: number; w: number; h: number }[] = [];
+    let style = '';
+    const target = new Proxy({}, {
+      get: (_t, k) => (k === 'fillStyle' ? style : k === 'fillRect'
+        ? (x: number, y: number, w: number, h: number) => fills.push({ style, x, y, w, h })
+        : () => ({ width: 0 })),
+      set: (_t, k, v) => { if (k === 'fillStyle') style = String(v); return true; },
+    }) as unknown as CanvasRenderingContext2D;
+    return { ctx: target, fills };
+  }
+
+  it('draws a red dot on a scanned tile the player cannot see, and none on a visible one', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const vis = computeVisible(state, 'player');
+    let hidden = { x: 0, y: 0 };
+    let shown = { x: 0, y: 0 };
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        if (state.tiles[y][x].kind === 'floor') {
+          if (!vis[y][x]) hidden = { x, y };
+          else shown = { x, y };
+        }
+      }
+    }
+    const dot = (p: { x: number; y: number }) => ({ style: '#ff4d4d', x: p.x * 16 + 6, y: p.y * 16 + 6, w: 4, h: 4 });
+    state.scanned = [hidden];
+    const a = recorder();
+    drawGame(a.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    expect(a.fills).toContainEqual(dot(hidden));
+    state.scanned = [shown];
+    const b = recorder();
+    drawGame(b.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    expect(b.fills).not.toContainEqual(dot(shown));
+  });
+
+  it('draws a blue pip on an armoured soldier only', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const armoured = state.units.find((u) => u.id === 'p1')!;
+    const none = recorder();
+    drawGame(none.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    expect(none.fills.some((f) => f.style === '#4da6ff')).toBe(false);
+    armoured.gadget = 'armour';
+    const worn = recorder();
+    drawGame(worn.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    expect(worn.fills).toContainEqual({ style: '#4da6ff', x: armoured.pos.x * 16 + 1, y: armoured.pos.y * 16 + 13, w: 2, h: 2 });
+  });
+});
