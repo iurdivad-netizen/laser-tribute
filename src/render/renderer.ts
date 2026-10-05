@@ -1,5 +1,5 @@
 import { Atlas } from '../art/atlas';
-import { barrel, floorVariant, pipPositions, rankPips, unitSprite } from '../art/sprite';
+import { ARMOUR_PIP, floorVariant, pipPositions, rankPips, unitSprite } from '../art/sprite';
 import type { SpriteName } from '../art/sprites';
 import { CONFIG } from '../core/config';
 import type { GameState } from '../core/types';
@@ -20,8 +20,6 @@ const COLORS = {
   pip: '#ffe14d',
   scan: '#ff4d4d',
   armour: '#4da6ff',
-  rifle: '#d0d0d0',
-  pistol: '#a0a0a0',
 };
 
 function tileSprite(state: GameState, x: number, y: number): SpriteName {
@@ -75,26 +73,24 @@ export function drawGame(
     const off = effects.unitOffset(u.id, now);
     const x0 = Math.round(u.pos.x * T + off.x);
     const y0 = Math.round(u.pos.y * T + off.y + effects.unitBob(u.id, now));
-    const { name, flip } = unitSprite(u.side, u.facing);
+    const { name, flip } = unitSprite(u.side, u.facing, u.weapon);
     art.draw(ctx, name, x0, y0, { flip });
     const cx = x0 + T / 2;
     const cy = y0 + T / 2;
 
-    ctx.fillStyle = COLORS[u.weapon];
-    for (const p of barrel(u.weapon, u.facing)) ctx.fillRect(cx + p.dx, cy + p.dy, 1, 1);
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
       for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y, 1, 2);
       if (u.gadget === 'armour') {
         ctx.fillStyle = COLORS.armour;
-        ctx.fillRect(x0 + 13, y0 + 13, 2, 2); // the right-hand corner, clear of up to three rank pips on the left
+        ctx.fillRect(x0 + ARMOUR_PIP.x, y0 + ARMOUR_PIP.y, ARMOUR_PIP.w, ARMOUR_PIP.h);
       }
     }
 
     ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 6, cy - 9, 12, 2);
+    ctx.fillRect(cx - 6, cy - 10, 12, 2); // entirely above the tile, so it never covers the helmet or the rank pips
     ctx.fillStyle = '#7dff9a';
-    ctx.fillRect(cx - 6, cy - 9, (12 * u.hp) / u.maxHp, 2);
+    ctx.fillRect(cx - 6, cy - 10, (12 * u.hp) / u.maxHp, 2);
     if (u.alert) {
       drawText(ctx, '!', cx + 5, cy - 17, COLORS.select);
     }

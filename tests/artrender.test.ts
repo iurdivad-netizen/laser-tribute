@@ -50,8 +50,8 @@ describe('drawGame with sprites', () => {
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
     const units = drawn.filter((d) => d.name.startsWith('soldier_'));
     expect(units).toHaveLength(4);
-    expect(units.find((d) => d.name === 'soldier_e')!.flip).toBe(true);
-    expect(units.find((d) => d.name === 'soldier_n')!.flip).toBe(false);
+    expect(units.find((d) => d.name === 'soldier_rifle_e')!.flip).toBe(true);
+    expect(units.find((d) => d.name === 'soldier_rifle_n')!.flip).toBe(false);
   });
 
   it('does not draw an enemy that is out of sight, and draws one that is seen', () => {
@@ -197,7 +197,7 @@ describe('gadget markers', () => {
     drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
     const x0 = p1.pos.x * 16;
     const y0 = p1.pos.y * 16;
-    const near = (f: { x: number; y: number }) => f.x >= x0 && f.x < x0 + 16 && f.y >= y0 + 10 && f.y < y0 + 16;
+    const near = (f: { x: number; y: number }) => f.x >= x0 && f.x < x0 + 16 && f.y >= y0 && f.y < y0 + 16;
     const pips = r.fills.filter((f) => f.style === '#ffe14d' && f.w === 1 && f.h === 2 && near(f));
     const armour = r.fills.filter((f) => f.style === '#4da6ff' && near(f));
     expect(pips).toHaveLength(3);
@@ -207,5 +207,15 @@ describe('gadget markers', () => {
       const overlap = a.x < p.x + p.w && p.x < a.x + a.w && a.y < p.y + p.h && p.y < a.y + a.h;
       expect(overlap, `armour pip overlaps a rank pip at ${p.x},${p.y}`).toBe(false);
     }
+  });
+
+  it('draws the health bar entirely above the tile, so it never covers the helmet or the rank pips', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const p1 = state.units.find((u) => u.id === 'p1')!;
+    const r = recorder();
+    drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    const bars = r.fills.filter((f) => f.style === '#7dff9a' && f.h === 2 && f.x >= p1.pos.x * 16 && f.x < p1.pos.x * 16 + 16);
+    expect(bars.length).toBeGreaterThan(0);
+    for (const b of bars) expect(b.y + b.h).toBeLessThanOrEqual(p1.pos.y * 16);
   });
 });
