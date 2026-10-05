@@ -43,7 +43,7 @@ function stash(v: unknown): Stash | null {
   if (!isObj(v)) return null;
   const { rifle, pistol, grenade, clip } = v;
   if (!isInt(rifle, 0, 99) || !isInt(pistol, 0, 99) || !isInt(grenade, 0, 99) || !isInt(clip, 0, 99)) return null;
-  return { rifle, pistol, grenade, clip };
+  return { rifle, pistol, grenade, clip, medkit: 0, armour: 0, scanner: 0 };
 }
 
 /** The saved loadout when it is well formed; the default one otherwise (the app then fits it to the budget). */

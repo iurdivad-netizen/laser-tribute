@@ -29,7 +29,7 @@ function played(): Campaign {
   unit(s, 'p1').kills = 2;
   s.status = 'won';
   const c = recordMission(newCampaign(), s, 3, defaultLoadout());
-  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4 };
+  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0 };
   return c;
 }
 

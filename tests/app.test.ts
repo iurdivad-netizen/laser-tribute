@@ -346,13 +346,13 @@ describe('found gear carries to the next mission', () => {
     expect(app.loadout[0].weapon).toBe('pistol');
     app.click(START);
     endWin(app, 1000);
-    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0 });
+    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0 });
     wait();
     app.click(CONTINUE); // on to the next equipment screen
     expect(app.screen).toBe('equipment');
     wait();
     app.click(START);
-    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0 });
+    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0 });
   });
 });
 
@@ -409,7 +409,7 @@ describe('loot after a mission', () => {
     app.click(START);
     endWin(app, 1000);
     expect(app.screen).toBe('result');
-    expect(app.campaign.stash).toMatchObject({ rifle: 1, clip: 1 });
+    expect(app.campaign.stash).toMatchObject({ rifle: 1, clip: 1, medkit: 0, armour: 0, scanner: 0 });
     expect(app.loot).toBe('1 rifle, 1 clip');
   });
 
@@ -421,7 +421,7 @@ describe('loot after a mission', () => {
         return s;
       },
     });
-    app.campaign.stash = { rifle: 4, pistol: 0, grenade: 0, clip: 4 };
+    app.campaign.stash = { rifle: 4, pistol: 0, grenade: 0, clip: 4, medkit: 0, armour: 0, scanner: 0 };
     app.click(START);
     endWin(app, 1000);
     expect(app.loot).toBe('1 rifle, 1 clip (stash full)');
@@ -587,7 +587,7 @@ describe('App saving and loading', () => {
     playWin(first.app, first.wait, 0);
     const o = JSON.parse(mem.data.get(SAVE_KEY)!);
     o.loadout = o.loadout.map(() => ({ weapon: 'rifle', grenades: 3, clips: 4 })); // far over budget
-    o.campaign.stash = { rifle: 0, pistol: 0, grenade: 0, clip: 0 };
+    o.campaign.stash = { rifle: 0, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0 };
     mem.data.set(SAVE_KEY, JSON.stringify(o));
     const { app } = make({ store: new SaveStore(mem, 3) });
     expect(validateLoadout(app.loadout, campaignBudget(app.campaign), app.campaign.stash)).toBeNull();
