@@ -6,7 +6,7 @@ import { corridorRows, makeState, unit } from './helpers';
 const state = () => makeState(corridorRows('P..E'));
 const at = { x: 2, y: 1 };
 const shot = (hit: boolean, unitId = 'p1', targetId = 'e1'): GameEvent => ({
-  type: 'shot', unitId, targetId, mode: 'snap', hit, damage: hit ? 30 : 0, from: { x: 1, y: 1 }, impact: at,
+  type: 'shot', unitId, targetId, mode: 'snap', hit, crit: false, damage: hit ? 30 : 0, from: { x: 1, y: 1 }, impact: at,
 });
 
 describe('soundsFor: shots', () => {

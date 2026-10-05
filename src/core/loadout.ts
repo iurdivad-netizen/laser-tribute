@@ -1,6 +1,6 @@
-import { CONFIG, GADGETS, GADGET_IDS, WEAPONS } from './config';
+import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, WEAPONS } from './config';
 import { coverage, emptyStash, type Stash } from './stash';
-import type { GadgetId, GameState, WeaponId } from './types';
+import type { AttachmentId, GadgetId, GameState, WeaponId } from './types';
 
 export const LOADOUT = {
   budget: 120,
@@ -17,6 +17,8 @@ export interface SoldierLoadout {
   clips: number;
   /** The one gadget carried; absent means none. */
   gadget?: GadgetId;
+  /** The weapon attachment carried; absent means none. */
+  attachment?: AttachmentId;
 }
 
 export type Loadout = SoldierLoadout[];
@@ -32,7 +34,8 @@ export function defaultLoadout(): Loadout {
 
 export function soldierCost(s: SoldierLoadout): number {
   return LOADOUT.prices[s.weapon] + LOADOUT.prices.grenade * s.grenades + LOADOUT.prices.clip * (s.clips - 1) +
-    (s.gadget ? GADGETS[s.gadget].price : 0);
+    (s.gadget ? GADGETS[s.gadget].price : 0) +
+    (s.attachment ? ATTACHMENTS[s.attachment].price : 0);
 }
 
 /** Credits the loadout costs; gear covered by the stash is free. */
@@ -41,7 +44,8 @@ export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
   const free = coverage(l, stash).reduce(
     (sum, c, i) =>
       sum + (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) + c.grenades * LOADOUT.prices.grenade + c.clips * LOADOUT.prices.clip +
-      (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0),
+      (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) +
+      (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0),
     0,
   );
   return gross - free;
@@ -55,7 +59,8 @@ export function netSoldierCost(l: Loadout, i: number, stash: Stash = emptyStash(
     (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) -
     c.grenades * LOADOUT.prices.grenade -
     c.clips * LOADOUT.prices.clip -
-    (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0)
+    (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) -
+    (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0)
   );
 }
 
@@ -73,6 +78,9 @@ export function validateLoadout(
       return `Soldier ${i + 1} must carry 0 to ${LOADOUT.maxGrenades} grenades`;
     }
     if (s.gadget !== undefined && !GADGET_IDS.includes(s.gadget)) return `Soldier ${i + 1} has an unknown gadget`;
+    if (s.attachment !== undefined && !ATTACHMENT_IDS.includes(s.attachment)) {
+      return `Soldier ${i + 1} has an unknown attachment`;
+    }
     if (!Number.isInteger(s.clips) || s.clips < 1 || s.clips > CONFIG.maxClips) {
       return `Soldier ${i + 1} must carry 1 to ${CONFIG.maxClips} spare clips`;
     }
@@ -88,7 +96,7 @@ export function fitLoadout(previous: Loadout, budget: number, stash: Stash = emp
   // Trim the extra spare clips before giving up the weapons and grenades.
   const trimmed = previous.map((s) => ({ ...s, clips: 1 }));
   if (validateLoadout(trimmed, budget, stash) === null) return trimmed;
-  const bare = trimmed.map(({ gadget: _gadget, ...rest }) => rest);
+  const bare = trimmed.map(({ gadget: _gadget, attachment: _attachment, ...rest }) => rest);
   return validateLoadout(bare, budget, stash) === null ? bare : cheapLoadout();
 }
 
@@ -108,6 +116,7 @@ export function applyLoadout(
       u.clips = l[i].clips;
       u.ammo = WEAPONS[l[i].weapon].magazine;
       u.gadget = l[i].gadget ?? null;
+      u.attachment = l[i].attachment ?? null;
     });
   return next;
 }

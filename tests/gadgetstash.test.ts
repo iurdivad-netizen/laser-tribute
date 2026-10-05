@@ -70,8 +70,8 @@ describe('stash with gadgets', () => {
   };
 
   it('starts empty and lists gadgets', () => {
-    expect(emptyStash()).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
-    expect(describeStash({ ...emptyStash(), medkit: 2, armour: 1, scanner: 1 })).toBe('2 medkits, 1 armour, 1 scanner');
+    expect(emptyStash()).toMatchObject({ medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(describeStash({ ...emptyStash(), medkit: 2, armour: 1, scanner: 1, scope: 0 })).toBe('2 medkits, 1 armour, 1 scanner');
   });
 
   it('returns an unused medkit or scanner and worn armour of survivors, bought or lent', () => {
@@ -84,7 +84,7 @@ describe('stash with gadgets', () => {
     unit(s, 'p2').gadget = 'armour';
     unit(s, 'p3').gadget = 'scanner';
     const next = nextStash(emptyStash(), used, s);
-    expect(next).toMatchObject({ medkit: 1, armour: 1, scanner: 1 });
+    expect(next).toMatchObject({ medkit: 1, armour: 1, scanner: 1, scope: 0 });
   });
 
   it('a used gadget is gone, and a dead soldier loses theirs', () => {
@@ -95,7 +95,7 @@ describe('stash with gadgets', () => {
     unit(s, 'p1').gadget = null; // used up
     unit(s, 'p2').gadget = 'armour';
     unit(s, 'p2').alive = false;
-    expect(nextStash(emptyStash(), used, s)).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
+    expect(nextStash(emptyStash(), used, s)).toMatchObject({ medkit: 0, armour: 0, scanner: 0, scope: 0 });
   });
 
   it('a lent gadget leaves the stash and comes back only if still carried', () => {
@@ -110,9 +110,9 @@ describe('stash with gadgets', () => {
   });
 
   it('caps each gadget at 4 and loot carries no gadgets', () => {
-    const big = { ...emptyStash(), medkit: 9, armour: 9, scanner: 9 };
-    expect(capStash(big)).toMatchObject({ medkit: 4, armour: 4, scanner: 4 });
-    expect(lootFrom(finished())).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
-    expect(addStash(big, big)).toMatchObject({ medkit: 18, armour: 18, scanner: 18 });
+    const big = { ...emptyStash(), medkit: 9, armour: 9, scanner: 9, scope: 0 };
+    expect(capStash(big)).toMatchObject({ medkit: 4, armour: 4, scanner: 4, scope: 0 });
+    expect(lootFrom(finished())).toMatchObject({ medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(addStash(big, big)).toMatchObject({ medkit: 18, armour: 18, scanner: 18, scope: 0 });
   });
 });

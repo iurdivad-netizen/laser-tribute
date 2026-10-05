@@ -13,6 +13,7 @@ export function addStash(a: Stash, b: Stash): Stash {
     medkit: a.medkit + b.medkit,
     armour: a.armour + b.armour,
     scanner: a.scanner + b.scanner,
+    scope: a.scope + b.scope,
   };
 }
 
@@ -39,5 +40,6 @@ export function capStash(s: Stash): Stash {
     medkit: Math.min(s.medkit, STASH_CAP.gadgets),
     armour: Math.min(s.armour, STASH_CAP.gadgets),
     scanner: Math.min(s.scanner, STASH_CAP.gadgets),
+    scope: Math.min(s.scope, STASH_CAP.gadgets),
   };
 }

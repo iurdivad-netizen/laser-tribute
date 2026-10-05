@@ -1,4 +1,4 @@
-import type { GadgetId, WeaponId } from './types';
+import type { AttachmentId, GadgetId, WeaponId } from './types';
 
 export const NOT_ENOUGH_AP = 'Not enough action points';
 
@@ -31,6 +31,14 @@ export const GADGETS = {
   medkit: { name: 'Medkit', price: 12, apCost: 12, heal: 25 },
   armour: { name: 'Armour', price: 20, reductionPct: 30 },
   scanner: { name: 'Scanner', price: 15, apCost: 10, radius: 8 },
+} as const;
+
+export const CRIT = { snap: 0.08, aimed: 0.15, multiplier: 1.5 } as const;
+
+export const ATTACHMENT_IDS: readonly AttachmentId[] = ['scope'];
+
+export const ATTACHMENTS = {
+  scope: { name: 'Scope', price: 18, accuracy: 0.1, crit: 0.1 },
 } as const;
 
 export interface WeaponDef {

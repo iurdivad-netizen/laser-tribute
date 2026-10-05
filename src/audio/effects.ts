@@ -1,6 +1,6 @@
 export const SOUND_NAMES = [
   'pistol', 'rifle', 'hit', 'ricochet', 'stab', 'explosion', 'deathSoldier', 'deathEnemy',
-  'reload', 'empty', 'door', 'step', 'pickup', 'alert', 'click', 'error', 'win', 'lose', 'heal', 'scan',
+  'reload', 'empty', 'door', 'step', 'pickup', 'alert', 'click', 'error', 'win', 'lose', 'heal', 'scan', 'crit',
 ] as const;
 
 export type SoundName = (typeof SOUND_NAMES)[number];
@@ -42,6 +42,7 @@ export const EFFECTS: Record<SoundName, Segment[]> = {
   error: [tone('sawtooth', 160, 120, 0, 0.18, 0.35)],
   heal: [tone('triangle', 600, 900, 0, 0.1, 0.3), tone('triangle', 900, 1200, 0.1, 0.14, 0.3)],
   scan: [tone('sawtooth', 1400, 500, 0, 0.35, 0.22), tone('triangle', 700, 700, 0.4, 0.05, 0.2)],
+  crit: [tone('square', 900, 1500, 0, 0.06, 0.3), tone('square', 1500, 2100, 0.07, 0.1, 0.3)],
   win: [
     tone('square', 523, 523, 0, 0.12, 0.3),
     tone('square', 659, 659, 0.13, 0.12, 0.3),

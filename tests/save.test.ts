@@ -29,7 +29,7 @@ function played(): Campaign {
   unit(s, 'p1').kills = 2;
   s.status = 'won';
   const c = recordMission(newCampaign(), s, 3, defaultLoadout());
-  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0 };
+  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 };
   return c;
 }
 
@@ -139,7 +139,7 @@ describe('gadgets in a save', () => {
       delete o.campaign.stash.armour;
       delete o.campaign.stash.scanner;
     }), 3)!;
-    expect(save.campaign.stash).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
+    expect(save.campaign.stash).toMatchObject({ medkit: 0, armour: 0, scanner: 0, scope: 0 });
     expect(save.loadout.every((s) => s.gadget === undefined)).toBe(true);
   });
 
@@ -147,7 +147,7 @@ describe('gadgets in a save', () => {
     const mem = memory();
     const store = new SaveStore(mem, 3);
     const c = played();
-    c.stash = { ...c.stash, medkit: 2, armour: 1, scanner: 3 };
+    c.stash = { ...c.stash, medkit: 2, armour: 1, scanner: 3, scope: 0 };
     const loadout = defaultLoadout();
     loadout[0] = { ...loadout[0], gadget: 'medkit' };
     loadout[3] = { ...loadout[3], gadget: 'armour' };
@@ -164,5 +164,35 @@ describe('gadgets in a save', () => {
     expect(parseSave(json((o) => { o.campaign.stash.medkit = -1; }), 3)).toBeNull();
     expect(parseSave(json((o) => { o.campaign.stash.scanner = 100; }), 3)).toBeNull();
     expect(parseSave(json((o) => { o.campaign.stash.armour = 1.5; }), 3)).toBeNull();
+  });
+});
+
+describe('the sightscope in a save', () => {
+  it('an old save without the fields still loads with no scope', () => {
+    const save = parseSave(json((o) => { delete o.campaign.stash.scope; }), 3)!;
+    expect(save.campaign.stash.scope).toBe(0);
+    expect(save.loadout.every((s) => s.attachment === undefined)).toBe(true);
+  });
+
+  it('round-trips a scope in the loadout and the stash', () => {
+    const mem = memory();
+    const store = new SaveStore(mem, 3);
+    const c = played();
+    c.stash = { ...c.stash, scope: 2 };
+    const loadout = defaultLoadout();
+    loadout[1] = { ...loadout[1], attachment: 'scope', gadget: 'armour' };
+    store.save(c, loadout);
+    expect(store.load()).toEqual({ campaign: c, loadout });
+  });
+
+  it('an unknown attachment id replaces the whole loadout with the default one', () => {
+    const bad = defaultLoadout().map((s, i) => (i === 2 ? { ...s, clips: 3, attachment: 'laser' } : s));
+    expect(parseSave(json((o) => { o.loadout = bad; }), 3)!.loadout).toEqual(defaultLoadout());
+  });
+
+  it('rejects a negative, fractional or huge scope count', () => {
+    for (const bad of [-1, 1.5, 100]) {
+      expect(parseSave(json((o) => { o.campaign.stash.scope = bad; }), 3)).toBeNull();
+    }
   });
 });
