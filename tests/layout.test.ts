@@ -70,6 +70,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
     ui.message = 'Lindqvist 2 on alert: fires once at each enemy that moves into view';
     ui.messageUntil = Infinity;
     state.units.find((u) => u.id === 'p1')!.alert = true;
+    state.units.find((u) => u.id === 'p1')!.gadget = 'scanner';
     state.turnNumber = 99;
     check('mission', collect(() => drawGame(ctx, state, ui, new Effects(), 0)));
   });

@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS } from '../core/config';
+import { CONFIG, GADGETS, WEAPONS } from '../core/config';
 import { rankShort } from '../core/ranks';
 import type { GameState, Unit } from '../core/types';
 import type { UiState } from '../input/uiState';
@@ -6,7 +6,7 @@ import { UI, drawFrame, type ButtonState } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
 import { VIEW } from './layout';
 
-export type ButtonId = 'snap' | 'aimed' | 'throw' | 'stab' | 'reload' | 'door' | 'pickup' | 'alert' | 'end';
+export type ButtonId = 'snap' | 'aimed' | 'throw' | 'stab' | 'reload' | 'door' | 'pickup' | 'alert' | 'gadget' | 'end';
 
 export interface PanelButton {
   id: ButtonId;
@@ -27,16 +27,18 @@ const DEFS: [ButtonId, string, string][] = [
   ['door', 'DOOR', 'D'],
   ['pickup', 'TAKE', 'P'],
   ['alert', 'ALERT', 'L'],
+  ['gadget', 'GADGET', 'G'],
   ['end', 'END TURN', 'SPC'],
 ];
 
 const TOP = VIEW.mapHeight;
 
-/** Row 1: five buttons 60 wide from x 156; row 2: four buttons 76 wide from x 156. */
+/** Row 1: five buttons 60 wide from x 156; row 2: five buttons sized to their labels, [x, width]. */
+const ROW2: [number, number][] = [[156, 48], [208, 48], [260, 52], [316, 56], [376, 78]];
 export const PANEL_BUTTONS: PanelButton[] = DEFS.map(([id, label, key], i) =>
   i < 5
     ? { id, label, key, x: 156 + i * 64, y: TOP + 28, w: 60, h: 22 }
-    : { id, label, key, x: 156 + (i - 5) * 80, y: TOP + 52, w: 78, h: 22 },
+    : { id, label, key, x: ROW2[i - 5][0], y: TOP + 52, w: ROW2[i - 5][1], h: 22 },
 );
 
 /** AP the soldier pays for the action behind this button; null for buttons that cost nothing. */
@@ -49,6 +51,8 @@ export function actionCost(u: Unit, id: ButtonId): number | null {
     case 'reload': return CONFIG.reloadAp;
     case 'door': return CONFIG.doorCost;
     case 'pickup': return CONFIG.pickupCost;
+    case 'gadget':
+      return u.gadget === 'medkit' ? GADGETS.medkit.apCost : u.gadget === 'scanner' ? GADGETS.scanner.apCost : null;
     default: return null;
   }
 }
@@ -60,11 +64,12 @@ export function actionBlocked(u: Unit, id: ButtonId): boolean {
   if (id === 'reload') return u.clips < 1 || u.ammo >= WEAPONS[u.weapon].magazine;
   if (id === 'snap' || id === 'aimed') return u.ammo < 1;
   if (id === 'throw') return u.grenades < 1;
+  if (id === 'gadget') return u.gadget !== 'medkit' && u.gadget !== 'scanner';
   return false;
 }
 
 const MODE_NAMES: Partial<Record<UiState['mode'], string>> = {
-  snap: 'Snap shot', aimed: 'Aimed shot', throw: 'Grenade', door: 'Door', stab: 'Stab',
+  snap: 'Snap shot', aimed: 'Aimed shot', throw: 'Grenade', door: 'Door', stab: 'Stab', heal: 'Heal',
 };
 
 export function buttonAt(px: number, py: number): ButtonId | null {
@@ -83,7 +88,8 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     drawText(ctx, `${tag ? `${tag} ` : ''}${u.name}`, 8, TOP + 8, UI.text);
     drawText(ctx, `HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 8, TOP + 19, UI.dim);
     drawText(ctx, `${weapon.name} ${u.ammo}/${weapon.magazine} +${u.clips}  GREN ${u.grenades}`, 8, TOP + 30, UI.text);
-    if (u.alert) drawText(ctx, 'ALERT', 8, TOP + 41, UI.accent);
+    if (u.gadget) drawText(ctx, `GADGET ${GADGETS[u.gadget].name.toUpperCase()}`, 8, TOP + 41, UI.text);
+    if (u.alert) drawText(ctx, 'ALERT', 100, TOP + 41, UI.accent);
   } else {
     drawText(ctx, 'NO SOLDIER SELECTED', 8, TOP + 8, UI.dim);
   }
@@ -98,19 +104,20 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
   else if (now < ui.messageUntil) line = ui.message;
   else if (ui.previewCost !== null) line = `Move: ${ui.previewCost} AP`;
   else if (u && MODE_NAMES[ui.mode]) {
-    line = `${MODE_NAMES[ui.mode]}: ${actionCost(u, ui.mode as ButtonId)} AP`;
+    line = `${MODE_NAMES[ui.mode]}: ${actionCost(u, ui.mode === 'heal' ? 'gadget' : (ui.mode as ButtonId))} AP`;
   }
   drawText(ctx, clipText(line, 320), 156, TOP + 17, state.status === 'playing' ? UI.accent : UI.green);
 
   const modeButton: Partial<Record<UiState['mode'], ButtonId>> = {
-    snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door', stab: 'stab',
+    snap: 'snap', aimed: 'aimed', throw: 'throw', door: 'door', stab: 'stab', heal: 'gadget',
   };
   for (const b of PANEL_BUTTONS) {
     const active = modeButton[ui.mode] === b.id || (b.id === 'alert' && !!u?.alert);
     const blocked = !!u && actionBlocked(u, b.id);
     const style: ButtonState = active ? 'pressed' : blocked ? 'disabled' : 'raised';
     drawFrame(ctx, b.x, b.y, b.w, b.h, style);
-    drawText(ctx, `${b.key} ${b.label}`, b.x + 3, b.y + 4, active ? UI.accent : blocked ? UI.disabledText : UI.text);
+    const label = b.id === 'gadget' && u?.gadget === 'medkit' ? 'HEAL' : b.id === 'gadget' && u?.gadget === 'scanner' ? 'SCAN' : b.label;
+    drawText(ctx, `${b.key} ${label}`, b.x + 3, b.y + 4, active ? UI.accent : blocked ? UI.disabledText : UI.text);
     const cost = u ? actionCost(u, b.id) : null;
     if (cost !== null) drawText(ctx, `${cost} AP`, b.x + 3, b.y + 12, blocked ? UI.red : UI.dim);
   }
