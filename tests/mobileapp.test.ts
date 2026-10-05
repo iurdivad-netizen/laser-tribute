@@ -90,6 +90,16 @@ describe('resizing a mission', () => {
   });
 });
 
+describe('degenerate window sizes', () => {
+  it('ignores a resize to a tiny or zero size (a hidden or not yet laid-out canvas) and keeps the last good layout', () => {
+    const { app } = inMission(390, 844, 3);
+    const before = app.layout;
+    for (const [w, h] of [[0, 0], [1, 1], [60, 900], [900, 60]]) app.resize(w, h, 3);
+    expect(app.layout).toBe(before);
+    expect(() => app.draw(ctx, 0)).not.toThrow();
+  });
+});
+
 describe('camera: follow, pan, zoom, squad', () => {
   it('a drag pans the camera and turns following off; the next selection or move follows again', () => {
     const { app } = inMission(390, 844, 3);
@@ -127,6 +137,21 @@ describe('camera: follow, pan, zoom, squad', () => {
     expect(app.camera.zoom).not.toBe(start);
     app.click(centre(zoom.rect));
     expect(app.camera.zoom).toBe(start);
+  });
+
+  it('zooming in from the whole map centres the camera on the selected soldier, even after a pan', () => {
+    const { app } = inMission(390, 844, 3);
+    const c = app.controller!;
+    const zoom = app.layout.actions.find((a) => a.id === 'zoom')!;
+    app.click(centre(zoom.rect)); // whole
+    app.pan(40, 40);
+    app.click(centre(zoom.rect)); // close again
+    expect(app.camera.zoom).toBe('close');
+    const p = c.selected()!;
+    const s = tileToScreen(app.camera, app.layout, c.state.width, c.state.height, p.pos);
+    const mid = centre(app.layout.map);
+    expect(Math.abs(s.x + s.tile / 2 - mid.x)).toBeLessThan(s.tile);
+    expect(Math.abs(s.y + s.tile / 2 - mid.y)).toBeLessThan(s.tile);
   });
 
   it('the enemy turn follows a visible event that is off screen, and the player turn goes back to the soldier', () => {

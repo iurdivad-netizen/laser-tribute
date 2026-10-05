@@ -129,6 +129,7 @@ export class App {
 
   /** The window changed size (or turned): new layout, the camera back on the selected soldier, no half-made action. */
   resize(width: number, height: number, dpr: number): void {
+    if (width < 120 || height < 120) return; // a hidden or not yet laid-out canvas
     this.width = width;
     this.height = height;
     this.dpr = dpr;
@@ -196,7 +197,9 @@ export class App {
   private toggleZoom(): void {
     const c = this.controller;
     if (!c) return;
-    this.camera = setZoom(this.camera, this.camera.zoom === 'close' ? 'whole' : 'close', this.layout, c.state.width, c.state.height);
+    const zoom = this.camera.zoom === 'close' ? 'whole' : 'close';
+    this.camera = setZoom(this.camera, zoom, this.layout, c.state.width, c.state.height);
+    if (zoom === 'close') this.followSelected(); // zooming in goes to the soldier, not to wherever the map was centred
   }
 
   /** Sound keys work on every screen: M mutes, - and = change the volume. */

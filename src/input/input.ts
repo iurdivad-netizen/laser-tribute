@@ -24,7 +24,11 @@ export function attachInput(canvas: HTMLCanvasElement, app: App): void {
 
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    canvas.setPointerCapture(e.pointerId);
+    try {
+      canvas.setPointerCapture(e.pointerId); // keep the gesture when a finger slides off the canvas
+    } catch {
+      // not every pointer can be captured; the gesture still works inside the canvas
+    }
     const p = toCss(e);
     g.down(p.x, p.y, kindOf(e), performance.now());
     stopTimer();
