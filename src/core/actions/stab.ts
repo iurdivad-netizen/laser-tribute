@@ -1,4 +1,5 @@
 import { CONFIG, NOT_ENOUGH_AP } from '../config';
+import { damageTaken } from '../combat';
 import { chebyshev } from '../geometry';
 import { nextRandom } from '../rng';
 import type { Command, GameEvent, GameState, Unit } from '../types';
@@ -22,7 +23,7 @@ export function handleStab(
 
   unit.ap -= CONFIG.knife.apCost;
   const hit = nextRandom(s) < stabChance(unit);
-  const damage = hit ? CONFIG.knife.damage : 0;
+  const damage = hit ? damageTaken(target, CONFIG.knife.damage) : 0;
   if (hit) target.hp = Math.max(0, target.hp - damage);
   events.push({
     type: 'stab',

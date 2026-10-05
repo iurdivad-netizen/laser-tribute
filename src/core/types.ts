@@ -16,6 +16,7 @@ export interface Tile {
 }
 
 export type WeaponId = 'pistol' | 'rifle';
+export type GadgetId = 'medkit' | 'armour' | 'scanner';
 export type ItemKind = WeaponId | 'grenade';
 export type ShotMode = 'snap' | 'aimed';
 
@@ -45,6 +46,8 @@ export interface Unit {
   clips: number;
   /** Enemies killed in this mission, credited to the shooter or grenade thrower. */
   kills: number;
+  /** The one gadget carried: 'medkit' and 'scanner' are used up, 'armour' is worn for the whole mission. */
+  gadget: GadgetId | null;
   patrol: Pos[];
   patrolIndex: number;
 }
@@ -70,6 +73,8 @@ export interface GameState {
   rngState: number;
   explored: boolean[][]; // explored[y][x], the player's map memory
   enemyMemory: Pos | null; // where the enemy side last saw a player unit
+  /** Enemy positions found by a scan this turn; cleared when the player ends the turn. Never read by the AI. */
+  scanned: Pos[];
   /** Reaction shots already taken this turn, as 'shooterId>targetId'. Cleared when a turn ends. */
   reacted: string[];
   status: GameStatus;
