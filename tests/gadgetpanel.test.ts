@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Controller } from '../src/controller';
-import { PANEL_BUTTONS, actionBlocked, actionCost, buttonAt, drawPanel } from '../src/render/panel';
+import { DEFAULT_LAYOUT, actionBlocked, actionCost, drawPanel, panelButtonAt } from '../src/render/panel';
 import { Effects } from '../src/render/effects';
 import { createUiState } from '../src/input/uiState';
 import { onText } from '../src/ui/text';
@@ -14,11 +14,9 @@ function setup(rows = corridorRows('PP..E')) {
 }
 
 describe('gadget button', () => {
-  it('is the fourth button of the second row, fits and does not overlap its neighbours', () => {
-    const b = PANEL_BUTTONS.find((x) => x.id === 'gadget')!;
-    expect([b.x, b.y, b.w, b.h]).toEqual([316, 372, 56, 22]);
-    expect(buttonAt(320, 380)).toBe('gadget');
-    expect(PANEL_BUTTONS.map((x) => x.id).slice(-5)).toEqual(['door', 'pickup', 'alert', 'gadget', 'end']);
+  it('is one of the twelve panel buttons and is found by a tap on its centre', () => {
+    const b = DEFAULT_LAYOUT.actions.find((x) => x.id === 'gadget')!;
+    expect(panelButtonAt(DEFAULT_LAYOUT, b.rect.x + b.rect.w / 2, b.rect.y + b.rect.h / 2)).toBe('gadget');
   });
 
   it('costs the gadget action, and is blocked without a usable gadget or AP', () => {
@@ -40,7 +38,7 @@ describe('gadget button', () => {
   });
 
   it('is labelled HEAL or SCAN for the gadgets, and the soldier line names the gadget', () => {
-    for (const [gadget, label] of [['medkit', 'G HEAL'], ['scanner', 'G SCAN']] as const) {
+    for (const [gadget, label] of [['medkit', 'HEAL'], ['scanner', 'SCAN']] as const) {
       const { state } = setup();
       unit(state, 'p1').gadget = gadget;
       const texts: string[] = [];
@@ -48,7 +46,7 @@ describe('gadget button', () => {
       const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
       drawPanel(ctx, state, createUiState('p1'), 0);
       stop();
-      expect(texts).toContain(label);
+      expect(texts.some((t) => t.endsWith(label)), label).toBe(true); // 'G HEAL' or just 'HEAL' when the key hint does not fit
       expect(texts.some((t) => t.toUpperCase().includes(gadget.toUpperCase()))).toBe(true);
     }
   });

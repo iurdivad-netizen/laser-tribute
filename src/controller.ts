@@ -44,6 +44,16 @@ export class Controller {
     if (this.state.turn === 'player') this.sound?.play('error', 0.9);
   }
 
+  /** Selects one of the player's living soldiers (the squad strip, the number keys). */
+  select(id: string): boolean {
+    const u = this.state.units.find((x) => x.id === id && x.side === 'player' && x.alive);
+    if (!u || !this.canAct()) return false;
+    this.ui.selectedId = u.id;
+    this.ui.pendingTile = null;
+    this.updatePreview();
+    return true;
+  }
+
   private squad(): Unit[] {
     return this.state.units.filter((u) => u.side === 'player' && u.alive);
   }
@@ -235,6 +245,7 @@ export class Controller {
       door: 'Door, 2 AP: click an adjacent door',
       stab: `Stab, ${CONFIG.knife.apCost} AP: click an adjacent enemy`,
       heal: `Heal, ${GADGETS.medkit.apCost} AP: click yourself or an adjacent soldier`,
+      turn: 'Turn, 1 AP per 45 degrees: click where to face',
     };
     this.say(hint[mode], 4000);
     this.updatePreview();

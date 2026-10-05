@@ -14,14 +14,16 @@ import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
-import { VIEW, screenToTile } from './render/layout';
-import { buttonAt } from './render/panel';
+import { createCamera, followTile, screenToTile, setZoom, type Camera } from './render/camera';
+import { VIEW } from './render/layout';
+import { cancelHit, panelButtonAt, soundHit, squadAt } from './render/panel';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
 import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { drawResult, resultHit } from './screens/result';
+import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit } from './screens/title';
 import { defaultSaveStore, type SaveStore } from './save';
 import { textWidth } from './ui/font';
@@ -44,6 +46,10 @@ export interface AppOptions {
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
+  /** The window size in CSS pixels and the device pixel ratio (default 480x400 at 1). */
+  width?: number;
+  height?: number;
+  dpr?: number;
   /** Where the campaign is saved; undefined uses the browser's storage, null turns saving off. */
   store?: SaveStore | null;
 }
@@ -57,6 +63,9 @@ export class App {
   promoted: string[] = [];
   /** What the squad recovered from the dead enemies after the last won mission, as text. */
   loot = '';
+  /** Where the mission screen's rectangles are, and which part of the map is shown. */
+  layout: Layout;
+  camera: Camera;
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
@@ -83,6 +92,8 @@ export class App {
       opts.createMission ??
       ((def, seed, roster, loadout, budget, stash) =>
         createMission(def, seed, roster, loadout, budget, stash));
+    this.layout = computeLayout(opts.width ?? LEGACY_SIZE.width, opts.height ?? LEGACY_SIZE.height, opts.dpr ?? 1);
+    this.camera = createCamera(this.layout, 30, 20);
     this.store = opts.store === undefined ? defaultSaveStore(this.missions.length) : opts.store;
     const saved = this.store?.load() ?? null;
     if (saved) {
@@ -95,6 +106,27 @@ export class App {
   private notice(text: string): void {
     this.noticeText = text;
     this.noticeUntil = this.clock() + 1500;
+  }
+
+  /** Centres the camera on the selected soldier and turns following on. */
+  private followSelected(): void {
+    const c = this.controller;
+    const sel = c?.selected();
+    if (!c || !sel) return;
+    this.camera = followTile(this.camera, sel.pos, this.layout, c.state.width, c.state.height);
+  }
+
+  private selectSquad(i: number): void {
+    const c = this.controller;
+    const unit = c?.state.units.filter((u) => u.side === 'player')[i];
+    if (!c || !unit || !c.select(unit.id)) return;
+    this.followSelected();
+  }
+
+  private toggleZoom(): void {
+    const c = this.controller;
+    if (!c) return;
+    this.camera = setZoom(this.camera, this.camera.zoom === 'close' ? 'whole' : 'close', this.layout, c.state.width, c.state.height);
   }
 
   /** Sound keys work on every screen: M mutes, - and = change the volume. */
@@ -130,6 +162,8 @@ export class App {
     );
     this.usedLoadout = this.loadout;
     this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
+    this.camera = createCamera(this.layout, state.width, state.height);
+    this.followSelected();
     this.playedName = def.name;
     this.result = null;
     this.promoted = [];
@@ -213,12 +247,27 @@ export class App {
       case 'mission': {
         const c = this.controller;
         if (!c) return;
-        const button = buttonAt(p.x, p.y);
-        if (button) {
-          c.pressButton(button);
+        const L = this.layout;
+        if (c.ui.mode !== 'move' && cancelHit(L, p.x, p.y)) {
+          c.cancel();
           return;
         }
-        const t = screenToTile(p.x, p.y, c.state.width, c.state.height);
+        if (soundHit(L, p.x, p.y)) {
+          this.notice(this.sound.toggleMute());
+          return;
+        }
+        const squad = squadAt(L, p.x, p.y);
+        if (squad !== null) {
+          this.selectSquad(squad);
+          return;
+        }
+        const button = panelButtonAt(L, p.x, p.y);
+        if (button) {
+          if (button === 'zoom') this.toggleZoom();
+          else c.pressButton(button);
+          return;
+        }
+        const t = screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y);
         if (t) c.clickTile(t);
         return;
       }
@@ -236,7 +285,7 @@ export class App {
       this.hover = equipmentHit(p.x, p.y);
     } else if (this.screen === 'mission' && this.controller) {
       const c = this.controller;
-      c.hover(screenToTile(p.x, p.y, c.state.width, c.state.height));
+      c.hover(screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
     }
   }
 
@@ -383,7 +432,10 @@ export class App {
     }
     const c = this.controller;
     if (!c) return;
-    drawGame(ctx, c.state, c.ui, c.effects, now);
+    drawGame(ctx, c.state, c.ui, c.effects, now, undefined, { layout: this.layout, camera: this.camera }, {
+      zoom: this.camera.zoom,
+      soundOn: !this.sound.muted,
+    });
     if (this.screen === 'result' && this.result) {
       drawResult(ctx, {
         result: this.result,
