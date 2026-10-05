@@ -77,6 +77,8 @@ export interface GameState {
   /** A second seeded stream for critical-hit draws, so crits never change the hit and miss sequence. */
   critState: number;
   explored: boolean[][]; // explored[y][x], the player's map memory
+  /** doorMemory[y][x]: whether the player last saw that door open; only updated while the door is in view. */
+  doorMemory: boolean[][];
   enemyMemory: Pos | null; // where the enemy side last saw a player unit
   /** Enemy positions found by a scan this turn; cleared when the player ends the turn. Never read by the AI. */
   scanned: Pos[];

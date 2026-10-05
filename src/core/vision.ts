@@ -65,7 +65,11 @@ export function updateExplored(s: GameState): void {
   const vis = computeVisible(s, 'player');
   for (let y = 0; y < s.height; y++) {
     for (let x = 0; x < s.width; x++) {
-      if (vis[y][x] && inBounds(s, { x, y })) s.explored[y][x] = true;
+      if (vis[y][x] && inBounds(s, { x, y })) {
+        s.explored[y][x] = true;
+        const tile = s.tiles[y][x];
+        if (tile.kind === 'door') s.doorMemory[y][x] = tile.open; // the player sees a door as it is now
+      }
     }
   }
 }

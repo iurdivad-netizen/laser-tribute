@@ -13,6 +13,8 @@ export interface PathOptions {
   seenBy?: Side;
   /** Plan as if closed doors could be opened on the way (each costs the door action); real moves never do this. */
   openDoors?: boolean;
+  /** Plan with doors as remembered (`GameState.doorMemory`) instead of as they really are: what the player knows. */
+  doorView?: boolean[][];
 }
 
 export function findPath(
@@ -47,10 +49,16 @@ export function findPath(
       const atGoal = !!opts.ignoreOccupantAtGoal && posEq(next, goal);
       const ignoreUnits =
         atGoal || (opts.seenBy ? (u: Unit) => !visibleToSide(s, opts.seenBy!, u.pos) : false);
-      if (stepBlockedReason(s, cur, next, ignoreUnits, !!opts.openDoors) !== null) continue;
+      const nextTile = inBounds(s, next) ? tileAt(s, next) : null;
+      let doorsOpen = !!opts.openDoors;
+      if (opts.doorView && nextTile && nextTile.kind === 'door') {
+        const remembered = opts.doorView[next.y][next.x];
+        if (!remembered && !opts.openDoors) continue; // remembered closed: planned as blocked
+        doorsOpen = doorsOpen || remembered;
+      }
+      if (stepBlockedReason(s, cur, next, ignoreUnits, doorsOpen) !== null) continue;
       const nk = key(next);
-      const nextTile = tileAt(s, next);
-      const doorExtra = opts.openDoors && nextTile.kind === 'door' && !nextTile.open ? CONFIG.doorCost : 0;
+      const doorExtra = opts.openDoors && nextTile!.kind === 'door' && !nextTile!.open ? CONFIG.doorCost : 0;
       const nd = dist.get(ck)! + stepCost(cur, next) + doorExtra;
       if (nd < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nd);
