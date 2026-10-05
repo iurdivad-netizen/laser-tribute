@@ -166,3 +166,33 @@ describe('gadgets in a save', () => {
     expect(parseSave(json((o) => { o.campaign.stash.armour = 1.5; }), 3)).toBeNull();
   });
 });
+
+describe('the sightscope in a save', () => {
+  it('an old save without the fields still loads with no scope', () => {
+    const save = parseSave(json((o) => { delete o.campaign.stash.scope; }), 3)!;
+    expect(save.campaign.stash.scope).toBe(0);
+    expect(save.loadout.every((s) => s.attachment === undefined)).toBe(true);
+  });
+
+  it('round-trips a scope in the loadout and the stash', () => {
+    const mem = memory();
+    const store = new SaveStore(mem, 3);
+    const c = played();
+    c.stash = { ...c.stash, scope: 2 };
+    const loadout = defaultLoadout();
+    loadout[1] = { ...loadout[1], attachment: 'scope', gadget: 'armour' };
+    store.save(c, loadout);
+    expect(store.load()).toEqual({ campaign: c, loadout });
+  });
+
+  it('an unknown attachment id replaces the whole loadout with the default one', () => {
+    const bad = defaultLoadout().map((s, i) => (i === 2 ? { ...s, clips: 3, attachment: 'laser' } : s));
+    expect(parseSave(json((o) => { o.loadout = bad; }), 3)!.loadout).toEqual(defaultLoadout());
+  });
+
+  it('rejects a negative, fractional or huge scope count', () => {
+    for (const bad of [-1, 1.5, 100]) {
+      expect(parseSave(json((o) => { o.campaign.stash.scope = bad; }), 3)).toBeNull();
+    }
+  });
+});
