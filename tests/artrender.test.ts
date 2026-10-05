@@ -208,4 +208,14 @@ describe('gadget markers', () => {
       expect(overlap, `armour pip overlaps a rank pip at ${p.x},${p.y}`).toBe(false);
     }
   });
+
+  it('draws the health bar entirely above the tile, so it never covers the helmet or the rank pips', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const p1 = state.units.find((u) => u.id === 'p1')!;
+    const r = recorder();
+    drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    const bars = r.fills.filter((f) => f.style === '#7dff9a' && f.h === 2 && f.x >= p1.pos.x * 16 && f.x < p1.pos.x * 16 + 16);
+    expect(bars.length).toBeGreaterThan(0);
+    for (const b of bars) expect(b.y + b.h).toBeLessThanOrEqual(p1.pos.y * 16);
+  });
 });

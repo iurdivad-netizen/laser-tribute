@@ -129,9 +129,13 @@ describe('rankPips and pipPositions', () => {
     expect(['Rookie', 'Private', 'Sergeant', 'Captain', '', 'Nonsense'].map(rankPips)).toEqual([0, 1, 2, 3, 0, 0]);
   });
 
-  it('places the pips along the top-left corner of the tile', () => {
+  it('places the pips in a row at the top-left, clear of the tile edge (selection box) and of the health bar above', () => {
     expect(pipPositions(0)).toEqual([]);
-    expect(pipPositions(3)).toEqual([{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 4, y: 0 }]);
+    expect(pipPositions(3)).toEqual([{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }]);
+    for (const p of pipPositions(3)) {
+      expect(p.x).toBeGreaterThanOrEqual(1); // column 0 is the selection and hover outline
+      expect(p.y).toBeGreaterThanOrEqual(1); // row 0 is the edge row; the health bar sits above the tile
+    }
   });
 });
 

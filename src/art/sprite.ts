@@ -83,9 +83,12 @@ export function rankPips(rank: string): number {
   return PIPS[rank] ?? 0;
 }
 
-/** Rank pips: 1x2 pixels along the top-left of the tile, clear of the helmet and the weapon. */
+/**
+ * Rank pips: 1x2 pixels in a row at the top-left (x 1 to 3, rows 1-2): clear of every sprite, mirrored or not, of the
+ * selection outline on the tile edge and of the health bar above the tile.
+ */
 export function pipPositions(count: number): { x: number; y: number }[] {
-  return Array.from({ length: count }, (_, i) => ({ x: 2 * i, y: 0 }));
+  return Array.from({ length: count }, (_, i) => ({ x: 1 + i, y: 1 }));
 }
 
 /** The 2x2 armour pip at the bottom-right of the tile, clear of the legs, the boots and the weapon. */

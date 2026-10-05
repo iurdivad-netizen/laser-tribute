@@ -20,8 +20,6 @@ const COLORS = {
   pip: '#ffe14d',
   scan: '#ff4d4d',
   armour: '#4da6ff',
-  rifle: '#d0d0d0',
-  pistol: '#a0a0a0',
 };
 
 function tileSprite(state: GameState, x: number, y: number): SpriteName {
@@ -90,9 +88,9 @@ export function drawGame(
     }
 
     ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 6, cy - 9, 12, 2);
+    ctx.fillRect(cx - 6, cy - 10, 12, 2); // entirely above the tile, so it never covers the helmet or the rank pips
     ctx.fillStyle = '#7dff9a';
-    ctx.fillRect(cx - 6, cy - 9, (12 * u.hp) / u.maxHp, 2);
+    ctx.fillRect(cx - 6, cy - 10, (12 * u.hp) / u.maxHp, 2);
     if (u.alert) {
       drawText(ctx, '!', cx + 5, cy - 17, COLORS.select);
     }

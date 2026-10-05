@@ -1,4 +1,4 @@
-import { recolorRows, rotateRows } from './sprite';
+import { recolorRows } from './sprite';
 
 export const SPRITE_NAMES = [
   'soldier_rifle_n', 'soldier_rifle_ne', 'soldier_rifle_e', 'soldier_rifle_se', 'soldier_rifle_s',
