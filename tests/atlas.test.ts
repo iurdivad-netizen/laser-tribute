@@ -66,9 +66,9 @@ describe('Atlas', () => {
   it('keeps a mirrored copy as a separate cache entry with the pixels mirrored', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx } = fakeCtx();
-    atlas.draw(ctx, 'soldier_ne', 0, 0);
-    atlas.draw(ctx, 'soldier_ne', 0, 0, { flip: true });
-    atlas.draw(ctx, 'soldier_ne', 0, 0, { flip: true });
+    atlas.draw(ctx, 'soldier_rifle_ne', 0, 0);
+    atlas.draw(ctx, 'soldier_rifle_ne', 0, 0, { flip: true });
+    atlas.draw(ctx, 'soldier_rifle_ne', 0, 0, { flip: true });
     expect(canvases).toHaveLength(2);
     const key = (o: Op) => `${o.x},${o.y},${o.colour}`;
     const plain = new Set(canvases[0].ops.map(key));
@@ -80,7 +80,7 @@ describe('Atlas', () => {
     const atlas = new Atlas(() => null);
     const { ctx, calls } = fakeCtx();
     expect(atlas.draw(ctx, 'wall', 0, 0)).toBe(false);
-    expect(atlas.draw(ctx, 'soldier_n', 0, 0, { flip: true })).toBe(false);
+    expect(atlas.draw(ctx, 'soldier_rifle_n', 0, 0, { flip: true })).toBe(false);
     expect(calls).toHaveLength(0);
   });
 

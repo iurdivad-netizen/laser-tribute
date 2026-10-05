@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTE, TRANSPARENT } from '../src/art/palette';
 import {
-  SPRITE_SIZE, barrel, directionTo, flipHorizontal, floorVariant, frameFor, parseSprite, pipPositions,
+  ARMOUR_PIP, SPRITE_SIZE, directionTo, flipHorizontal, floorVariant, frameFor, parseSprite, pipPositions,
   rankPips, recolorRows, rotateRows, unitSprite,
 } from '../src/art/sprite';
-import type { Facing } from '../src/core/types';
+import { SPRITE_NAMES, SPRITE_ROWS } from '../src/art/sprites';
+import type { Facing, WeaponId } from '../src/core/types';
 
 const row = (ch: string) => ch.repeat(SPRITE_SIZE);
 const blank = () => Array.from({ length: SPRITE_SIZE }, () => row('.'));
@@ -88,14 +89,16 @@ describe('rotateRows and recolorRows', () => {
 });
 
 describe('unitSprite', () => {
-  it('maps facings 0 to 4 to the five base sprites and 5, 6, 7 to the mirrors of 3, 2, 1', () => {
+  it('maps facings 0 to 4 to the five base sprites and 5, 6, 7 to the mirrors of 3, 2, 1, per weapon', () => {
     const expected: [Facing, string, boolean][] = [
       [0, 'n', false], [1, 'ne', false], [2, 'e', false], [3, 'se', false], [4, 's', false],
       [5, 'se', true], [6, 'e', true], [7, 'ne', true],
     ];
-    for (const [facing, suffix, flip] of expected) {
-      expect(unitSprite('player', facing)).toEqual({ name: `soldier_${suffix}`, flip });
-      expect(unitSprite('enemy', facing)).toEqual({ name: `enemy_${suffix}`, flip });
+    for (const weapon of ['rifle', 'pistol'] as WeaponId[]) {
+      for (const [facing, suffix, flip] of expected) {
+        expect(unitSprite('player', facing, weapon)).toEqual({ name: `soldier_${weapon}_${suffix}`, flip });
+        expect(unitSprite('enemy', facing, weapon)).toEqual({ name: `enemy_${weapon}_${suffix}`, flip });
+      }
     }
   });
 });
@@ -126,51 +129,23 @@ describe('rankPips and pipPositions', () => {
     expect(['Rookie', 'Private', 'Sergeant', 'Captain', '', 'Nonsense'].map(rankPips)).toEqual([0, 1, 2, 3, 0, 0]);
   });
 
-  it('places the pips along the bottom-left corner of the tile', () => {
+  it('places the pips along the top-left corner of the tile', () => {
     expect(pipPositions(0)).toEqual([]);
-    expect(pipPositions(3)).toEqual([{ x: 1, y: 14 }, { x: 3, y: 14 }, { x: 5, y: 14 }]);
+    expect(pipPositions(3)).toEqual([{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 4, y: 0 }]);
   });
 });
 
-describe('barrel', () => {
-  it('is held at the right hand: 3 pixels for the pistol and 6 for the rifle (4 on a diagonal)', () => {
-    expect(barrel('pistol', 0)).toEqual([{ dx: 5, dy: -1 }, { dx: 5, dy: -2 }, { dx: 5, dy: -3 }]);
-    expect(barrel('pistol', 2)).toEqual([{ dx: 0, dy: 5 }, { dx: 1, dy: 5 }, { dx: 2, dy: 5 }]);
-    expect(barrel('pistol', 4)).toEqual([{ dx: -5, dy: 0 }, { dx: -5, dy: 1 }, { dx: -5, dy: 2 }]);
-    expect(barrel('pistol', 6)).toEqual([{ dx: -1, dy: -5 }, { dx: -2, dy: -5 }, { dx: -3, dy: -5 }]);
-    expect(barrel('rifle', 0)).toHaveLength(6);
-    expect(barrel('rifle', 0).slice(0, 3)).toEqual(barrel('pistol', 0));
-  });
-
-  it('stays clear of the face: no pixel of the north barrel lies on the centre line', () => {
-    for (const p of barrel('rifle', 0)) expect(Math.abs(p.dx)).toBeGreaterThanOrEqual(4);
-  });
-
-  it('is symmetric for facing and for its mirror: the barrel of facing 6 mirrors facing 2 by a quarter turn of the hand', () => {
-    // the right hand of a westward soldier is on the north side, of an eastward soldier on the south side
-    expect(barrel('rifle', 2)[0].dy).toBeGreaterThan(0);
-    expect(barrel('rifle', 6)[0].dy).toBeLessThan(0);
-    expect(barrel('rifle', 0)[0].dx).toBeGreaterThan(0);
-    expect(barrel('rifle', 4)[0].dx).toBeLessThan(0);
-  });
-
-  it('runs along the facing for all eight facings, one pixel per step, and stays near the tile', () => {
-    const vec: Record<Facing, [number, number]> = {
-      0: [0, -1], 1: [1, -1], 2: [1, 0], 3: [1, 1], 4: [0, 1], 5: [-1, 1], 6: [-1, 0], 7: [-1, -1],
-    };
-    for (const f of [0, 1, 2, 3, 4, 5, 6, 7] as Facing[]) {
-      const [vx, vy] = vec[f];
-      const pixels = barrel('rifle', f);
-      expect(pixels).toHaveLength(vx !== 0 && vy !== 0 ? 4 : 6); // a shorter rifle on a diagonal keeps it inside the tile
-      for (let i = 1; i < pixels.length; i++) {
-        expect(pixels[i].dx - pixels[i - 1].dx).toBe(vx);
-        expect(pixels[i].dy - pixels[i - 1].dy).toBe(vy);
-      }
-      for (const p of pixels) {
-        expect(p.dx).toBeGreaterThanOrEqual(-8);
-        expect(p.dx).toBeLessThanOrEqual(9);
-        expect(p.dy).toBeGreaterThanOrEqual(-8);
-        expect(p.dy).toBeLessThanOrEqual(9);
+describe('rank pips and the armour pip stay clear of every soldier sprite', () => {
+  it('overlap no opaque pixel of any soldier or enemy sprite, mirrored or not', () => {
+    const marks: { x: number; y: number }[] = [];
+    for (const p of pipPositions(3)) marks.push({ x: p.x, y: p.y }, { x: p.x, y: p.y + 1 });
+    for (let dy = 0; dy < ARMOUR_PIP.h; dy++) for (let dx = 0; dx < ARMOUR_PIP.w; dx++) marks.push({ x: ARMOUR_PIP.x + dx, y: ARMOUR_PIP.y + dy });
+    for (const name of SPRITE_NAMES.filter((n) => n.startsWith('soldier_') || n.startsWith('enemy_'))) {
+      for (const flip of [false, true]) {
+        for (const m of marks) {
+          const ch = SPRITE_ROWS[name][m.y][flip ? SPRITE_SIZE - 1 - m.x : m.x];
+          expect(ch, `${name} flip=${flip} at ${m.x},${m.y}`).toBe('.');
+        }
       }
     }
   });

@@ -5,7 +5,7 @@ import { SPRITE_NAMES } from './sprites';
 
 const SCALE = 3;
 const CELL_W = 58;
-const CELL_H = 62;
+const CELL_H = 56;
 
 /** Every sprite enlarged on a labelled grid, for reviewing the art. */
 export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
@@ -18,8 +18,9 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
     ctx.fillStyle = '#2a2f45';
     ctx.fillRect(x, y, 16 * SCALE, 16 * SCALE);
     art.draw(ctx, name, x, y, { scale: SCALE });
-    drawText(ctx, name.replace('soldier', 'sold').replace('door_', 'd_').slice(0, 9), x, y + 16 * SCALE + 2, '#8a8fa8');
+    const label = name.replace('soldier_', 's_').replace('enemy_', 'e_').replace('rifle', 'rif').replace('pistol', 'pis').replace('door_', 'd_');
+    drawText(ctx, label.slice(0, 9), x, y + 16 * SCALE + 2, '#8a8fa8');
   });
-  drawText(ctx, 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG', 4, 262, '#e8e8f0');
-  drawText(ctx, "0123456789 .,:;!?'\"-+=/()[]<>%*#_&@$~|", 4, 274, '#ffe14d');
+  drawText(ctx, 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG', 4, 352, '#e8e8f0');
+  drawText(ctx, "0123456789 .,:;!?'\"-+=/()[]<>%*#_&@$~|", 4, 364, '#ffe14d');
 }
