@@ -6,6 +6,7 @@ export function handleEndTurn(s: GameState, events: GameEvent[]): string | null 
   s.turn = next;
   if (next === 'player') s.turnNumber += 1;
   s.reacted = [];
+  s.scanned = [];
   for (const u of s.units) {
     if (u.alive && u.side === next) {
       u.ap = u.maxAp;

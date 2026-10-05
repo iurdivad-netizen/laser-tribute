@@ -2,7 +2,7 @@ import { soundsFor } from './audio/mapping';
 import type { SoundPlayer } from './audio/sound';
 import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
-import { CONFIG, WEAPONS } from './core/config';
+import { CONFIG, GADGETS, WEAPONS } from './core/config';
 import { posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
 import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
@@ -84,6 +84,12 @@ export class Controller {
   private onEvent(ev: GameEvent): void {
     if (ev.type === 'gameOver') {
       this.say(ev.winner === 'player' ? 'MISSION COMPLETE' : 'MISSION FAILED', Infinity);
+    } else if (ev.type === 'healed') {
+      const name = (id: string) => this.state.units.find((u) => u.id === id)?.name ?? id;
+      this.say(`${name(ev.unitId)} heals ${name(ev.targetId)}: +${ev.amount} HP`, 3000);
+    } else if (ev.type === 'scanned' && this.isOwn(ev, this.state)) {
+      const n = ev.found.length;
+      this.say(n === 0 ? 'SCAN: NO ENEMIES NEARBY' : `SCAN: ${n} ${n === 1 ? 'ENEMY' : 'ENEMIES'} NEARBY`, 3000);
     } else if (ev.type === 'turnEnded' && ev.side === 'enemy') {
       this.selectFirstAlive();
       this.say('Your turn');
@@ -170,6 +176,12 @@ export class Controller {
     } else if (mode === 'door') {
       const tile = this.state.tiles[t.y][t.x];
       this.run({ type: tile.open ? 'CloseDoor' : 'OpenDoor', unitId: sel.id, at: t });
+    } else if (mode === 'heal') {
+      if (!clicked || clicked.side !== 'player') {
+        this.refuse('Click a soldier');
+        return;
+      }
+      this.run({ type: 'Heal', unitId: sel.id, targetId: clicked.id });
     }
   }
 
@@ -215,6 +227,7 @@ export class Controller {
       throw: 'Grenade, 24 AP: click a tile',
       door: 'Door, 2 AP: click an adjacent door',
       stab: `Stab, ${CONFIG.knife.apCost} AP: click an adjacent enemy`,
+      heal: `Heal, ${GADGETS.medkit.apCost} AP: click yourself or an adjacent soldier`,
     };
     this.say(hint[mode], 4000);
     this.updatePreview();
@@ -227,11 +240,20 @@ export class Controller {
       case 'throw': this.setMode('throw'); break;
       case 'stab': this.setMode('stab'); break;
       case 'door': this.setMode('door'); break;
+      case 'gadget': this.useGadget(); break;
       case 'pickup': this.pickup(); break;
       case 'reload': this.reload(); break;
       case 'alert': this.toggleAlert(); break;
       case 'end': this.endTurn(); break;
     }
+  }
+
+  private useGadget(): void {
+    const sel = this.selected();
+    if (!sel || !this.canAct()) return;
+    if (sel.gadget === 'medkit') this.setMode('heal');
+    else if (sel.gadget === 'scanner') this.run({ type: 'Scan', unitId: sel.id });
+    else this.refuse('No gadget to use');
   }
 
   private pickup(): void {
@@ -299,6 +321,7 @@ export class Controller {
       case 'shot': return seen(ev.from) || seen(ev.impact);
       case 'stab': return seen(ev.from) || seen(ev.at);
       case 'reloaded': return seen(ev.at);
+      case 'healed': return seen(ev.at);
       case 'died':
       case 'doorChanged':
       case 'grenade': return seen(ev.at);
@@ -312,6 +335,7 @@ export class Controller {
       const target = this.state.units.find((u) => u.id === `p${lower}` && u.alive);
       if (target && this.canAct()) {
         this.ui.selectedId = target.id;
+        if (this.ui.mode === 'heal') this.ui.mode = 'move'; // the new soldier may carry no medkit
         this.updatePreview();
       }
       return true;
@@ -322,6 +346,7 @@ export class Controller {
       case 't': this.setMode('throw'); return true;
       case 'k': this.setMode('stab'); return true;
       case 'd': this.setMode('door'); return true;
+      case 'g': this.useGadget(); return true;
       case 'p': this.pickup(); return true;
       case 'r': this.reload(); return true;
       case 'l': this.toggleAlert(); return true;
@@ -340,7 +365,10 @@ export class Controller {
       case 'Tab': {
         const squad = this.squad();
         const i = squad.findIndex((u) => u.id === this.ui.selectedId);
-        if (squad.length > 0 && this.canAct()) this.ui.selectedId = squad[(i + 1) % squad.length].id;
+        if (squad.length > 0 && this.canAct()) {
+          this.ui.selectedId = squad[(i + 1) % squad.length].id;
+          if (this.ui.mode === 'heal') this.ui.mode = 'move';
+        }
         return true;
       }
       default:

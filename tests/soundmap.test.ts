@@ -95,3 +95,15 @@ describe('soundsFor: other events', () => {
     expect(VOLUME).toEqual({ full: 1, far: 0.35, step: 0.25, impact: 0.8, ui: 0.9 });
   });
 });
+
+describe('gadget sounds', () => {
+  it('a heal chimes at full volume when audible, quietly otherwise; a scan pings only for the player', () => {
+    const s = state();
+    const heal = { type: 'healed', unitId: 'p1', targetId: 'p2', amount: 25, at } as const;
+    expect(soundsFor(heal, s, true)).toEqual([{ name: 'heal', volume: 1 }]);
+    expect(soundsFor(heal, s, false)).toEqual([{ name: 'heal', volume: 0.35 }]);
+    const scan: GameEvent = { type: 'scanned', unitId: 'p1', found: [] };
+    expect(soundsFor(scan, s, true)).toEqual([{ name: 'scan', volume: 1 }]);
+    expect(soundsFor(scan, s, false)).toEqual([]);
+  });
+});

@@ -3,7 +3,7 @@ import { EFFECTS, SOUND_NAMES, effectDuration, type SoundName } from '../src/aud
 
 const DESIGN: SoundName[] = [
   'pistol', 'rifle', 'hit', 'ricochet', 'stab', 'explosion', 'deathSoldier', 'deathEnemy',
-  'reload', 'empty', 'door', 'step', 'pickup', 'alert', 'click', 'error', 'win', 'lose',
+  'reload', 'empty', 'door', 'step', 'pickup', 'alert', 'click', 'error', 'win', 'lose', 'heal', 'scan',
 ];
 
 describe('sound recipes', () => {

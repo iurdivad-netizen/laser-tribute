@@ -1,4 +1,4 @@
-import { CONFIG, WEAPONS } from './config';
+import { CONFIG, GADGETS, WEAPONS } from './config';
 import { NEIGHBORS_4, distance, inBounds, tileAt } from './geometry';
 import { nextRandom } from './rng';
 import type { GameEvent, GameState, Pos, ShotMode, Unit } from './types';
@@ -33,6 +33,12 @@ function missImpact(s: GameState, target: Pos): Pos {
   };
 }
 
+/** The damage a hit does to `target`: armour takes 30% off (rounded in the wearer's favour), never below 1. */
+export function damageTaken(target: Unit, raw: number): number {
+  if (target.gadget !== 'armour') return raw;
+  return Math.max(1, raw - Math.floor((raw * GADGETS.armour.reductionPct) / 100));
+}
+
 export function fireShot(
   s: GameState,
   shooter: Unit,
@@ -45,7 +51,7 @@ export function fireShot(
   let damage = 0;
   let impact: Pos = { ...target.pos };
   if (hit) {
-    damage = WEAPONS[shooter.weapon].damage;
+    damage = damageTaken(target, WEAPONS[shooter.weapon].damage);
     target.hp = Math.max(0, target.hp - damage);
   } else {
     impact = missImpact(s, target.pos);

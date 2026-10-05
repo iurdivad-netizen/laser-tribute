@@ -35,6 +35,10 @@ export function soundsFor(ev: GameEvent, state: GameState, audible: boolean): So
     }
     case 'doorChanged':
       return [hit('door', loud)];
+    case 'healed':
+      return [hit('heal', loud)];
+    case 'scanned':
+      return audible ? [hit('scan', VOLUME.full)] : [];
     case 'moved':
       return audible ? [hit('step', VOLUME.step)] : [];
     case 'reloaded':

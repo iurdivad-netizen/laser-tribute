@@ -8,9 +8,9 @@ import { VIEW } from '../src/render/layout';
 import { corridorRows, makeState, unit } from './helpers';
 
 describe('panel buttons', () => {
-  it('has nine buttons in the same order, each label and cost fitting its button, none overlapping', () => {
+  it('has ten buttons in the same order, each label and cost fitting its button, none overlapping', () => {
     expect(PANEL_BUTTONS.map((b) => b.id)).toEqual(
-      ['snap', 'aimed', 'throw', 'stab', 'reload', 'door', 'pickup', 'alert', 'end'],
+      ['snap', 'aimed', 'throw', 'stab', 'reload', 'door', 'pickup', 'alert', 'gadget', 'end'],
     );
     for (const b of PANEL_BUTTONS) {
       expect(b.x).toBeGreaterThanOrEqual(0);
@@ -30,14 +30,14 @@ describe('panel buttons', () => {
     }
   });
 
-  it('has the agreed geometry: five buttons on the first row, four on the second, below the map', () => {
+  it('has the agreed geometry: five buttons on each row, below the map', () => {
     expect(VIEW).toEqual({ width: 480, height: 400, mapHeight: 320 });
-    const row = (n: number) => PANEL_BUTTONS.slice(n === 1 ? 0 : 5, n === 1 ? 5 : 9);
+    const row = (n: number) => PANEL_BUTTONS.slice(n === 1 ? 0 : 5, n === 1 ? 5 : 10);
     expect(row(1).map((b) => [b.x, b.y, b.w, b.h])).toEqual([
       [156, 348, 60, 22], [220, 348, 60, 22], [284, 348, 60, 22], [348, 348, 60, 22], [412, 348, 60, 22],
     ]);
     expect(row(2).map((b) => [b.x, b.y, b.w, b.h])).toEqual([
-      [156, 372, 78, 22], [236, 372, 78, 22], [316, 372, 78, 22], [396, 372, 78, 22],
+      [156, 372, 48, 22], [208, 372, 48, 22], [260, 372, 52, 22], [316, 372, 56, 22], [376, 372, 78, 22],
     ]);
   });
 

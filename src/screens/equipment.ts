@@ -1,15 +1,16 @@
-import { CONFIG, WEAPONS } from '../core/config';
+import { CONFIG, GADGETS, GADGET_IDS, WEAPONS } from '../core/config';
 import {
   LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, type Loadout,
 } from '../core/loadout';
 import { coverage, describeStash, emptyStash, type Stash } from '../core/stash';
-import type { WeaponId } from '../core/types';
+import type { GadgetId, WeaponId } from '../core/types';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type ButtonState } from '../ui/frame';
-import { drawText } from '../ui/text';
+import { textWidth } from '../ui/font';
+import { clipText, drawText } from '../ui/text';
 
 export type EquipmentHit =
-  | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus'; index: number }
+  | { kind: 'weapon' | 'minus' | 'plus' | 'clipMinus' | 'clipPlus' | 'gadget'; index: number }
   | { kind: 'start' };
 
 export interface EquipmentView {
@@ -39,10 +40,26 @@ export const EQ = {
   btnH: 24,
   clipDy: 26,
   weapon: { x: 76, w: 100 },
+  gadget: { x: 76, w: 100 },
   minus: { x: 262, w: 24 },
   plus: { x: 322, w: 24 },
   start: { x: 170, y: 330, w: 140, h: 30 },
 } as const;
+
+const GADGET_CYCLE: (GadgetId | undefined)[] = [undefined, ...GADGET_IDS];
+
+/** The next gadget in the cycle none -> medkit -> armour -> scanner -> none that the budget can pay for. */
+export function cycleGadget(
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+): Loadout {
+  const at = GADGET_CYCLE.indexOf(l[i].gadget);
+  for (let step = 1; step <= GADGET_CYCLE.length; step++) {
+    const gadget = GADGET_CYCLE[(at + step) % GADGET_CYCLE.length];
+    const next = l.map((s, j) => (j === i ? { ...s, gadget } : s));
+    if (loadoutCost(next, stash) <= budget) return next;
+  }
+  return l;
+}
 
 const rowY = (i: number) => EQ.rowTop + i * EQ.rowStep;
 const inRect = (px: number, py: number, x: number, y: number, w: number, h: number) =>
@@ -120,6 +137,7 @@ export function equipmentHit(px: number, py: number): EquipmentHit | null {
     const cy = y + EQ.clipDy;
     if (inRect(px, py, EQ.minus.x, cy, EQ.minus.w, EQ.btnH)) return { kind: 'clipMinus', index: i };
     if (inRect(px, py, EQ.plus.x, cy, EQ.plus.w, EQ.btnH)) return { kind: 'clipPlus', index: i };
+    if (inRect(px, py, EQ.gadget.x, cy, EQ.gadget.w, EQ.btnH)) return { kind: 'gadget', index: i };
   }
   return null;
 }
@@ -133,6 +151,7 @@ export function blockReasonFor(
     case 'plus': return grenadeBlockReason(l, hit.index, 1, budget, stash);
     case 'clipMinus': return clipBlockReason(l, hit.index, -1, budget, stash);
     case 'clipPlus': return clipBlockReason(l, hit.index, 1, budget, stash);
+    case 'gadget': return null;
     case 'start': return validateLoadout(l, budget, stash);
   }
 }
@@ -146,6 +165,7 @@ export function applyEquipmentHit(
     case 'plus': return changeGrenades(l, hit.index, 1, budget, stash);
     case 'clipMinus': return changeClips(l, hit.index, -1, budget, stash);
     case 'clipPlus': return changeClips(l, hit.index, 1, budget, stash);
+    case 'gadget': return cycleGadget(l, hit.index, budget, stash);
     case 'start': return l;
   }
 }
@@ -200,6 +220,12 @@ export function drawEquipment(
     drawText(ctx, `${s.clips}`, 304, cy + 8, UI.text, 'center');
     drawButton(ctx, { x: EQ.plus.x, y: cy, w: EQ.plus.w, h: EQ.btnH }, '+',
       buttonState(clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus')));
+    const g = s.gadget;
+    drawButton(
+      ctx, { x: EQ.gadget.x, y: cy, w: EQ.gadget.w, h: EQ.btnH },
+      g ? `${GADGETS[g].name.toUpperCase()} (${cover.gadget ? 'FREE' : GADGETS[g].price})` : 'NO GADGET',
+      buttonState(true, hot('gadget')),
+    );
     const net = netSoldierCost(l, i, view.stash);
     drawText(ctx, net === 0 ? 'FREE' : `${net} cr`, 380, y + 8, net === 0 ? UI.green : UI.dim);
   });
@@ -211,7 +237,15 @@ export function drawEquipment(
   );
 
   const found = describeStash(view.stash);
-  if (found) drawText(ctx, `Found gear is free: ${found}`, 20, 286, UI.green);
+  if (found) {
+    const line = `Found gear is free: ${found}`;
+    if (textWidth(line) <= 440) {
+      drawText(ctx, line, 20, 286, UI.green);
+    } else {
+      drawText(ctx, 'Found gear is free:', 20, 286, UI.green);
+      drawText(ctx, clipText(found, 440), 20, 297, UI.green);
+    }
+  }
 
   const valid = validateLoadout(l, view.budget, view.stash) === null;
   const st = EQ.start;

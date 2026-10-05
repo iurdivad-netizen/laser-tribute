@@ -1,4 +1,5 @@
 import { CONFIG, NOT_ENOUGH_AP } from '../config';
+import { damageTaken } from '../combat';
 import { chebyshev, distance, inBounds, tileAt } from '../geometry';
 import type { Command, GameEvent, GameState, Pos, Unit } from '../types';
 import { hasLineOfSight } from '../vision';
@@ -26,8 +27,9 @@ export function handleThrow(
     if (!u.alive) continue;
     if (chebyshev(u.pos, cmd.at) > g.radius) continue;
     if (!hasLineOfSight(s, cmd.at, u.pos)) continue;
-    u.hp = Math.max(0, u.hp - g.damage);
-    hits.push({ unitId: u.id, damage: g.damage });
+    const dealt = damageTaken(u, g.damage);
+    u.hp = Math.max(0, u.hp - dealt);
+    hits.push({ unitId: u.id, damage: dealt });
     if (u.hp <= 0) {
       u.alive = false;
       died.push(u);

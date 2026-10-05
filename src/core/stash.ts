@@ -8,10 +8,13 @@ export interface Stash {
   grenade: number;
   /** Spare clips: each covers the 5-credit price of an extra clip (the first clip is always included). */
   clip: number;
+  medkit: number;
+  armour: number;
+  scanner: number;
 }
 
 export function emptyStash(): Stash {
-  return { rifle: 0, pistol: 0, grenade: 0, clip: 0 };
+  return { rifle: 0, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0 };
 }
 
 export interface Cover {
@@ -21,6 +24,8 @@ export interface Cover {
   grenades: number;
   /** How many of the soldier's extra clips (beyond the first) come from the stash. */
   clips: number;
+  /** The soldier's gadget comes from the stash. */
+  gadget: boolean;
 }
 
 /** Which parts of each soldier's kit the stash pays for, handing out stash gear in soldier order. */
@@ -33,7 +38,10 @@ export function coverage(l: Loadout, stash: Stash): Cover[] {
     left.grenade -= grenades;
     const clips = Math.min(Math.max(0, s.clips - 1), left.clip);
     left.clip -= clips;
-    return { weapon, grenades, clips };
+    const g = s.gadget;
+    const gadget = !!g && left[g] > 0;
+    if (gadget && g) left[g] -= 1;
+    return { weapon, grenades, clips, gadget };
   });
 }
 
@@ -50,6 +58,7 @@ export function nextStash(stash: Stash, used: Loadout, finished: GameState): Sta
     next[s.weapon] -= cover[i].weapon ? 1 : 0;
     next.grenade -= cover[i].grenades;
     next.clip -= cover[i].clips;
+    if (cover[i].gadget && s.gadget) next[s.gadget] -= 1;
   }
   const soldiers = finished.units.filter((u) => u.side === 'player');
   for (const [i, s] of used.entries()) {
@@ -59,6 +68,7 @@ export function nextStash(stash: Stash, used: Loadout, finished: GameState): Sta
     else if (cover[i].weapon) next[u.weapon] += 1; // lent, returned
     next.grenade += Math.max(0, u.grenades - (s.grenades - cover[i].grenades));
     next.clip += Math.max(0, u.clips - (s.clips - cover[i].clips));
+    if (s.gadget && u.gadget === s.gadget) next[s.gadget] += 1; // carried through the mission: lent or bought, it comes back
   }
   return next;
 }
@@ -71,5 +81,8 @@ export function describeStash(stash: Stash): string {
     stash.pistol > 0 ? plural(stash.pistol, 'pistol', 'pistols') : '',
     stash.grenade > 0 ? plural(stash.grenade, 'grenade', 'grenades') : '',
     stash.clip > 0 ? plural(stash.clip, 'clip', 'clips') : '',
+    stash.medkit > 0 ? plural(stash.medkit, 'medkit', 'medkits') : '',
+    stash.armour > 0 ? plural(stash.armour, 'armour', 'armour') : '',
+    stash.scanner > 0 ? plural(stash.scanner, 'scanner', 'scanners') : '',
   ].filter(Boolean).join(', ');
 }

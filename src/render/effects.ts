@@ -45,6 +45,8 @@ export class Effects {
         this.sprite(['splash'], tilePx(e.at), now, 450, { fade: true });
       } else if (e.type === 'grenade') {
         this.sprite(['boom_0', 'boom_1', 'boom_2', 'boom_3'], { x: (e.at.x - 1) * T, y: (e.at.y - 1) * T }, now, 450, { scale: 3 });
+      } else if (e.type === 'healed') {
+        this.list.push({ kind: 'flash', at: e.at, color: '100,255,140', start: now, dur: 300 });
       } else if (e.type === 'reloaded') {
         this.list.push({ kind: 'flash', at: e.at, color: '120,200,255', start: now, dur: 250 });
       }

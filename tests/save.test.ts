@@ -29,7 +29,7 @@ function played(): Campaign {
   unit(s, 'p1').kills = 2;
   s.status = 'won';
   const c = recordMission(newCampaign(), s, 3, defaultLoadout());
-  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4 };
+  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0 };
   return c;
 }
 
@@ -129,5 +129,40 @@ describe('parseSave', () => {
     const custom = defaultLoadout();
     custom[1] = { weapon: 'pistol', grenades: 3, clips: 4 };
     expect(parseSave(json((o) => { o.loadout = custom; }), 3)!.loadout).toEqual(custom);
+  });
+});
+
+describe('gadgets in a save', () => {
+  it('an old save without gadget fields still loads, with no gadgets and an empty gadget stash', () => {
+    const save = parseSave(json((o) => {
+      delete o.campaign.stash.medkit;
+      delete o.campaign.stash.armour;
+      delete o.campaign.stash.scanner;
+    }), 3)!;
+    expect(save.campaign.stash).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
+    expect(save.loadout.every((s) => s.gadget === undefined)).toBe(true);
+  });
+
+  it('round-trips gadgets in the loadout and the stash', () => {
+    const mem = memory();
+    const store = new SaveStore(mem, 3);
+    const c = played();
+    c.stash = { ...c.stash, medkit: 2, armour: 1, scanner: 3 };
+    const loadout = defaultLoadout();
+    loadout[0] = { ...loadout[0], gadget: 'medkit' };
+    loadout[3] = { ...loadout[3], gadget: 'armour' };
+    store.save(c, loadout);
+    expect(store.load()).toEqual({ campaign: c, loadout });
+  });
+
+  it('an unknown gadget id replaces the whole loadout with the default one', () => {
+    const bad = defaultLoadout().map((s, i) => (i === 1 ? { ...s, clips: 3, gadget: 'laser' } : s)); // otherwise valid, so a default result proves the fallback
+    expect(parseSave(json((o) => { o.loadout = bad; }), 3)!.loadout).toEqual(defaultLoadout());
+  });
+
+  it('rejects a negative or huge gadget count in the stash', () => {
+    expect(parseSave(json((o) => { o.campaign.stash.medkit = -1; }), 3)).toBeNull();
+    expect(parseSave(json((o) => { o.campaign.stash.scanner = 100; }), 3)).toBeNull();
+    expect(parseSave(json((o) => { o.campaign.stash.armour = 1.5; }), 3)).toBeNull();
   });
 });

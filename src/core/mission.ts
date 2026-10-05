@@ -22,6 +22,7 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     alive: true,
     alert: false,
     kills: 0,
+    gadget: null,
     accuracy: 0,
     rank: side === 'player' ? 'Rookie' : '',
     ammo: WEAPONS[weapon].magazine,
@@ -75,6 +76,7 @@ export function parseMap(rows: string[], seed = 1): GameState {
     rngState: seed,
     explored: Array.from({ length: height }, () => Array<boolean>(width).fill(false)),
     enemyMemory: null,
+    scanned: [],
     reacted: [],
     status: 'playing',
   };

@@ -18,6 +18,8 @@ export const defaultAtlas = new Atlas();
 const COLORS = {
   select: '#ffe14d',
   pip: '#ffe14d',
+  scan: '#ff4d4d',
+  armour: '#4da6ff',
   rifle: '#d0d0d0',
   pistol: '#a0a0a0',
 };
@@ -83,6 +85,10 @@ export function drawGame(
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
       for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y, 1, 2);
+      if (u.gadget === 'armour') {
+        ctx.fillStyle = COLORS.armour;
+        ctx.fillRect(x0 + 13, y0 + 13, 2, 2); // the right-hand corner, clear of up to three rank pips on the left
+      }
     }
 
     ctx.fillStyle = '#000';
@@ -96,6 +102,11 @@ export function drawGame(
       ctx.strokeStyle = COLORS.select;
       ctx.strokeRect(u.pos.x * T + 0.5, u.pos.y * T + 0.5, T - 1, T - 1);
     }
+  }
+
+  ctx.fillStyle = COLORS.scan;
+  for (const p of state.scanned) {
+    if (!visible[p.y][p.x]) ctx.fillRect(p.x * T + 6, p.y * T + 6, 4, 4);
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
