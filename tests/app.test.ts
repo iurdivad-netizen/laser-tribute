@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { App, type AppOptions } from '../src/app';
 import { campaignBudget } from '../src/core/campaign';
-import { cheapLoadout, defaultLoadout, type Loadout } from '../src/core/loadout';
+import { cheapLoadout, defaultLoadout, fitLoadout, validateLoadout, type Loadout } from '../src/core/loadout';
+import { SAVE_KEY, SaveStore } from '../src/save';
 import type { GameState } from '../src/core/types';
 import { corridorRows, makeState, unit } from './helpers';
 
@@ -433,5 +434,182 @@ describe('loot after a mission', () => {
     app.update(1000);
     app.update(2100);
     expect(app.loot).toBe('');
+  });
+});
+
+const CONTINUE_T = { x: 240, y: 174 }; // CONTINUE on the title screen
+const NEW_T = { x: 240, y: 214 }; // NEW CAMPAIGN on the title screen
+
+function memoryStorage(initial?: string) {
+  const data = new Map<string, string>();
+  if (initial !== undefined) data.set(SAVE_KEY, initial);
+  return {
+    data,
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => { data.set(k, v); },
+    removeItem: (k: string) => { data.delete(k); },
+  };
+}
+
+describe('App saving and loading', () => {
+  const store = (mem = memoryStorage()) => ({ mem, store: new SaveStore(mem, 3) });
+
+  /** A storage holding the save left by one won mission, plus a fresh App started over it. */
+  function reopened() {
+    const { mem, store: s } = store();
+    const first = make({ store: s, createMission: winTiny });
+    playWin(first.app, first.wait, 0);
+    return { mem, ...make({ store: new SaveStore(mem, 3) }) };
+  }
+
+  it('opens on the equipment screen when there is no save', () => {
+    const { app } = make({ store: store().store });
+    expect(app.screen).toBe('equipment');
+  });
+
+  it('autosaves after a won mission, and a fresh App over the same storage opens on the title with that campaign', () => {
+    const { mem, store: s } = store();
+    const { app } = make({ store: s, createMission: winWithCasualty });
+    app.click(START);
+    endWin(app, 0);
+    expect(mem.data.has(SAVE_KEY)).toBe(true);
+    const reloaded = new App({ store: new SaveStore(mem, 3) });
+    expect(reloaded.screen).toBe('title');
+    expect(reloaded.campaign).toEqual(app.campaign);
+    expect(reloaded.loadout).toEqual(fitLoadout(app.loadout, campaignBudget(app.campaign), app.campaign.stash));
+  });
+
+  it('CONTINUE opens the saved equipment screen, by click and by Enter', () => {
+    for (const how of ['click', 'enter']) {
+      const { app, wait } = reopened();
+      expect(app.screen).toBe('title');
+      wait();
+      if (how === 'click') app.click(CONTINUE_T); else app.key('Enter');
+      expect(app.screen).toBe('equipment');
+      expect(app.campaign.missionIndex).toBe(1);
+      expect(validateLoadout(app.loadout, campaignBudget(app.campaign), app.campaign.stash)).toBeNull();
+    }
+  });
+
+  it('NEW CAMPAIGN needs a second press, then clears the save and starts fresh', () => {
+    const { mem, app, wait } = reopened();
+    wait();
+    app.click(NEW_T);
+    expect(app.screen).toBe('title');
+    expect(mem.data.has(SAVE_KEY)).toBe(true);
+    wait();
+    app.click(NEW_T);
+    expect(app.screen).toBe('equipment');
+    expect(app.campaign.missionIndex).toBe(0);
+    expect(mem.data.has(SAVE_KEY)).toBe(false);
+  });
+
+  it('the N key works the same way, and the first press arms without clearing', () => {
+    const { mem, app, wait } = reopened();
+    wait();
+    app.key('n');
+    expect(app.screen).toBe('title');
+    expect(mem.data.has(SAVE_KEY)).toBe(true);
+    wait();
+    app.key('N');
+    expect(app.screen).toBe('equipment');
+    expect(mem.data.has(SAVE_KEY)).toBe(false);
+  });
+
+  it('the confirmation lapses after 3 seconds', () => {
+    const { mem, app, wait } = reopened();
+    wait();
+    app.click(NEW_T);
+    for (let i = 0; i < 7; i++) wait(); // 3.5 s
+    app.click(NEW_T);
+    expect(app.screen).toBe('title');
+    expect(mem.data.has(SAVE_KEY)).toBe(true);
+  });
+
+  it('a held N or a double click cannot wipe the save', () => {
+    const held = reopened();
+    held.wait();
+    held.app.key('n');
+    held.app.key('n', true); // keyboard auto-repeat
+    held.app.key('n', true);
+    expect(held.app.screen).toBe('title');
+    expect(held.mem.data.has(SAVE_KEY)).toBe(true);
+
+    const dbl = reopened();
+    dbl.wait();
+    dbl.app.click(NEW_T);
+    dbl.app.click(NEW_T); // the second click of a double click, a few ms later
+    expect(dbl.app.screen).toBe('title');
+    expect(dbl.mem.data.has(SAVE_KEY)).toBe(true);
+  });
+
+  it('a held Enter does not chain from the title into the mission', () => {
+    const { app, wait } = reopened();
+    wait();
+    app.key('Enter', true);
+    expect(app.screen).toBe('title');
+  });
+
+  it('clears the save when the campaign is won or lost', () => {
+    const won = store();
+    const a = make({ store: won.store, createMission: winTiny });
+    playWin(a.app, a.wait, 0);
+    playWin(a.app, a.wait, 10_000);
+    expect(won.mem.data.has(SAVE_KEY)).toBe(true);
+    a.app.click(START);
+    endWin(a.app, 20_000);
+    expect(a.app.campaign.status).toBe('won');
+    expect(won.mem.data.has(SAVE_KEY)).toBe(false);
+
+    const lost = store();
+    let n = 0;
+    const b = make({ store: lost.store, createMission: () => (n++ === 0 ? winTiny() : loseAll()) });
+    playWin(b.app, b.wait, 0);
+    expect(lost.mem.data.has(SAVE_KEY)).toBe(true); // a save exists before the loss
+    b.app.click(START);
+    b.app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
+    b.app.update(20_000);
+    b.app.update(21_100);
+    expect(b.app.campaign.status).toBe('lost');
+    expect(lost.mem.data.has(SAVE_KEY)).toBe(false);
+  });
+
+  it('ignores a bad save, leaves it in place, and opens on equipment', () => {
+    const mem = memoryStorage('{"version":1,"campaign":{"status":"active"}}');
+    const { app } = make({ store: new SaveStore(mem, 3) });
+    expect(app.screen).toBe('equipment');
+    expect(mem.data.size).toBe(1);
+  });
+
+  it('fits a saved loadout that no longer fits the budget', () => {
+    const { mem, store: s } = store();
+    const first = make({ store: s, createMission: winTiny });
+    playWin(first.app, first.wait, 0);
+    const o = JSON.parse(mem.data.get(SAVE_KEY)!);
+    o.loadout = o.loadout.map(() => ({ weapon: 'rifle', grenades: 3, clips: 4 })); // far over budget
+    o.campaign.stash = { rifle: 0, pistol: 0, grenade: 0, clip: 0 };
+    mem.data.set(SAVE_KEY, JSON.stringify(o));
+    const { app } = make({ store: new SaveStore(mem, 3) });
+    expect(validateLoadout(app.loadout, campaignBudget(app.campaign), app.campaign.stash)).toBeNull();
+  });
+
+  it('plays on when storage throws on every call', () => {
+    const broken = {
+      getItem: () => { throw new Error('denied'); },
+      setItem: () => { throw new Error('quota'); },
+      removeItem: () => { throw new Error('denied'); },
+    };
+    const { app, wait } = make({ store: new SaveStore(broken, 3), createMission: winTiny });
+    expect(app.screen).toBe('equipment');
+    playWin(app, wait, 0);
+    expect(app.screen).toBe('equipment');
+    expect(app.campaign.missionIndex).toBe(1);
+  });
+
+  it('draws the title screen without error', () => {
+    const { app } = reopened();
+    const ctx = new Proxy({}, { get: () => () => ({ width: 0 }), set: () => true }) as unknown as CanvasRenderingContext2D;
+    expect(app.screen).toBe('title');
+    expect(() => app.draw(ctx, 0)).not.toThrow();
   });
 });

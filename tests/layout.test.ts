@@ -7,6 +7,7 @@ import { Effects } from '../src/render/effects';
 import { drawGame } from '../src/render/renderer';
 import { drawCampaignEnd } from '../src/screens/end';
 import { drawResult } from '../src/screens/result';
+import { drawTitle } from '../src/screens/title';
 import { unsupportedChars } from '../src/ui/font';
 import { onText, type TextRun } from '../src/ui/text';
 
@@ -84,6 +85,14 @@ describe('every screen lays out inside the canvas, with the longest content', ()
       won: false, missionsWon: 1, missionCount: 3, totalKills: 9,
       survivors: [], fallen: ['Lindqvist 2', 'Kowalski 2', 'Fontaine 2', 'Eriksen 2'],
     })));
+  });
+
+  it('the title screen, with the largest numbers and the confirmation text', () => {
+    for (const armed of [false, true]) {
+      check('title', collect(() => drawTitle(ctx, {
+        missionNumber: 3, missionCount: 3, soldiers: 4, budget: 9999, armed,
+      })));
+    }
   });
 });
 
