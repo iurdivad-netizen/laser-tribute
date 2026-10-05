@@ -510,6 +510,7 @@ describe('App saving and loading', () => {
     app.key('n');
     expect(app.screen).toBe('title');
     expect(mem.data.has(SAVE_KEY)).toBe(true);
+    wait();
     app.key('N');
     expect(app.screen).toBe('equipment');
     expect(mem.data.has(SAVE_KEY)).toBe(false);
@@ -523,6 +524,23 @@ describe('App saving and loading', () => {
     app.click(NEW_T);
     expect(app.screen).toBe('title');
     expect(mem.data.has(SAVE_KEY)).toBe(true);
+  });
+
+  it('a held N or a double click cannot wipe the save', () => {
+    const held = reopened();
+    held.wait();
+    held.app.key('n');
+    held.app.key('n', true); // keyboard auto-repeat
+    held.app.key('n', true);
+    expect(held.app.screen).toBe('title');
+    expect(held.mem.data.has(SAVE_KEY)).toBe(true);
+
+    const dbl = reopened();
+    dbl.wait();
+    dbl.app.click(NEW_T);
+    dbl.app.click(NEW_T); // the second click of a double click, a few ms later
+    expect(dbl.app.screen).toBe('title');
+    expect(dbl.mem.data.has(SAVE_KEY)).toBe(true);
   });
 
   it('a held Enter does not chain from the title into the mission', () => {
@@ -544,11 +562,14 @@ describe('App saving and loading', () => {
     expect(won.mem.data.has(SAVE_KEY)).toBe(false);
 
     const lost = store();
-    const b = make({ store: lost.store, createMission: loseAll });
+    let n = 0;
+    const b = make({ store: lost.store, createMission: () => (n++ === 0 ? winTiny() : loseAll()) });
+    playWin(b.app, b.wait, 0);
+    expect(lost.mem.data.has(SAVE_KEY)).toBe(true); // a save exists before the loss
     b.app.click(START);
     b.app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
-    b.app.update(1000);
-    b.app.update(2100);
+    b.app.update(20_000);
+    b.app.update(21_100);
     expect(b.app.campaign.status).toBe('lost');
     expect(lost.mem.data.has(SAVE_KEY)).toBe(false);
   });

@@ -171,6 +171,7 @@ export class App {
       return;
     }
     this.newArmedUntil = this.clock() + NEW_CONFIRM_MS;
+    this.lock(); // a held key or a double click must not count as the second press
     this.sound.play('click', 0.9);
   }
 
@@ -255,7 +256,7 @@ export class App {
           return true;
         }
         if (k === 'n' || k === 'N') {
-          if (!this.locked()) this.pressNew();
+          if (!repeat && !this.locked()) this.pressNew();
           return true;
         }
         return false;
