@@ -22,15 +22,19 @@ import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { drawResult, resultHit } from './screens/result';
+import { drawTitle, titleHit } from './screens/title';
+import { defaultSaveStore, type SaveStore } from './save';
 import { textWidth } from './ui/font';
 import { UI, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
 
-export type Screen = 'equipment' | 'mission' | 'result' | 'end';
+export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end';
 
 const RESULT_DELAY_MS = 1000;
 /** After any screen switch, clicks and Enter are ignored briefly so a double-click or held key cannot act on the next screen. */
 const INPUT_LOCK_MS = 300;
+/** NEW CAMPAIGN on the title screen needs a second press within this time. */
+const NEW_CONFIRM_MS = 3000;
 
 export interface AppOptions {
   newSeed?: () => number;
@@ -40,6 +44,8 @@ export interface AppOptions {
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
+  /** Where the campaign is saved; undefined uses the browser's storage, null turns saving off. */
+  store?: SaveStore | null;
 }
 
 export class App {
@@ -60,6 +66,8 @@ export class App {
   private noticeText = '';
   private noticeUntil = 0;
   private usedLoadout: Loadout = [];
+  private newArmedUntil = 0;
+  private readonly store: SaveStore | null;
   private readonly clock: () => number;
   private readonly newSeed: () => number;
   private readonly missions: MissionDef[];
@@ -75,6 +83,13 @@ export class App {
       opts.createMission ??
       ((def, seed, roster, loadout, budget, stash) =>
         createMission(def, seed, roster, loadout, budget, stash));
+    this.store = opts.store === undefined ? defaultSaveStore(this.missions.length) : opts.store;
+    const saved = this.store?.load() ?? null;
+    if (saved) {
+      this.campaign = saved.campaign;
+      this.loadout = fitLoadout(saved.loadout, campaignBudget(saved.campaign), saved.campaign.stash);
+      this.screen = 'title';
+    }
   }
 
   private notice(text: string): void {
@@ -139,6 +154,26 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  private continueFromTitle(): void {
+    this.newArmedUntil = 0;
+    this.screen = 'equipment';
+    this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** NEW CAMPAIGN on the title: the first press arms, a second one within 3 s replaces the save. */
+  private pressNew(): void {
+    if (this.clock() < this.newArmedUntil) {
+      this.newArmedUntil = 0;
+      this.store?.clear();
+      this.newCampaignScreen();
+      return;
+    }
+    this.newArmedUntil = this.clock() + NEW_CONFIRM_MS;
+    this.sound.play('click', 0.9);
+  }
+
   private newCampaignScreen(): void {
     this.campaign = newCampaign();
     this.loadout = defaultLoadout();
@@ -156,6 +191,12 @@ export class App {
     this.sound.unlock();
     if (this.locked()) return;
     switch (this.screen) {
+      case 'title': {
+        const hit = titleHit(p.x, p.y);
+        if (hit === 'continue') this.continueFromTitle();
+        else if (hit === 'new') this.pressNew();
+        return;
+      }
       case 'equipment': {
         const hit = equipmentHit(p.x, p.y);
         if (!hit) return;
@@ -208,6 +249,16 @@ export class App {
     if (repeat && k === 'Enter') return true; // a held key must not chain screens
     if (this.soundKey(k)) return true;
     switch (this.screen) {
+      case 'title':
+        if (k === 'Enter') {
+          if (!this.locked()) this.continueFromTitle();
+          return true;
+        }
+        if (k === 'n' || k === 'N') {
+          if (!this.locked()) this.pressNew();
+          return true;
+        }
+        return false;
       case 'equipment':
         if (k === 'Enter') {
           if (!this.locked()) this.startMission();
@@ -250,6 +301,11 @@ export class App {
       const stashBefore = this.campaign.stash;
       this.result = summarize(c.state);
       this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
+      if (this.campaign.status === 'active') {
+        this.store?.save(this.campaign, fitLoadout(this.loadout, this.budget(), this.campaign.stash));
+      } else {
+        this.store?.clear();
+      }
       this.promoted = promotions(rosterBefore, this.campaign.roster);
       this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
@@ -291,12 +347,23 @@ export class App {
       const w = textWidth(this.noticeText) + 10;
       drawFrame(ctx, VIEW.width - 6 - w, 2, w, 13, 'inset');
       drawText(ctx, this.noticeText, VIEW.width - 11, 5, UI.accent, 'right');
-    } else if (this.screen === 'equipment' || this.screen === 'end') {
+    } else if (this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end') {
       drawText(ctx, 'M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12, UI.hint, 'right');
     }
   }
 
   private drawScreen(ctx: CanvasRenderingContext2D, now: number): void {
+    if (this.screen === 'title') {
+      const c = this.campaign;
+      drawTitle(ctx, {
+        missionNumber: c.missionIndex + 1,
+        missionCount: this.missions.length,
+        soldiers: c.roster.length,
+        budget: this.budget(),
+        armed: this.clock() < this.newArmedUntil,
+      });
+      return;
+    }
     if (this.screen === 'equipment') {
       drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
       return;
