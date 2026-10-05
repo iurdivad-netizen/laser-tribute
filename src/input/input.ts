@@ -1,17 +1,52 @@
 import type { App } from '../app';
+import { GestureRecognizer, type PointerKind } from './gestures';
 
+/** Wires pointer events (mouse, touch, pen) and the keyboard to the app. Positions are CSS pixels inside the canvas. */
 export function attachInput(canvas: HTMLCanvasElement, app: App): void {
-  const toLogical = (e: MouseEvent) => {
+  const toCss = (e: PointerEvent) => {
     const r = canvas.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left) * canvas.width) / r.width,
-      y: ((e.clientY - r.top) * canvas.height) / r.height,
-    };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  const kindOf = (e: PointerEvent): PointerKind => (e.pointerType === 'touch' ? 'touch' : e.pointerType === 'pen' ? 'pen' : 'mouse');
+
+  const g = new GestureRecognizer({
+    tap: (p, kind) => app.click(p, kind === 'touch' ? 'touch' : 'mouse'),
+    drag: (dx, dy) => app.pan(dx, dy),
+    longPress: (p) => app.longPress(p),
+  });
+  let timer: number | undefined;
+  const stopTimer = () => {
+    if (timer !== undefined) {
+      window.clearInterval(timer);
+      timer = undefined;
+    }
   };
 
-  canvas.addEventListener('mousemove', (e) => app.move(toLogical(e)));
-  canvas.addEventListener('mouseleave', () => app.leave());
-  canvas.addEventListener('click', (e) => app.click(toLogical(e)));
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    canvas.setPointerCapture(e.pointerId);
+    const p = toCss(e);
+    g.down(p.x, p.y, kindOf(e), performance.now());
+    stopTimer();
+    timer = window.setInterval(() => g.tick(performance.now()), 100);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = toCss(e);
+    if (e.buttons || e.pressure > 0) g.move(p.x, p.y, performance.now());
+    else if (e.pointerType === 'mouse') app.move(p);
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    const p = toCss(e);
+    g.up(p.x, p.y, performance.now());
+    stopTimer();
+  });
+  canvas.addEventListener('pointercancel', () => {
+    g.cancel();
+    stopTimer();
+  });
+  canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'mouse') app.leave();
+  });
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     app.cancel();
