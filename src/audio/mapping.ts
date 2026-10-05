@@ -22,6 +22,7 @@ export function soundsFor(ev: GameEvent, state: GameState, audible: boolean): So
       const weapon = state.units.find((u) => u.id === ev.unitId)?.weapon;
       const out = [hit(weapon === 'pistol' ? 'pistol' : 'rifle', loud)];
       if (audible) out.push(hit(ev.hit ? 'hit' : 'ricochet', VOLUME.impact));
+      if (audible && ev.hit && ev.crit) out.push(hit('crit', VOLUME.impact));
       return out;
     }
     case 'stab':

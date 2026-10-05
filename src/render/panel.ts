@@ -86,6 +86,7 @@ export function drawPanel(ctx: CanvasRenderingContext2D, state: GameState, ui: U
     const tag = rankShort(u.rank);
     const weapon = WEAPONS[u.weapon];
     drawText(ctx, `${tag ? `${tag} ` : ''}${u.name}`, 8, TOP + 8, UI.text);
+    if (u.attachment) drawText(ctx, 'SCOPE', 108, TOP + 8, UI.accent);
     drawText(ctx, `HP ${u.hp}/${u.maxHp}  AP ${u.ap}/${u.maxAp}`, 8, TOP + 19, UI.dim);
     drawText(ctx, `${weapon.name} ${u.ammo}/${weapon.magazine} +${u.clips}  GREN ${u.grenades}`, 8, TOP + 30, UI.text);
     if (u.gadget) drawText(ctx, `GADGET ${GADGETS[u.gadget].name.toUpperCase()}`, 8, TOP + 41, UI.text);

@@ -84,6 +84,9 @@ export class Controller {
   private onEvent(ev: GameEvent): void {
     if (ev.type === 'gameOver') {
       this.say(ev.winner === 'player' ? 'MISSION COMPLETE' : 'MISSION FAILED', Infinity);
+    } else if (ev.type === 'shot' && ev.hit && ev.crit) {
+      const shooterIsPlayer = this.state.units.find((u) => u.id === ev.unitId)?.side === 'player';
+      this.say(`${shooterIsPlayer ? '' : 'ENEMY '}CRITICAL HIT: ${ev.damage} DAMAGE`, 3000);
     } else if (ev.type === 'healed') {
       const name = (id: string) => this.state.units.find((u) => u.id === id)?.name ?? id;
       this.say(`${name(ev.unitId)} heals ${name(ev.targetId)}: +${ev.amount} HP`, 3000);

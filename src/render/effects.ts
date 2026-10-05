@@ -38,6 +38,11 @@ export class Effects {
         const muzzle = tilePx(e.from);
         this.sprite(['flash_0', 'flash_1'], { x: muzzle.x + dir.x * 8, y: muzzle.y + dir.y * 8 }, now, 90);
         if (e.hit) this.sprite(['spark'], tilePx(e.impact), now + 80, 220, { fade: true });
+        if (e.hit && e.crit) {
+          const t = tilePx(e.impact);
+          this.sprite(['spark'], { x: t.x - 8, y: t.y - 8 }, now + 80, 300, { scale: 2, fade: true });
+          this.list.push({ kind: 'flash', at: e.impact, color: '255,225,77', start: now, dur: 300 });
+        }
       } else if (e.type === 'stab') {
         this.sprite(['slash_0', 'slash_1'], tilePx(e.at), now, 220);
         if (e.hit) this.sprite(['spark'], tilePx(e.at), now + 60, 220, { fade: true });
