@@ -45,7 +45,7 @@ describe('aiNextCommand', () => {
   });
 
   it('falls back to patrol when the last seen position is unreachable', () => {
-    const s = enemyTurn(corridorRows('E...+.P')); // closed door between e1 and the memory
+    const s = enemyTurn(corridorRows('E...#.P')); // a wall between e1 and the memory
     s.enemyMemory = { x: 6, y: 1 };
     unit(s, 'e1').patrol = [{ x: 3, y: 1 }, { x: 1, y: 1 }];
     expect(aiNextCommand(s)).toEqual({ type: 'Move', unitId: 'e1', to: { x: 2, y: 1 } });

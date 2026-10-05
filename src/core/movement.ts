@@ -8,11 +8,13 @@ export function stepBlockedReason(
   from: Pos,
   to: Pos,
   ignoreUnits: boolean | ((u: Unit) => boolean) = false,
+  /** Route planning only: pretend closed doors can be opened on the way. Real moves never set this. */
+  doorsOpen = false,
 ): string | null {
   if (!inBounds(s, to)) return 'That tile is off the map';
   const tile = tileAt(s, to);
   if (tile.kind === 'wall') return 'A wall blocks the way';
-  if (tile.kind === 'door' && !tile.open) return 'The door is closed';
+  if (tile.kind === 'door' && !tile.open && !doorsOpen) return 'The door is closed';
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   if (dx !== 0 && dy !== 0) {

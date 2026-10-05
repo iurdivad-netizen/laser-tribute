@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { findPath, pathCost } from '../src/core/path';
-import { corridorRows, makeState } from './helpers';
+import { stepBlockedReason } from '../src/core/movement';
+import { corridorRows, makeState, unit } from './helpers';
 
 describe('findPath', () => {
   it('walks a straight corridor', () => {
@@ -58,5 +59,47 @@ describe('findPath', () => {
     expect(findPath(s, 'p1', { x: 4, y: 1 }, { seenBy: 'player' })).toHaveLength(3);
     s.units.find((u) => u.id === 'p1')!.facing = 2; // facing it: e1 is visible and blocks
     expect(findPath(s, 'p1', { x: 4, y: 1 }, { seenBy: 'player' })).toBeNull();
+  });
+});
+
+describe('findPath through closed doors', () => {
+  it('treats a closed door as a wall by default and as passable with openDoors', () => {
+    const s = makeState(corridorRows('P.+.E')); // P x1, door x3, goal x4
+    expect(findPath(s, 'p1', { x: 4, y: 1 })).toBeNull();
+    expect(findPath(s, 'p1', { x: 4, y: 1 }, { openDoors: true })).toEqual([
+      { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
+    ]);
+  });
+
+  it('still refuses walls, and a doorway with a unit in it', () => {
+    const wall = makeState(corridorRows('P.#.E'));
+    expect(findPath(wall, 'p1', { x: 4, y: 1 }, { openDoors: true })).toBeNull();
+    const blocked = makeState(corridorRows('P.+.E'));
+    unit(blocked, 'e1').pos = { x: 3, y: 1 };
+    expect(findPath(blocked, 'p1', { x: 4, y: 1 }, { openDoors: true })).toBeNull();
+  });
+
+  it('charges extra for a closed door, so an open way of the same length wins', () => {
+    const rows = ['#######', '#..+..#', '#P.#.E#', '#..+..#', '#######'];
+    const through = (s: ReturnType<typeof makeState>) =>
+      findPath(s, 'p1', { x: 5, y: 2 }, { openDoors: true, ignoreOccupantAtGoal: true })!.map((p) => `${p.x},${p.y}`);
+    const openLower = makeState(rows);
+    openLower.tiles[3][3].open = true;
+    expect(through(openLower)).toContain('3,3');
+    expect(through(openLower)).not.toContain('3,1');
+    const openUpper = makeState(rows);
+    openUpper.tiles[1][3].open = true;
+    expect(through(openUpper)).toContain('3,1');
+    expect(through(openUpper)).not.toContain('3,3');
+  });
+});
+
+describe('stepBlockedReason with doorsOpen', () => {
+  it('only the closed-door check is skipped', () => {
+    const s = makeState(corridorRows('P.+.E'));
+    expect(stepBlockedReason(s, { x: 2, y: 1 }, { x: 3, y: 1 })).toBe('The door is closed');
+    expect(stepBlockedReason(s, { x: 2, y: 1 }, { x: 3, y: 1 }, false, true)).toBeNull();
+    const wall = makeState(corridorRows('P.#.E'));
+    expect(stepBlockedReason(wall, { x: 2, y: 1 }, { x: 3, y: 1 }, false, true)).toBe('A wall blocks the way');
   });
 });

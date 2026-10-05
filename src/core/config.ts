@@ -12,6 +12,8 @@ export const CONFIG = {
   diagonalCost: 6,
   turnCostPer45: 1,
   doorCost: 2,
+  /** Longest route (in tiles) through a closed door that an enemy will hunt along. */
+  huntRadius: 12,
   pickupCost: 3,
   sightRange: 10,
   coverMultiplier: 0.6,

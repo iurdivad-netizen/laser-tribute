@@ -1,15 +1,33 @@
 import { applyCommand } from './apply';
 import { CONFIG, WEAPONS } from './config';
-import { distance, facingFromDelta, posEq } from './geometry';
+import { distance, facingFromDelta, posEq, tileAt } from './geometry';
 import { findPath } from './path';
 import type { Command, GameEvent, GameState, Pos, Unit } from './types';
 import { canSee, visibleToSide } from './vision';
 
 const MAX_COMMANDS_PER_TURN = 500;
 
-function firstStep(s: GameState, unit: Unit, goal: Pos): Pos | null {
-  const path = findPath(s, unit.id, goal, { ignoreOccupantAtGoal: true });
-  return path && path.length > 0 ? path[0] : null;
+/**
+ * The next command on the way to `goal`, or null. A hunting goal plans through closed doors: when the
+ * next tile is one it returns OpenDoor (the enemy is adjacent to it), and a route that crosses a closed
+ * door and is longer than the hunt radius gives no step, so enemies far from the squad stay put.
+ */
+function stepToward(s: GameState, unit: Unit, goal: Pos, hunting: boolean): Command | null {
+  const path = findPath(s, unit.id, goal, { ignoreOccupantAtGoal: true, openDoors: hunting });
+  if (!path || path.length === 0) return null;
+  const next = path[0];
+  if (hunting) {
+    const closed = (p: Pos) => {
+      const t = tileAt(s, p);
+      return t.kind === 'door' && !t.open;
+    };
+    // too far to go through a door: take the door-free route instead (none means stay put)
+    if (path.length > CONFIG.huntRadius && path.some(closed)) return stepToward(s, unit, goal, false);
+    if (closed(next)) {
+      return unit.ap >= CONFIG.doorCost ? { type: 'OpenDoor', unitId: unit.id, at: { ...next } } : null;
+    }
+  }
+  return unit.ap >= CONFIG.moveCost ? { type: 'Move', unitId: unit.id, to: next } : null;
 }
 
 function candidates(s: GameState, unit: Unit): Command[] {
@@ -39,19 +57,20 @@ function candidates(s: GameState, unit: Unit): Command[] {
         facing: facingFromDelta(target.pos.x - unit.pos.x, target.pos.y - unit.pos.y),
       });
     }
-    const step = unit.ap >= CONFIG.moveCost ? firstStep(s, unit, target.pos) : null;
-    if (step) out.push({ type: 'Move', unitId: unit.id, to: step });
+    const step = unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
+    if (step) out.push(step);
     return out;
   }
 
-  if (unit.ap < CONFIG.moveCost) return out; // a patrol or search step would be rejected anyway
-
   const patrolGoal = unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null;
-  for (const goal of [s.enemyMemory, patrolGoal]) {
+  const goals: [Pos | null, boolean][] = [[s.enemyMemory, true], [patrolGoal, false]];
+  for (const [goal, hunting] of goals) {
     if (!goal || posEq(unit.pos, goal)) continue;
-    const step = firstStep(s, unit, goal);
+    // a patrol step needs a move; a hunting goal may only need to open a door
+    if (unit.ap < (hunting ? CONFIG.doorCost : CONFIG.moveCost)) continue;
+    const step = stepToward(s, unit, goal, hunting);
     if (step) {
-      out.push({ type: 'Move', unitId: unit.id, to: step });
+      out.push(step);
       break;
     }
   }
