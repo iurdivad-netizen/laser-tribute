@@ -29,7 +29,7 @@ function played(): Campaign {
   unit(s, 'p1').kills = 2;
   s.status = 'won';
   const c = recordMission(newCampaign(), s, 3, defaultLoadout());
-  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0 };
+  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 };
   return c;
 }
 
@@ -139,7 +139,7 @@ describe('gadgets in a save', () => {
       delete o.campaign.stash.armour;
       delete o.campaign.stash.scanner;
     }), 3)!;
-    expect(save.campaign.stash).toMatchObject({ medkit: 0, armour: 0, scanner: 0 });
+    expect(save.campaign.stash).toMatchObject({ medkit: 0, armour: 0, scanner: 0, scope: 0 });
     expect(save.loadout.every((s) => s.gadget === undefined)).toBe(true);
   });
 
@@ -147,7 +147,7 @@ describe('gadgets in a save', () => {
     const mem = memory();
     const store = new SaveStore(mem, 3);
     const c = played();
-    c.stash = { ...c.stash, medkit: 2, armour: 1, scanner: 3 };
+    c.stash = { ...c.stash, medkit: 2, armour: 1, scanner: 3, scope: 0 };
     const loadout = defaultLoadout();
     loadout[0] = { ...loadout[0], gadget: 'medkit' };
     loadout[3] = { ...loadout[3], gadget: 'armour' };
