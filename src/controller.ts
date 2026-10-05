@@ -16,6 +16,21 @@ const ENEMY_STEP_MS = 300;
 /** Longest stretch of unseen enemy commands run in one block before handing control back to the browser. */
 const ENEMY_BATCH_MS = 10;
 
+/** Where a game event happened on the map, when it has a place. */
+function eventPos(ev: GameEvent): Pos | null {
+  switch (ev.type) {
+    case 'moved': return ev.to;
+    case 'shot': return ev.from;
+    case 'stab': return ev.at;
+    case 'reloaded':
+    case 'died':
+    case 'doorChanged':
+    case 'grenade':
+    case 'healed': return ev.at;
+    default: return null;
+  }
+}
+
 /** The facing (0 north, clockwise) from one tile toward another, or null for the same tile. */
 export function faceToward(from: Pos, to: Pos): Facing | null {
   const dx = to.x - from.x;
@@ -28,6 +43,8 @@ export function faceToward(from: Pos, to: Pos): Facing | null {
 export class Controller {
   /** True when the last applied command had an effect the player could see. */
   private lastVisible = false;
+  /** Where the latest event the player could see happened (the camera follows the enemy turn with it). */
+  lastEventAt: Pos | null = null;
 
   constructor(
     public state: GameState,
@@ -82,6 +99,9 @@ export class Controller {
     this.state = r.state;
     const flags = r.events.map((ev) => this.eventVisible(ev, before, r.state));
     this.lastVisible = flags.some(Boolean);
+    const seenAt = flags.findIndex(Boolean);
+    const where = seenAt >= 0 ? eventPos(r.events[seenAt]) : null;
+    if (where) this.lastEventAt = { ...where };
     this.effects.add(r.events, performance.now());
     if (this.sound) {
       r.events.forEach((ev, i) => {
