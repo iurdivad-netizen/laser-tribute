@@ -49,10 +49,10 @@ function check(name: string, runs: TextRun[]) {
 
 describe('every screen lays out inside the canvas, with the longest content', () => {
   it('the equipment screen at the start and in a later mission with long names', () => {
-    const fresh = new App({ clock: () => 0 });
+    const fresh = new App({ clock: () => 0, skipTitle: true });
     check('equipment (new)', collect(() => fresh.draw(ctx, 0)));
 
-    const later = new App({ clock: () => 0 });
+    const later = new App({ clock: () => 0, skipTitle: true });
     later.campaign.missionsWon = 2;
     later.campaign.roster = [
       { name: 'Lindqvist 2', kills: 99 }, { name: 'Kowalski 2', kills: 12 }, { name: 'Fontaine', kills: 5 }, { name: 'Dubois', kills: 2 },
@@ -91,11 +91,11 @@ describe('every screen lays out inside the canvas, with the longest content', ()
   });
 
   it('the title screen, with the largest numbers and the confirmation text', () => {
-    for (const armed of [false, true]) {
-      check('title', collect(() => drawTitle(ctx, {
-        missionNumber: 3, missionCount: 3, soldiers: 4, budget: 9999, armed,
-      })));
+    const saved = { mode: 'campaign' as const, missionNumber: 10, missionCount: 10, soldiers: 4, budget: 9999 };
+    for (const armed of [null, 'campaign', 'tutorial'] as const) {
+      check('title', collect(() => drawTitle(ctx, { continue: saved, armed })));
     }
+    check('title without a save', collect(() => drawTitle(ctx, { continue: null, armed: null })));
   });
 
   it('the equipment screen with gadgets, the longest names and a full stash line', () => {

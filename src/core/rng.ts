@@ -20,3 +20,13 @@ export function nextCrit(state: GameState): number {
   state.critState = r.next;
   return r.value;
 }
+
+/** A seeded stream for map generation: each call returns the next number in [0, 1). */
+export function seededRandom(seed: number): () => number {
+  let state = seed | 0;
+  return () => {
+    const r = step(state);
+    state = r.next;
+    return r.value;
+  };
+}

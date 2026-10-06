@@ -33,7 +33,7 @@ const loseAll = (): GameState => {
 /** An App with a clock the test controls, so post-switch input locks can be waited out. */
 function make(opts: AppOptions = {}) {
   let t = 0;
-  const app = new App({ clock: () => t, ...opts });
+  const app = new App({ clock: () => t, skipTitle: true, ...opts });
   return { app, wait: () => { t += 500; } };
 }
 
@@ -55,7 +55,7 @@ function playWin(app: App, wait: () => void, t: number): void {
 
 describe('App flow', () => {
   it('opens on the equipment screen for Mission 1 with the default loadout', () => {
-    const app = new App();
+    const app = new App({ skipTitle: true });
     expect(app.screen).toBe('equipment');
     expect(app.campaign.missionIndex).toBe(0);
     expect(app.loadout).toEqual(defaultLoadout());
@@ -63,7 +63,7 @@ describe('App flow', () => {
   });
 
   it('starts a mission with the chosen loadout and the roster names', () => {
-    const app = new App();
+    const app = new App({ skipTitle: true });
     app.click({ x: 100, y: 172 }); // weapon button of the third soldier: pistol to rifle
     expect(app.loadout[2].weapon).toBe('rifle');
     app.click(START);
@@ -74,13 +74,13 @@ describe('App flow', () => {
   });
 
   it('Enter starts the mission from the equipment screen', () => {
-    const app = new App();
+    const app = new App({ skipTitle: true });
     expect(app.key('Enter')).toBe(true);
     expect(app.screen).toBe('mission');
   });
 
   it('a blocked equipment click changes nothing', () => {
-    const app = new App();
+    const app = new App({ skipTitle: true });
     app.click({ x: 100, y: 172 }); // third soldier to rifle: credits 117
     const before = app.loadout;
     app.click({ x: 100, y: 224 }); // fourth soldier to rifle needs 12 more credits
@@ -165,7 +165,7 @@ describe('App flow', () => {
     expect(app.loadout).toEqual(cheapLoadout());
   });
 
-  it('a lost mission ends the campaign: Continue shows the end screen, New campaign resets', () => {
+  it('a lost mission ends the campaign: Continue shows the end screen, its button goes back to the title and a new run resets', () => {
     const { app, wait } = make({ createMission: loseAll });
     app.click({ x: 100, y: 172 });
     app.click(START);
@@ -179,7 +179,10 @@ describe('App flow', () => {
     app.click(CONTINUE);
     expect(app.screen).toBe('end');
     wait();
-    app.click(NEW_CAMPAIGN);
+    app.click(NEW_CAMPAIGN); // the MAIN MENU button
+    expect(app.screen).toBe('title');
+    wait();
+    app.click({ x: 240, y: 224 }); // TUTORIAL
     expect(app.screen).toBe('equipment');
     expect(app.campaign).toMatchObject({ missionIndex: 0, missionsWon: 0, status: 'active', fallen: [] });
     expect(app.loadout).toEqual(defaultLoadout());
@@ -199,7 +202,10 @@ describe('App flow', () => {
     app.click(CONTINUE);
     expect(app.screen).toBe('end');
     wait();
-    app.key('Enter'); // New campaign
+    app.key('Enter'); // Main menu
+    expect(app.screen).toBe('title');
+    wait();
+    app.key('t');
     expect(app.screen).toBe('equipment');
     expect(app.campaign.missionIndex).toBe(0);
   });
@@ -244,7 +250,7 @@ describe('input routing', () => {
     expect(app.screen).toBe('result');
   });
 
-  it('only Enter and the New campaign button act on the end screen', () => {
+  it('only Enter and the Main menu button act on the end screen', () => {
     const { app, wait } = make({ createMission: loseAll });
     app.click(START);
     app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });
@@ -325,7 +331,7 @@ describe('input guard after a screen switch', () => {
   });
 
   it('ignores Enter auto-repeat on the equipment screen too', () => {
-    const app = new App();
+    const app = new App({ skipTitle: true });
     app.key('Enter', true);
     expect(app.screen).toBe('equipment');
   });
@@ -437,8 +443,8 @@ describe('loot after a mission', () => {
   });
 });
 
-const CONTINUE_T = { x: 240, y: 174 }; // CONTINUE on the title screen
-const NEW_T = { x: 240, y: 214 }; // NEW CAMPAIGN on the title screen
+const CONTINUE_T = { x: 240, y: 144 }; // CONTINUE on the title screen
+const NEW_T = { x: 240, y: 224 }; // TUTORIAL on the title screen (the saved game in these tests is the tutorial, so it is the button that replaces the save)
 
 function memoryStorage(initial?: string) {
   const data = new Map<string, string>();
@@ -475,6 +481,7 @@ describe('App saving and loading', () => {
     expect(mem.data.has(SAVE_KEY)).toBe(true);
     const reloaded = new App({ store: new SaveStore(mem, 3) });
     expect(reloaded.screen).toBe('title');
+    reloaded.click(CONTINUE_T); // the saved campaign is adopted when CONTINUE is pressed
     expect(reloaded.campaign).toEqual(app.campaign);
     expect(reloaded.loadout).toEqual(fitLoadout(app.loadout, campaignBudget(app.campaign), app.campaign.stash));
   });
@@ -491,7 +498,7 @@ describe('App saving and loading', () => {
     }
   });
 
-  it('NEW CAMPAIGN needs a second press, then clears the save and starts fresh', () => {
+  it('TUTORIAL over a tutorial save needs a second press, then clears the save and starts fresh', () => {
     const { mem, app, wait } = reopened();
     wait();
     app.click(NEW_T);
@@ -504,14 +511,14 @@ describe('App saving and loading', () => {
     expect(mem.data.has(SAVE_KEY)).toBe(false);
   });
 
-  it('the N key works the same way, and the first press arms without clearing', () => {
+  it('the T key works the same way, and the first press arms without clearing', () => {
     const { mem, app, wait } = reopened();
     wait();
-    app.key('n');
+    app.key('t');
     expect(app.screen).toBe('title');
     expect(mem.data.has(SAVE_KEY)).toBe(true);
     wait();
-    app.key('N');
+    app.key('T');
     expect(app.screen).toBe('equipment');
     expect(mem.data.has(SAVE_KEY)).toBe(false);
   });
@@ -526,12 +533,12 @@ describe('App saving and loading', () => {
     expect(mem.data.has(SAVE_KEY)).toBe(true);
   });
 
-  it('a held N or a double click cannot wipe the save', () => {
+  it('a held T or a double click cannot wipe the save', () => {
     const held = reopened();
     held.wait();
-    held.app.key('n');
-    held.app.key('n', true); // keyboard auto-repeat
-    held.app.key('n', true);
+    held.app.key('t');
+    held.app.key('t', true); // keyboard auto-repeat
+    held.app.key('t', true);
     expect(held.app.screen).toBe('title');
     expect(held.mem.data.has(SAVE_KEY)).toBe(true);
 
