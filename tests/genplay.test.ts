@@ -42,7 +42,7 @@ describe.each(RECIPES.map((r, i) => [r.name, i] as const))('playing %s', (_name,
     expect(performance.now() - t0).toBeLessThan(60_000); // only a hang guard
     expect(out.state.units.every((u) => u.pos.x >= 0 && u.pos.y >= 0 && u.pos.x < r.width && u.pos.y < r.height)).toBe(true);
     expect(['playing', 'won', 'lost']).toContain(out.state.status);
-  });
+  }, 60_000); // a whole turn on the big maps takes up to 8 s when the suite runs in parallel on a busy machine
 });
 
 describe('the camera on the biggest map', () => {
