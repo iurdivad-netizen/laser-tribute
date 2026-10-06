@@ -1,9 +1,13 @@
-import { CAMPAIGN, type Campaign, type RosterSoldier } from './core/campaign';
+import { CAMPAIGN, type Campaign, type Mode, type RosterSoldier } from './core/campaign';
 import { ATTACHMENT_IDS, GADGET_IDS } from './core/config';
+import { CAMPAIGN_LENGTH, VARIATIONS } from './core/gen';
 import { defaultLoadout, type Loadout } from './core/loadout';
 import type { Stash } from './core/stash';
 
 export const SAVE_KEY = 'laser-tribute-save';
+export const CAMPAIGN_SAVE_KEY = 'laser-tribute-campaign';
+export const LAST_KEY = 'laser-tribute-last';
+const keyFor = (mode: Mode): string => (mode === 'campaign' ? CAMPAIGN_SAVE_KEY : SAVE_KEY);
 const SAVE_VERSION = 1;
 
 export interface SaveStorage {
@@ -71,8 +75,19 @@ function loadout(v: unknown): Loadout {
   return out;
 }
 
+/** The ten variations of a campaign save, or null when they are not exactly ten integers from 0 to 4. */
+function variationList(v: unknown): number[] | null {
+  if (!Array.isArray(v) || v.length !== CAMPAIGN_LENGTH) return null;
+  const out: number[] = [];
+  for (const n of v) {
+    if (!isInt(n, 0, VARIATIONS - 1)) return null;
+    out.push(n);
+  }
+  return out;
+}
+
 /** The saved campaign and loadout, or null when the text is missing or not a valid save. */
-export function parseSave(text: string | null, missionCount: number): Save | null {
+export function parseSave(text: string | null, missionCount: number, mode: Mode = 'tutorial'): Save | null {
   if (text === null) return null;
   let raw: unknown;
   try {
@@ -84,14 +99,17 @@ export function parseSave(text: string | null, missionCount: number): Save | nul
   const c = raw.campaign;
   if (c.status !== 'active') return null;
   if (!isInt(c.missionIndex, 0, missionCount - 1) || c.missionsWon !== c.missionIndex) return null;
+  if (mode === 'campaign' ? c.mode !== 'campaign' : c.mode !== undefined && c.mode !== 'tutorial') return null;
+  const variations = mode === 'campaign' ? variationList(c.variations) : [];
+  if (!variations) return null;
   const roster = soldiers(c.roster, CAMPAIGN.rosterSize);
   const fallen = soldiers(c.fallen);
   const gear = stash(c.stash);
   if (!roster || !fallen || !gear) return null;
   if (!isInt(c.namesUsed, CAMPAIGN.rosterSize, 9999)) return null;
   const campaign: Campaign = {
-    mode: 'tutorial',
-    variations: [],
+    mode,
+    variations,
     missionIndex: c.missionIndex,
     missionsWon: c.missionIndex,
     roster,
@@ -108,11 +126,12 @@ export class SaveStore {
   constructor(
     private readonly storage: SaveStorage | null,
     private readonly missionCount: number,
+    private readonly mode: Mode = 'tutorial',
   ) {}
 
   load(): Save | null {
     try {
-      return parseSave(this.storage?.getItem(SAVE_KEY) ?? null, this.missionCount);
+      return parseSave(this.storage?.getItem(keyFor(this.mode)) ?? null, this.missionCount, this.mode);
     } catch {
       return null;
     }
@@ -120,7 +139,7 @@ export class SaveStore {
 
   save(campaign: Campaign, loadout: Loadout): void {
     try {
-      this.storage?.setItem(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION, campaign, loadout }));
+      this.storage?.setItem(keyFor(this.mode), JSON.stringify({ version: SAVE_VERSION, campaign, loadout }));
     } catch {
       // private mode or a full disk: carry on unsaved
     }
@@ -128,19 +147,56 @@ export class SaveStore {
 
   clear(): void {
     try {
-      this.storage?.removeItem(SAVE_KEY);
+      this.storage?.removeItem(keyFor(this.mode));
     } catch {
       // nothing to do
     }
   }
 }
 
-/** A store over the browser's localStorage, or null where there is none (tests, blocked storage). */
-export function defaultSaveStore(missionCount: number): SaveStore | null {
+/** Which mode was played last, so CONTINUE can pick it. Every storage error is swallowed. */
+export class LastMode {
+  constructor(private readonly storage: SaveStorage | null) {}
+
+  get(): Mode | null {
+    try {
+      const v = this.storage?.getItem(LAST_KEY);
+      return v === 'tutorial' || v === 'campaign' ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  set(mode: Mode): void {
+    try {
+      this.storage?.setItem(LAST_KEY, mode);
+    } catch {
+      // carry on unsaved
+    }
+  }
+}
+
+function browserStorage(): SaveStorage | null {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    return new SaveStore(window.localStorage, missionCount);
+    return window.localStorage;
   } catch {
     return null;
   }
+}
+
+/** A store over the browser's localStorage, or null where there is none (tests, blocked storage). */
+export function defaultSaveStore(missionCount: number): SaveStore | null {
+  const s = browserStorage();
+  return s ? new SaveStore(s, missionCount) : null;
+}
+
+export function defaultCampaignStore(): SaveStore | null {
+  const s = browserStorage();
+  return s ? new SaveStore(s, CAMPAIGN_LENGTH, 'campaign') : null;
+}
+
+export function defaultLastMode(): LastMode | null {
+  const s = browserStorage();
+  return s ? new LastMode(s) : null;
 }
