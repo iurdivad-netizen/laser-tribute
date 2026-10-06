@@ -15,7 +15,13 @@ export interface RosterSoldier {
   kills: number;
 }
 
+/** The hand-drawn tutorial or the generated ten-mission campaign. */
+export type Mode = 'tutorial' | 'campaign';
+
 export interface Campaign {
+  mode: Mode;
+  /** Campaign only: the variation (0 to 4) of each of the ten map types for this run; empty in the tutorial. */
+  variations: number[];
   missionIndex: number;
   missionsWon: number;
   roster: RosterSoldier[];
@@ -32,8 +38,10 @@ export function soldierName(index: number): string {
   return round === 0 ? base : `${base} ${round + 1}`;
 }
 
-export function newCampaign(): Campaign {
+export function newCampaign(mode: Mode = 'tutorial', variations: number[] = []): Campaign {
   return {
+    mode,
+    variations: [...variations],
     missionIndex: 0,
     missionsWon: 0,
     roster: Array.from({ length: CAMPAIGN.rosterSize }, (_, i) => ({ name: soldierName(i), kills: 0 })),
@@ -100,5 +108,5 @@ export function recordMission(
   // A lost mission (or an unknown kit) leaves the stash as it was.
   const stash = won && used ? capStash(addStash(nextStash(c.stash, used, finished), lootFrom(finished))) : { ...c.stash };
 
-  return { missionIndex, missionsWon, roster, fallen, namesUsed, status, stash };
+  return { mode: c.mode, variations: [...c.variations], missionIndex, missionsWon, roster, fallen, namesUsed, status, stash };
 }

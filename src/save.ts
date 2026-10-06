@@ -90,6 +90,8 @@ export function parseSave(text: string | null, missionCount: number): Save | nul
   if (!roster || !fallen || !gear) return null;
   if (!isInt(c.namesUsed, CAMPAIGN.rosterSize, 9999)) return null;
   const campaign: Campaign = {
+    mode: 'tutorial',
+    variations: [],
     missionIndex: c.missionIndex,
     missionsWon: c.missionIndex,
     roster,
