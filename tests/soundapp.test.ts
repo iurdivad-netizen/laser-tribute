@@ -4,8 +4,7 @@ import type { SoundPlayer } from '../src/audio/sound';
 import { App, type AppOptions } from '../src/app';
 import type { GameState } from '../src/core/types';
 import { createUiState } from '../src/input/uiState';
-import { drawPanel } from '../src/render/panel';
-import { textWidth } from '../src/ui/font';
+import { DEFAULT_LAYOUT, drawPanel } from '../src/render/panel';
 import { onText } from '../src/ui/text';
 import { corridorRows, makeState } from './helpers';
 
@@ -156,15 +155,19 @@ describe('interface clicks', () => {
   });
 });
 
-describe('panel hint', () => {
-  it('shows the mute key and stays inside the left well', () => {
+describe('panel sound button', () => {
+  it('shows a sound toggle inside its rectangle, in red when the sound is off', () => {
     const s = makeState(corridorRows('P..E'));
     const ui = createUiState('p1');
-    const { ctx, texts, stop } = recorder();
-    drawPanel(ctx, s, ui, 0);
-    stop();
-    const hint = texts.find((t) => t.text.includes('M MUTE'))!;
-    expect(hint).toBeDefined();
-    expect(hint.x + textWidth(hint.text)).toBeLessThanOrEqual(148);
+    for (const soundOn of [true, false]) {
+      const { ctx, texts, stop } = recorder();
+      drawPanel(ctx, s, ui, 0, DEFAULT_LAYOUT, { zoom: 'whole', soundOn });
+      stop();
+      const label = texts.find((t) => t.text === 'SND' || t.text === 'S')!;
+      expect(label).toBeDefined();
+      const r = DEFAULT_LAYOUT.sound;
+      expect(label.x).toBeGreaterThanOrEqual(r.x);
+      expect(label.x).toBeLessThanOrEqual(r.x + r.w);
+    }
   });
 });

@@ -14,14 +14,18 @@ import type { GameState, Pos } from './core/types';
 import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
-import { VIEW, screenToTile } from './render/layout';
-import { buttonAt } from './render/panel';
+import {
+  createCamera, followTile, panBy, screenToTile, setZoom, tileToScreen, type Camera,
+} from './render/camera';
+import { VIEW } from './render/layout';
+import { cancelHit, panelButtonAt, soundHit, squadAt } from './render/panel';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
 import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { drawResult, resultHit } from './screens/result';
+import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit } from './screens/title';
 import { defaultSaveStore, type SaveStore } from './save';
 import { textWidth } from './ui/font';
@@ -44,6 +48,10 @@ export interface AppOptions {
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
+  /** The window size in CSS pixels and the device pixel ratio (default 480x400 at 1). */
+  width?: number;
+  height?: number;
+  dpr?: number;
   /** Where the campaign is saved; undefined uses the browser's storage, null turns saving off. */
   store?: SaveStore | null;
 }
@@ -57,6 +65,14 @@ export class App {
   promoted: string[] = [];
   /** What the squad recovered from the dead enemies after the last won mission, as text. */
   loot = '';
+  /** Where the mission screen's rectangles are, and which part of the map is shown. */
+  layout: Layout;
+  camera: Camera;
+  private width: number;
+  private height: number;
+  private dpr: number;
+  /** What the camera last saw of the selection and the turn, to follow when they change. */
+  private watch = { id: '', x: -1, y: -1, enemyTurn: false, event: '' };
 
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
@@ -83,6 +99,11 @@ export class App {
       opts.createMission ??
       ((def, seed, roster, loadout, budget, stash) =>
         createMission(def, seed, roster, loadout, budget, stash));
+    this.width = opts.width ?? LEGACY_SIZE.width;
+    this.height = opts.height ?? LEGACY_SIZE.height;
+    this.dpr = opts.dpr ?? 1;
+    this.layout = computeLayout(this.width, this.height, this.dpr);
+    this.camera = createCamera(this.layout, 30, 20);
     this.store = opts.store === undefined ? defaultSaveStore(this.missions.length) : opts.store;
     const saved = this.store?.load() ?? null;
     if (saved) {
@@ -95,6 +116,104 @@ export class App {
   private notice(text: string): void {
     this.noticeText = text;
     this.noticeUntil = this.clock() + 1500;
+  }
+
+  /** Centres the camera on the selected soldier and turns following on. */
+  private followSelected(): void {
+    const c = this.controller;
+    const sel = c?.selected();
+    if (!c || !sel) return;
+    this.camera = followTile(this.camera, sel.pos, this.layout, c.state.width, c.state.height);
+    this.watch = { id: sel.id, x: sel.pos.x, y: sel.pos.y, enemyTurn: c.state.turn === 'enemy', event: this.watch.event };
+  }
+
+  /** The window changed size (or turned): new layout, the camera back on the selected soldier, no half-made action. */
+  resize(width: number, height: number, dpr: number): void {
+    if (width < 120 || height < 120) return; // a hidden or not yet laid-out canvas
+    this.width = width;
+    this.height = height;
+    this.dpr = dpr;
+    this.layout = computeLayout(width, height, dpr);
+    const c = this.controller;
+    if (!c) return;
+    const zoom = this.camera.zoom;
+    this.camera = setZoom(createCamera(this.layout, c.state.width, c.state.height), zoom, this.layout, c.state.width, c.state.height);
+    c.cancel();
+    this.followSelected();
+  }
+
+  /** The menus are drawn 480x400 and scaled to fit the window, centred. */
+  menuTransform(): { scale: number; x: number; y: number } {
+    const scale = Math.min(this.width / VIEW.width, this.height / VIEW.height);
+    return { scale, x: (this.width - VIEW.width * scale) / 2, y: (this.height - VIEW.height * scale) / 2 };
+  }
+
+  private toMenu(p: Pos): Pos {
+    const m = this.menuTransform();
+    return { x: (p.x - m.x) / m.scale, y: (p.y - m.y) / m.scale };
+  }
+
+  /** A finger dragged the map by (dx, dy) pixels. */
+  pan(dx: number, dy: number): void {
+    const c = this.controller;
+    if (this.screen !== 'mission' || !c) return;
+    this.camera = panBy(this.camera, dx, dy, this.layout, c.state.width, c.state.height);
+  }
+
+  /** A long press on the map leaves the current mode (the touch version of right-click). */
+  longPress(p: Pos): void {
+    const c = this.controller;
+    if (this.screen === 'mission' && c) {
+      const L = this.layout;
+      const onControl = soundHit(L, p.x, p.y) || (c.ui.mode !== 'move' && cancelHit(L, p.x, p.y));
+      if (!onControl && screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y)) {
+        c.cancel(); // holding still on the map leaves the current mode
+        return;
+      }
+    }
+    this.click(p, 'touch'); // anywhere else a slow press is just a press
+  }
+
+  private tileOnScreen(pos: Pos, c: Controller): boolean {
+    const s = tileToScreen(this.camera, this.layout, c.state.width, c.state.height, pos);
+    const m = this.layout.map;
+    const cx = s.x + s.tile / 2;
+    const cy = s.y + s.tile / 2;
+    return cx >= m.x && cx < m.x + m.w && cy >= m.y && cy < m.y + m.h;
+  }
+
+  /** Follows the selected soldier when he changes or moves, and a visible event off screen during the enemy turn. */
+  private trackCamera(c: Controller): void {
+    const sel = c.selected();
+    if (c.state.turn === 'enemy') {
+      // follow each new visible event that is off screen once; a pan by hand stands until the next event
+      const at = c.lastEventAt;
+      const key = at ? `${at.x},${at.y}` : '';
+      if (at && key !== this.watch.event && !this.tileOnScreen(at, c)) {
+        this.camera = followTile(this.camera, at, this.layout, c.state.width, c.state.height);
+      }
+      this.watch.event = key;
+      this.watch.enemyTurn = true;
+      return;
+    }
+    const changed = !!sel && (sel.id !== this.watch.id || sel.pos.x !== this.watch.x || sel.pos.y !== this.watch.y);
+    if (changed || this.watch.enemyTurn) this.followSelected();
+    this.watch.enemyTurn = false;
+  }
+
+  private selectSquad(i: number): void {
+    const c = this.controller;
+    const unit = c?.state.units.filter((u) => u.side === 'player')[i];
+    if (!c || !unit || !c.select(unit.id)) return;
+    this.followSelected();
+  }
+
+  private toggleZoom(): void {
+    const c = this.controller;
+    if (!c) return;
+    const zoom = this.camera.zoom === 'close' ? 'whole' : 'close';
+    this.camera = setZoom(this.camera, zoom, this.layout, c.state.width, c.state.height);
+    if (zoom === 'close') this.followSelected(); // zooming in goes to the soldier, not to wherever the map was centred
   }
 
   /** Sound keys work on every screen: M mutes, - and = change the volume. */
@@ -130,6 +249,8 @@ export class App {
     );
     this.usedLoadout = this.loadout;
     this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
+    this.camera = createCamera(this.layout, state.width, state.height);
+    this.followSelected();
     this.playedName = def.name;
     this.result = null;
     this.promoted = [];
@@ -188,18 +309,19 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
-  click(p: Pos): void {
+  click(p: Pos, pointer: 'mouse' | 'touch' = 'mouse'): void {
     this.sound.unlock();
     if (this.locked()) return;
+    const mp = this.toMenu(p);
     switch (this.screen) {
       case 'title': {
-        const hit = titleHit(p.x, p.y);
+        const hit = titleHit(mp.x, mp.y);
         if (hit === 'continue') this.continueFromTitle();
         else if (hit === 'new') this.pressNew();
         return;
       }
       case 'equipment': {
-        const hit = equipmentHit(p.x, p.y);
+        const hit = equipmentHit(mp.x, mp.y);
         if (!hit) return;
         if (hit.kind === 'start') {
           this.startMission();
@@ -213,30 +335,46 @@ export class App {
       case 'mission': {
         const c = this.controller;
         if (!c) return;
-        const button = buttonAt(p.x, p.y);
-        if (button) {
-          c.pressButton(button);
+        const L = this.layout;
+        if (c.ui.mode !== 'move' && cancelHit(L, p.x, p.y)) {
+          c.cancel();
           return;
         }
-        const t = screenToTile(p.x, p.y, c.state.width, c.state.height);
-        if (t) c.clickTile(t);
+        if (soundHit(L, p.x, p.y)) {
+          this.notice(this.sound.toggleMute());
+          return;
+        }
+        const squad = squadAt(L, p.x, p.y);
+        if (squad !== null) {
+          this.selectSquad(squad);
+          return;
+        }
+        const button = panelButtonAt(L, p.x, p.y);
+        if (button) {
+          if (button === 'zoom') this.toggleZoom();
+          else c.pressButton(button);
+          return;
+        }
+        const t = screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y);
+        if (t) c.clickTile(t, pointer === 'touch');
         return;
       }
       case 'result':
-        if (resultHit(p.x, p.y) === 'again') this.continueFromResult();
+        if (resultHit(mp.x, mp.y) === 'again') this.continueFromResult();
         return;
       case 'end':
-        if (endHit(p.x, p.y) === 'new') this.newCampaignScreen();
+        if (endHit(mp.x, mp.y) === 'new') this.newCampaignScreen();
         return;
     }
   }
 
   move(p: Pos): void {
     if (this.screen === 'equipment') {
-      this.hover = equipmentHit(p.x, p.y);
+      const mp = this.toMenu(p);
+      this.hover = equipmentHit(mp.x, mp.y);
     } else if (this.screen === 'mission' && this.controller) {
       const c = this.controller;
-      c.hover(screenToTile(p.x, p.y, c.state.width, c.state.height));
+      c.hover(screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
     }
   }
 
@@ -267,6 +405,10 @@ export class App {
         }
         return false;
       case 'mission':
+        if (k === 'z' || k === 'Z') {
+          this.toggleZoom();
+          return true;
+        }
         return this.controller ? this.controller.key(k) : false;
       case 'result':
         if (k === 'Enter') {
@@ -291,6 +433,7 @@ export class App {
   update(now: number): void {
     const c = this.controller;
     if (this.screen !== 'mission' || !c) return;
+    this.trackCamera(c);
     if (c.state.status === 'playing') {
       this.endedAt = null;
       return;
@@ -339,60 +482,79 @@ export class App {
   }
 
   draw(ctx: CanvasRenderingContext2D, now: number): void {
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false; // scaled pixel art and text stay crisp
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, this.width, this.height);
     this.drawScreen(ctx, now);
-    this.drawSoundHint(ctx);
+    const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end';
+    if (menu) this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
+    else this.drawSoundHint(ctx, this.width, false);
   }
 
-  private drawSoundHint(ctx: CanvasRenderingContext2D): void {
+  /** Runs `draw` in the 480x400 menu space, scaled and centred in the window. */
+  private inMenuSpace(ctx: CanvasRenderingContext2D, draw: () => void): void {
+    const m = this.menuTransform();
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.scale(m.scale, m.scale);
+    draw();
+    ctx.restore();
+  }
+
+  private drawSoundHint(ctx: CanvasRenderingContext2D, rightEdge: number, persistent: boolean): void {
     if (this.clock() < this.noticeUntil) {
       const w = textWidth(this.noticeText) + 10;
-      drawFrame(ctx, VIEW.width - 6 - w, 2, w, 13, 'inset');
-      drawText(ctx, this.noticeText, VIEW.width - 11, 5, UI.accent, 'right');
-    } else if (this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end') {
-      drawText(ctx, 'M: sound on/off   - =: volume', VIEW.width - 6, VIEW.height - 12, UI.hint, 'right');
+      drawFrame(ctx, rightEdge - 6 - w, 2, w, 13, 'inset');
+      drawText(ctx, this.noticeText, rightEdge - 11, 5, UI.accent, 'right');
+    } else if (persistent) {
+      drawText(ctx, 'M: sound on/off   - =: volume', rightEdge - 6, VIEW.height - 12, UI.hint, 'right');
     }
   }
 
   private drawScreen(ctx: CanvasRenderingContext2D, now: number): void {
     if (this.screen === 'title') {
       const c = this.campaign;
-      drawTitle(ctx, {
+      this.inMenuSpace(ctx, () => drawTitle(ctx, {
         missionNumber: c.missionIndex + 1,
         missionCount: this.missions.length,
         soldiers: c.roster.length,
         budget: this.budget(),
         armed: this.clock() < this.newArmedUntil,
-      });
+      }));
       return;
     }
     if (this.screen === 'equipment') {
-      drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
+      this.inMenuSpace(ctx, () => drawEquipment(ctx, this.loadout, this.hover, this.equipmentView()));
       return;
     }
     if (this.screen === 'end') {
       const c = this.campaign;
-      drawCampaignEnd(ctx, {
+      this.inMenuSpace(ctx, () => drawCampaignEnd(ctx, {
         won: c.status === 'won',
         missionsWon: c.missionsWon,
         missionCount: this.missions.length,
         totalKills: totalKills(c) + c.fallen.reduce((sum, f) => sum + f.kills, 0),
         survivors: c.roster.map((r) => r.name),
         fallen: c.fallen.map((f) => f.name),
-      });
+      }));
       return;
     }
     const c = this.controller;
     if (!c) return;
-    drawGame(ctx, c.state, c.ui, c.effects, now);
+    drawGame(ctx, c.state, c.ui, c.effects, now, undefined, { layout: this.layout, camera: this.camera }, {
+      zoom: this.camera.zoom,
+      soundOn: !this.sound.muted,
+    });
     if (this.screen === 'result' && this.result) {
-      drawResult(ctx, {
-        result: this.result,
+      this.inMenuSpace(ctx, () => drawResult(ctx, {
+        result: this.result!,
         missionName: this.playedName,
         fallen: this.fallenNow,
         nextBudget: this.campaign.status === 'active' ? this.budget() : null,
         promoted: this.promoted,
         loot: this.loot,
-      });
+      }));
     }
   }
 }

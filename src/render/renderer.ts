@@ -5,10 +5,11 @@ import { CONFIG } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
 import type { UiState } from '../input/uiState';
-import type { Effects } from './effects';
-import { VIEW } from './layout';
+import type { Layout } from '../ui/layout';
 import { drawText } from '../ui/text';
-import { drawPanel } from './panel';
+import { type Camera, createCamera, originOf } from './camera';
+import type { Effects } from './effects';
+import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
 
 const T = CONFIG.tileSize;
 
@@ -29,6 +30,17 @@ function tileSprite(state: GameState, x: number, y: number): SpriteName {
   return `floor_${floorVariant(x, y)}` as SpriteName;
 }
 
+/** Where the map and the panel are on the screen, and which part of the map is shown. */
+export interface MissionView {
+  layout: Layout;
+  camera: Camera;
+}
+
+/** The view of a 480x400 window with the whole map in sight (used when no view is given, e.g. in tests). */
+export function defaultView(state: GameState): MissionView {
+  return { layout: DEFAULT_LAYOUT, camera: createCamera(DEFAULT_LAYOUT, state.width, state.height) };
+}
+
 export function drawGame(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -36,10 +48,22 @@ export function drawGame(
   effects: Effects,
   now: number,
   art: Atlas = defaultAtlas,
+  view: MissionView = defaultView(state),
+  extras?: PanelExtras,
 ): void {
+  const { layout, camera } = view;
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+  ctx.fillRect(0, 0, layout.width, layout.height);
+
+  // the world is drawn in 16-pixel tile coordinates through the camera, clipped to the map rectangle
+  const origin = originOf(camera, layout, state.width, state.height);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(layout.map.x, layout.map.y, layout.map.w, layout.map.h);
+  ctx.clip();
+  ctx.translate(origin.x, origin.y);
+  ctx.scale(origin.tile / T, origin.tile / T);
 
   const visible = computeVisible(state, 'player');
 
@@ -113,5 +137,7 @@ export function drawGame(
   }
 
   effects.draw(ctx, now, art);
-  drawPanel(ctx, state, ui, now);
+  ctx.restore();
+
+  drawPanel(ctx, state, ui, now, layout, extras ?? { zoom: camera.zoom, soundOn: true });
 }

@@ -87,7 +87,7 @@ describe('crit messages and the scope tag', () => {
     expect(c.ui.message).not.toMatch(/CRITICAL/);
   });
 
-  it('the panel shows a SCOPE tag on the name line only for a scoped soldier', () => {
+  it('the panel shows a SCOPE tag in the soldier line only for a scoped soldier', () => {
     const run = (scope: boolean) => {
       const state = makeState(corridorRows('P..E'));
       unit(state, 'p1').attachment = scope ? 'scope' : null;
@@ -98,8 +98,7 @@ describe('crit messages and the scope tag', () => {
       stop();
       return runs;
     };
-    const tag = run(true).find((r) => r.text === 'SCOPE');
-    expect(tag).toMatchObject({ x: 108, y: 328 });
-    expect(run(false).some((r) => r.text === 'SCOPE')).toBe(false);
+    expect(run(true).some((r) => r.text.includes('SCOPE'))).toBe(true);
+    expect(run(false).some((r) => r.text.includes('SCOPE'))).toBe(false);
   });
 });

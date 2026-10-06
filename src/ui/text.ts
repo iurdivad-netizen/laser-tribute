@@ -22,6 +22,9 @@ export function onText(listener: (run: TextRun) => void): () => void {
   };
 }
 
+/** The pixel width of `text` drawn at an integer or fractional `scale`. */
+export const scaledWidth = (text: string, scale = 1): number => textWidth(text) * scale;
+
 /** Bakes each glyph once per colour into a small canvas, then stamps it. Draws nothing without a canvas. */
 export class FontAtlas {
   private cache = new Map<string, CanvasLike | null>();
@@ -43,15 +46,20 @@ export class FontAtlas {
     return baked;
   }
 
-  draw(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, colour: string, align: Align = 'left'): boolean {
-    const width = textWidth(text);
+  draw(
+    ctx: CanvasRenderingContext2D, text: string, x: number, y: number, colour: string, align: Align = 'left', scale = 1,
+  ): boolean {
+    const width = textWidth(text) * scale;
     const start = align === 'left' ? x : align === 'right' ? x - width : x - Math.floor(width / 2);
     let drew = false;
     for (let i = 0; i < text.length; i++) {
       if (text[i] === ' ') continue;
       const g = this.glyph(text[i], colour);
       if (!g) continue;
-      ctx.drawImage(g as unknown as CanvasImageSource, Math.round(start + i * ADVANCE), Math.round(y));
+      const gx = Math.round(start + i * ADVANCE * scale);
+      const gy = Math.round(y);
+      if (scale === 1) ctx.drawImage(g as unknown as CanvasImageSource, gx, gy);
+      else ctx.drawImage(g as unknown as CanvasImageSource, gx, gy, GLYPH_W * scale, GLYPH_H * scale);
       drew = true;
     }
     return drew;
@@ -68,9 +76,10 @@ export function drawText(
   colour: string,
   align: Align = 'left',
   atlas: FontAtlas = defaultFont,
+  scale = 1,
 ): void {
-  for (const listener of listeners) listener({ text, x, y, colour, align, width: textWidth(text) });
-  atlas.draw(ctx, text, x, y, colour, align);
+  for (const listener of listeners) listener({ text, x, y, colour, align, width: textWidth(text) * scale });
+  atlas.draw(ctx, text, x, y, colour, align, scale);
 }
 
 /** The text, or the longest start of it followed by "..." that is at most `maxPx` pixels wide. */
