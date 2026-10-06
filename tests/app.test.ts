@@ -165,7 +165,7 @@ describe('App flow', () => {
     expect(app.loadout).toEqual(cheapLoadout());
   });
 
-  it('a lost mission ends the campaign: Continue shows the end screen, New campaign resets', () => {
+  it('a lost mission ends the campaign: Continue shows the end screen, its button goes back to the title and a new run resets', () => {
     const { app, wait } = make({ createMission: loseAll });
     app.click({ x: 100, y: 172 });
     app.click(START);
@@ -179,7 +179,10 @@ describe('App flow', () => {
     app.click(CONTINUE);
     expect(app.screen).toBe('end');
     wait();
-    app.click(NEW_CAMPAIGN);
+    app.click(NEW_CAMPAIGN); // the MAIN MENU button
+    expect(app.screen).toBe('title');
+    wait();
+    app.click({ x: 240, y: 224 }); // TUTORIAL
     expect(app.screen).toBe('equipment');
     expect(app.campaign).toMatchObject({ missionIndex: 0, missionsWon: 0, status: 'active', fallen: [] });
     expect(app.loadout).toEqual(defaultLoadout());
@@ -199,7 +202,10 @@ describe('App flow', () => {
     app.click(CONTINUE);
     expect(app.screen).toBe('end');
     wait();
-    app.key('Enter'); // New campaign
+    app.key('Enter'); // Main menu
+    expect(app.screen).toBe('title');
+    wait();
+    app.key('t');
     expect(app.screen).toBe('equipment');
     expect(app.campaign.missionIndex).toBe(0);
   });
@@ -244,7 +250,7 @@ describe('input routing', () => {
     expect(app.screen).toBe('result');
   });
 
-  it('only Enter and the New campaign button act on the end screen', () => {
+  it('only Enter and the Main menu button act on the end screen', () => {
     const { app, wait } = make({ createMission: loseAll });
     app.click(START);
     app.controller!.run({ type: 'Turn', unitId: 'e1', facing: 6 });

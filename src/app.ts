@@ -364,6 +364,19 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /** Back to the title from the end screen, where either mode can be started again. */
+  private toTitle(): void {
+    this.controller = null;
+    this.result = null;
+    this.promoted = [];
+    this.endedAt = null;
+    this.hover = null;
+    this.newArmedUntil = 0;
+    this.screen = 'title';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
   /** A fresh run of `mode` on the equipment screen. */
   private begin(mode: Mode): void {
     this.campaign = mode === 'campaign' ? newCampaign('campaign', drawVariations(this.newSeed())) : newCampaign();
@@ -436,7 +449,7 @@ export class App {
         if (resultHit(mp.x, mp.y) === 'again') this.continueFromResult();
         return;
       case 'end':
-        if (endHit(mp.x, mp.y) === 'new') this.begin(this.campaign.mode);
+        if (endHit(mp.x, mp.y) === 'new') this.toTitle();
         return;
     }
   }
@@ -491,7 +504,7 @@ export class App {
         return false;
       case 'end':
         if (k === 'Enter') {
-          if (!this.locked()) this.begin(this.campaign.mode);
+          if (!this.locked()) this.toTitle();
           return true;
         }
         return false;
@@ -602,6 +615,7 @@ export class App {
     if (this.screen === 'end') {
       const c = this.campaign;
       this.inMenuSpace(ctx, () => drawCampaignEnd(ctx, {
+        mode: c.mode,
         won: c.status === 'won',
         missionsWon: c.missionsWon,
         missionCount: this.missionCount(),

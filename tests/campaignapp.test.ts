@@ -244,15 +244,18 @@ describe('two slots', () => {
 });
 
 describe('screens by mode', () => {
-  it('the end screen of a finished tutorial offers a new tutorial', () => {
+  it('the end screen leads back to the title, from where either mode can be started', () => {
     const t = setup(memory(), { createMission: () => makeState(corridorRows('PPPPE')) });
     t.app.click(TUTORIAL);
     expect(t.app.campaign.mode).toBe('tutorial');
     t.app.campaign = { ...t.app.campaign, status: 'lost' };
     t.app.screen = 'end';
     t.wait();
-    t.app.click({ x: 240, y: 252 }); // NEW CAMPAIGN button of the end screen
-    expect(t.app.campaign.mode).toBe('tutorial');
+    t.app.click({ x: 240, y: 252 }); // MAIN MENU button of the end screen
+    expect(t.app.screen).toBe('title');
+    t.wait();
+    t.app.click(CAMPAIGN);
     expect(t.app.screen).toBe('equipment');
+    expect(t.app.campaign.mode).toBe('campaign');
   });
 });

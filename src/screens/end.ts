@@ -1,9 +1,12 @@
+import type { Mode } from '../core/campaign';
 import { VIEW } from '../render/layout';
 import { ADVANCE } from '../ui/font';
 import { UI, drawButton, drawFrame } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
 
 export interface EndView {
+  /** Which game just ended; the heading says so. Defaults to the campaign. */
+  mode?: Mode;
   won: boolean;
   missionsWon: number;
   missionCount: number;
@@ -30,7 +33,8 @@ export function drawCampaignEnd(ctx: CanvasRenderingContext2D, v: EndView): void
   const c = END.card;
   drawFrame(ctx, c.x, c.y, c.w, c.h, 'raised');
   drawFrame(ctx, c.x + 8, c.y + 8, c.w - 16, 30, 'inset');
-  drawText(ctx, v.won ? 'CAMPAIGN COMPLETE' : 'CAMPAIGN LOST', c.x + c.w / 2, c.y + 20, v.won ? UI.green : UI.red, 'center');
+  const game = v.mode === 'tutorial' ? 'TUTORIAL' : 'CAMPAIGN';
+  drawText(ctx, `${game} ${v.won ? 'COMPLETE' : 'LOST'}`, c.x + c.w / 2, c.y + 20, v.won ? UI.green : UI.red, 'center');
 
   const x = c.x + 30;
   const room = c.w - 30 - 8; // 262 px
@@ -43,5 +47,5 @@ export function drawCampaignEnd(ctx: CanvasRenderingContext2D, v: EndView): void
   drawText(ctx, `${fallenLabel}${clipText(fallen, room - fallenLabel.length * ADVANCE)}`, x, c.y + 130, UI.text);
 
   const b = END.again;
-  drawButton(ctx, { x: b.x, y: b.y, w: b.w, h: b.h }, 'NEW CAMPAIGN (Enter)', 'raised');
+  drawButton(ctx, { x: b.x, y: b.y, w: b.w, h: b.h }, 'MAIN MENU (Enter)', 'raised');
 }

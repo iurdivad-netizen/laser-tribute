@@ -60,8 +60,18 @@ describe('end screen', () => {
       expect(left(r), r.text).toBeGreaterThanOrEqual(90);
       expect(left(r) + r.width, r.text).toBeLessThanOrEqual(390 - 8);
     }
-    const button = runs.find((r) => r.text.includes('NEW CAMPAIGN'))!;
+    const button = runs.find((r) => r.text.includes('MAIN MENU'))!;
     expect(textWidth(button.text) + 6).toBeLessThanOrEqual(130);
     expect(runs.some((r) => r.text.includes('CAMPAIGN COMPLETE'))).toBe(true);
+  });
+
+  it('says tutorial for a tutorial, and campaign otherwise', () => {
+    const base = { missionsWon: 1, missionCount: 3, totalKills: 2, survivors: ['Alvarez'], fallen: [] as string[] };
+    const heading = (v: Parameters<typeof drawCampaignEnd>[1]) =>
+      collect((ctx) => drawCampaignEnd(ctx, v)).map((r) => r.text).filter((t) => /COMPLETE|LOST/.test(t));
+    expect(heading({ ...base, won: true, mode: 'tutorial' })).toEqual(['TUTORIAL COMPLETE']);
+    expect(heading({ ...base, won: false, mode: 'tutorial' })).toEqual(['TUTORIAL LOST']);
+    expect(heading({ ...base, won: true, mode: 'campaign' })).toEqual(['CAMPAIGN COMPLETE']);
+    expect(heading({ ...base, won: false })).toEqual(['CAMPAIGN LOST']);
   });
 });
