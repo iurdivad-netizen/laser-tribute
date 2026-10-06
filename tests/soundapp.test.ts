@@ -29,7 +29,7 @@ const winTiny = (): GameState => makeState(corridorRows('P..'));
 function make(opts: AppOptions = {}) {
   let t = 0;
   const sound = new FakeSound();
-  const app = new App({ clock: () => t, sound, ...opts });
+  const app = new App({ clock: () => t, sound, skipTitle: true, ...opts });
   return { app, sound, wait: () => { t += 500; } };
 }
 

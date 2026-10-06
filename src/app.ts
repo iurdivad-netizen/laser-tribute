@@ -2,8 +2,9 @@ import { Sound, type SoundPlayer } from './audio/sound';
 import { Controller } from './controller';
 import {
   budgetBreakdown, campaignBudget, newCampaign, recordMission, totalKills,
-  type Campaign, type RosterSoldier,
+  type Campaign, type Mode, type RosterSoldier,
 } from './core/campaign';
+import { CAMPAIGN_LENGTH, drawVariations, generateMission } from './core/gen';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
 import { addStash, capStash, lootFrom } from './core/loot';
@@ -26,8 +27,8 @@ import {
 } from './screens/equipment';
 import { drawResult, resultHit } from './screens/result';
 import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
-import { drawTitle, titleHit } from './screens/title';
-import { defaultSaveStore, type SaveStore } from './save';
+import { drawTitle, titleHit, type TitleView } from './screens/title';
+import { defaultCampaignStore, defaultLastMode, defaultSaveStore, type LastMode, type Save, type SaveStore } from './save';
 import { textWidth } from './ui/font';
 import { UI, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
@@ -54,6 +55,14 @@ export interface AppOptions {
   dpr?: number;
   /** Where the campaign is saved; undefined uses the browser's storage, null turns saving off. */
   store?: SaveStore | null;
+  /** Where the generated campaign is saved (same rule as `store`: undefined uses the browser, null turns saving off). */
+  campaignStore?: SaveStore | null;
+  /** Remembers which mode was played last. */
+  last?: LastMode | null;
+  /** Builds a campaign mission from (type, variation); defaults to the generator. */
+  generate?: (type: number, variation: number) => MissionDef;
+  /** With no save to continue, start on the tutorial's equipment screen instead of the title (tests and tools). */
+  skipTitle?: boolean;
 }
 
 export class App {
@@ -83,6 +92,12 @@ export class App {
   private noticeUntil = 0;
   private usedLoadout: Loadout = [];
   private newArmedUntil = 0;
+  private armedMode: Mode | null = null;
+  private saves: { tutorial: Save | null; campaign: Save | null } = { tutorial: null, campaign: null };
+  private readonly campaignStore: SaveStore | null;
+  private readonly lastMode: LastMode | null;
+  private readonly generate: NonNullable<AppOptions['generate']>;
+  private generated = new Map<number, MissionDef>();
   private readonly store: SaveStore | null;
   private readonly clock: () => number;
   private readonly newSeed: () => number;
@@ -104,13 +119,13 @@ export class App {
     this.dpr = opts.dpr ?? 1;
     this.layout = computeLayout(this.width, this.height, this.dpr);
     this.camera = createCamera(this.layout, 30, 20);
-    this.store = opts.store === undefined ? defaultSaveStore(this.missions.length) : opts.store;
-    const saved = this.store?.load() ?? null;
-    if (saved) {
-      this.campaign = saved.campaign;
-      this.loadout = fitLoadout(saved.loadout, campaignBudget(saved.campaign), saved.campaign.stash);
-      this.screen = 'title';
-    }
+    const real = opts.store === undefined; // the real game; tests pass their own stores
+    this.store = real ? defaultSaveStore(this.missions.length) : (opts.store ?? null);
+    this.campaignStore = opts.campaignStore !== undefined ? opts.campaignStore : real ? defaultCampaignStore() : null;
+    this.lastMode = opts.last !== undefined ? opts.last : real ? defaultLastMode() : null;
+    this.generate = opts.generate ?? generateMission;
+    this.saves = { tutorial: this.store?.load() ?? null, campaign: this.campaignStore?.load() ?? null };
+    this.screen = this.continueMode() === null && opts.skipTitle ? 'equipment' : 'title';
   }
 
   private notice(text: string): void {
@@ -234,7 +249,14 @@ export class App {
   }
 
   private mission(): MissionDef {
-    return this.missions[Math.min(this.campaign.missionIndex, this.missions.length - 1)];
+    const i = Math.min(this.campaign.missionIndex, this.missionCount() - 1);
+    if (this.campaign.mode === 'tutorial') return this.missions[i];
+    let def = this.generated.get(i);
+    if (!def) {
+      def = this.generate(i, this.campaign.variations[i]);
+      this.generated.set(i, def);
+    }
+    return def;
   }
 
   private budget(): number {
@@ -251,7 +273,7 @@ export class App {
     this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
     this.camera = createCamera(this.layout, state.width, state.height);
     this.followSelected();
-    this.playedName = def.name;
+    this.playedName = `${def.name}, MISSION ${this.campaign.missionIndex + 1} OF ${this.missionCount()}`.toUpperCase();
     this.result = null;
     this.promoted = [];
     this.endedAt = null;
@@ -275,35 +297,85 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  private storeFor(mode: Mode): SaveStore | null {
+    return mode === 'campaign' ? this.campaignStore : this.store;
+  }
+
+  /** The mode CONTINUE would resume: the one played last if it has a save, else the other one, else none. */
+  private continueMode(): Mode | null {
+    const last = this.lastMode?.get() ?? 'tutorial';
+    const order: Mode[] = last === 'campaign' ? ['campaign', 'tutorial'] : ['tutorial', 'campaign'];
+    return order.find((m) => this.saves[m] !== null) ?? null;
+  }
+
+  private missionCount(): number {
+    return this.campaign.mode === 'campaign' ? CAMPAIGN_LENGTH : this.missions.length;
+  }
+
+  private titleView(): TitleView {
+    const m = this.continueMode();
+    const save = m ? this.saves[m] : null;
+    return {
+      continue: m && save
+        ? {
+            mode: m,
+            missionNumber: save.campaign.missionIndex + 1,
+            missionCount: m === 'campaign' ? CAMPAIGN_LENGTH : this.missions.length,
+            soldiers: save.campaign.roster.length,
+            budget: campaignBudget(save.campaign),
+          }
+        : null,
+      armed: this.clock() < this.newArmedUntil ? this.armedMode : null,
+    };
+  }
+
   private continueFromTitle(): void {
+    const mode = this.continueMode();
+    const save = mode ? this.saves[mode] : null;
+    if (!mode || !save) return;
     this.newArmedUntil = 0;
+    this.campaign = save.campaign;
+    this.generated.clear();
+    this.loadout = fitLoadout(save.loadout, campaignBudget(save.campaign), save.campaign.stash);
+    this.lastMode?.set(mode);
     this.screen = 'equipment';
     this.hover = null;
     this.lock();
     this.sound.play('click', 0.9);
   }
 
-  /** NEW CAMPAIGN on the title: the first press arms, a second one within 3 s replaces the save. */
-  private pressNew(): void {
-    if (this.clock() < this.newArmedUntil) {
-      this.newArmedUntil = 0;
-      this.store?.clear();
-      this.newCampaignScreen();
+  /** NEW CAMPAIGN or TUTORIAL on the title: starts at once, or arms first when it would replace that mode's save. */
+  private pressStart(mode: Mode): void {
+    if (this.saves[mode] === null) {
+      this.begin(mode);
       return;
     }
+    if (this.armedMode === mode && this.clock() < this.newArmedUntil) {
+      this.newArmedUntil = 0;
+      this.armedMode = null;
+      this.storeFor(mode)?.clear();
+      this.saves[mode] = null;
+      this.begin(mode);
+      return;
+    }
+    this.armedMode = mode;
     this.newArmedUntil = this.clock() + NEW_CONFIRM_MS;
     this.lock(); // a held key or a double click must not count as the second press
     this.sound.play('click', 0.9);
   }
 
-  private newCampaignScreen(): void {
-    this.campaign = newCampaign();
+  /** A fresh run of `mode` on the equipment screen. */
+  private begin(mode: Mode): void {
+    this.campaign = mode === 'campaign' ? newCampaign('campaign', drawVariations(this.newSeed())) : newCampaign();
+    this.generated.clear();
     this.loadout = defaultLoadout();
     this.controller = null;
     this.result = null;
     this.promoted = [];
     this.endedAt = null;
     this.hover = null;
+    this.newArmedUntil = 0;
+    this.lastMode?.set(mode);
     this.screen = 'equipment';
     this.lock();
     this.sound.play('click', 0.9);
@@ -315,9 +387,10 @@ export class App {
     const mp = this.toMenu(p);
     switch (this.screen) {
       case 'title': {
-        const hit = titleHit(mp.x, mp.y);
+        const hit = titleHit(mp.x, mp.y, this.continueMode() !== null);
         if (hit === 'continue') this.continueFromTitle();
-        else if (hit === 'new') this.pressNew();
+        else if (hit === 'campaign') this.pressStart('campaign');
+        else if (hit === 'tutorial') this.pressStart('tutorial');
         return;
       }
       case 'equipment': {
@@ -363,7 +436,7 @@ export class App {
         if (resultHit(mp.x, mp.y) === 'again') this.continueFromResult();
         return;
       case 'end':
-        if (endHit(mp.x, mp.y) === 'new') this.newCampaignScreen();
+        if (endHit(mp.x, mp.y) === 'new') this.begin(this.campaign.mode);
         return;
     }
   }
@@ -390,11 +463,11 @@ export class App {
     switch (this.screen) {
       case 'title':
         if (k === 'Enter') {
-          if (!this.locked()) this.continueFromTitle();
+          if (!this.locked() && this.continueMode() !== null) this.continueFromTitle();
           return true;
         }
-        if (k === 'n' || k === 'N') {
-          if (!repeat && !this.locked()) this.pressNew();
+        if (k === 'n' || k === 'N' || k === 't' || k === 'T') {
+          if (!repeat && !this.locked()) this.pressStart(k === 'n' || k === 'N' ? 'campaign' : 'tutorial');
           return true;
         }
         return false;
@@ -418,7 +491,7 @@ export class App {
         return false;
       case 'end':
         if (k === 'Enter') {
-          if (!this.locked()) this.newCampaignScreen();
+          if (!this.locked()) this.begin(this.campaign.mode);
           return true;
         }
         return false;
@@ -444,11 +517,16 @@ export class App {
       const rosterBefore = this.campaign.roster;
       const stashBefore = this.campaign.stash;
       this.result = summarize(c.state);
-      this.campaign = recordMission(this.campaign, c.state, this.missions.length, this.usedLoadout);
+      this.campaign = recordMission(this.campaign, c.state, this.missionCount(), this.usedLoadout);
+      const mode = this.campaign.mode;
       if (this.campaign.status === 'active') {
-        this.store?.save(this.campaign, fitLoadout(this.loadout, this.budget(), this.campaign.stash));
+        const loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash);
+        this.storeFor(mode)?.save(this.campaign, loadout);
+        this.saves[mode] = { campaign: this.campaign, loadout };
+        this.lastMode?.set(mode);
       } else {
-        this.store?.clear();
+        this.storeFor(mode)?.clear();
+        this.saves[mode] = null;
       }
       this.promoted = promotions(rosterBefore, this.campaign.roster);
       this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
@@ -474,7 +552,7 @@ export class App {
     const c = this.campaign;
     return {
       budget: this.budget(),
-      title: `MISSION ${c.missionIndex + 1} OF ${this.missions.length}: ${this.mission().name.toUpperCase()}`,
+      title: `MISSION ${c.missionIndex + 1} OF ${this.missionCount()}: ${this.mission().name.toUpperCase()}`,
       breakdown: budgetBreakdown(c),
       soldiers: c.roster.map((r) => ({ ...r, rank: rankFor(r.kills).name })),
       stash: c.stash,
@@ -514,14 +592,7 @@ export class App {
 
   private drawScreen(ctx: CanvasRenderingContext2D, now: number): void {
     if (this.screen === 'title') {
-      const c = this.campaign;
-      this.inMenuSpace(ctx, () => drawTitle(ctx, {
-        missionNumber: c.missionIndex + 1,
-        missionCount: this.missions.length,
-        soldiers: c.roster.length,
-        budget: this.budget(),
-        armed: this.clock() < this.newArmedUntil,
-      }));
+      this.inMenuSpace(ctx, () => drawTitle(ctx, this.titleView()));
       return;
     }
     if (this.screen === 'equipment') {
@@ -533,7 +604,7 @@ export class App {
       this.inMenuSpace(ctx, () => drawCampaignEnd(ctx, {
         won: c.status === 'won',
         missionsWon: c.missionsWon,
-        missionCount: this.missions.length,
+        missionCount: this.missionCount(),
         totalKills: totalKills(c) + c.fallen.reduce((sum, f) => sum + f.kills, 0),
         survivors: c.roster.map((r) => r.name),
         fallen: c.fallen.map((f) => f.name),

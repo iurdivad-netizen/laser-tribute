@@ -31,7 +31,7 @@ function fakeSound(): SoundPlayer & { muted: boolean } {
 
 function make(opts: AppOptions = {}) {
   let t = 0;
-  const app = new App({ clock: () => t, sound: fakeSound(), store: null, createMission: () => bigMap(), ...opts });
+  const app = new App({ clock: () => t, sound: fakeSound(), store: null, skipTitle: true, createMission: () => bigMap(), ...opts });
   return { app, wait: () => { t += 500; } };
 }
 
