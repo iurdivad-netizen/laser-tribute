@@ -3,7 +3,7 @@ import { runEnemyTurn } from '../src/core/ai';
 import { generateMission } from '../src/core/gen';
 import { RECIPES } from '../src/core/gen/recipes';
 import { createMission } from '../src/core/missions';
-import { findPath } from '../src/core/path';
+import { findPath, pathStats } from '../src/core/path';
 import { computeVisible } from '../src/core/vision';
 import { createCamera, defaultZoom, followTile, tileCss } from '../src/render/camera';
 import { computeLayout } from '../src/ui/layout';
@@ -31,13 +31,15 @@ describe.each(RECIPES.map((r, i) => [r.name, i] as const))('playing %s', (_name,
     }
   });
 
-  it('runs a whole enemy turn quickly and leaves a valid state', () => {
+  it('runs a whole enemy turn with a bounded number of path searches and leaves a valid state', () => {
     const s = createMission(generateMission(type, 0), 3);
     s.turn = 'enemy';
+    pathStats.calls = 0;
     const t0 = performance.now();
     const out = runEnemyTurn(s);
-    const ms = performance.now() - t0;
-    expect(ms).toBeLessThan(5000);
+    // measured at most 236 searches for a whole turn on any type; a count does not flake under a busy machine like a clock does
+    expect(pathStats.calls).toBeLessThan(600);
+    expect(performance.now() - t0).toBeLessThan(60_000); // only a hang guard
     expect(out.state.units.every((u) => u.pos.x >= 0 && u.pos.y >= 0 && u.pos.x < r.width && u.pos.y < r.height)).toBe(true);
     expect(['playing', 'won', 'lost']).toContain(out.state.status);
   });
