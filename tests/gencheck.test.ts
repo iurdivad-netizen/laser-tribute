@@ -59,6 +59,12 @@ describe('checkMission', () => {
     expect(checkMission(def(rows), WANT).join('|')).toMatch(/door at 5,3/);
   });
 
+  it('counts a unit or pickup beside a door as floor', () => {
+    const rows = [...GOOD_ROWS];
+    rows[2] = '#PP.......+g.........#'; // a grenade lies right behind the door
+    expect(checkMission(def(rows), { ...WANT, items: { r: 0, p: 0, g: 1 } })).toEqual([]);
+  });
+
   it('rejects an enemy within 8 tiles of the squad', () => {
     const rows = GOOD_ROWS.map((r) => r.replace('E', '.'));
     rows[3] = '#.....E...#..........#';

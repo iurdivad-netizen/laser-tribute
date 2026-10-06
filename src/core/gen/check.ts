@@ -16,9 +16,12 @@ export function expectFor(r: Recipe, enemies: number = r.enemies): Expect {
   return { width: r.width, height: r.height, enemies, items: { ...r.items } };
 }
 
+/** Floor for the door rule: anything walkable that is not a door (units and pickups stand on floor). */
+const isFloor = (c: string | undefined): boolean => c !== undefined && c !== '#' && c !== '+';
+
 function doorFits(g: Grid, x: number, y: number): boolean {
   const n = g[y - 1]?.[x], s = g[y + 1]?.[x], w = g[y][x - 1], e = g[y][x + 1];
-  return (n === '#' && s === '#' && w === '.' && e === '.') || (w === '#' && e === '#' && n === '.' && s === '.');
+  return (n === '#' && s === '#' && isFloor(w) && isFloor(e)) || (w === '#' && e === '#' && isFloor(n) && isFloor(s));
 }
 
 /** What is wrong with a generated map; an empty list means it is playable. */
