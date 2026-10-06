@@ -90,6 +90,13 @@ describe('checkMission', () => {
     expect(checkMission(def(GOOD_ROWS, { e1: [{ x: 12, y: 3 }, { x: 16, y: 1 }], e2: [{ x: 12, y: 3 }, { x: 16, y: 1 }] }), WANT).join('|')).toMatch(/patrol e2/);
   });
 
+  it('rejects a patrol point that an enemy can only reach through a closed door', () => {
+    // enemies patrol with doors closed: e1 stands east of the door, the point is west of it
+    const out = checkMission(def(GOOD_ROWS, { e1: [{ x: 5, y: 3 }, { x: 16, y: 1 }] }), WANT);
+    expect(out.join('|')).toMatch(/patrol e1/);
+    expect(out.join('|')).toMatch(/door/);
+  });
+
   it('rejects a squad that starts scattered', () => {
     const rows = [
       '######################',

@@ -31,6 +31,17 @@ describe.each(RECIPES.map((r, i) => [r.name, i] as const))('playing %s', (_name,
     }
   });
 
+  it('lets every enemy walk to its first patrol point with the doors closed, in every variation', () => {
+    for (let v = 0; v < 5; v++) {
+      const s = createMission(generateMission(type, v), 3);
+      for (const e of s.units.filter((u) => u.side === 'enemy')) {
+        const alone = { ...s, units: s.units.filter((u) => u.id === e.id) };
+        const path = findPath(alone, e.id, e.patrol[0], { ignoreOccupantAtGoal: true }); // a patrol never opens a door
+        expect(path, `variation ${v} ${e.id}`).not.toBeNull();
+      }
+    }
+  });
+
   it('runs a whole enemy turn with a bounded number of path searches and leaves a valid state', () => {
     const s = createMission(generateMission(type, 0), 3);
     s.turn = 'enemy';

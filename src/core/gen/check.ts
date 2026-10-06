@@ -80,10 +80,14 @@ export function checkMission(def: MissionDef, want: Expect): string[] {
       problems.push(`patrol ${foe.id} is missing or has fewer than two points`);
       continue;
     }
+    // enemies patrol with every door closed (only a hunting enemy opens doors), so each point must be reachable without one
+    const onFoot = distances(grid, foe.pos, (c) => c !== '#' && c !== '+');
     for (const p of route) {
       const inside = p.x >= 0 && p.y >= 0 && p.x < want.width && p.y < want.height;
       if (!inside || grid[p.y][p.x] === '#' || (reach && reach[p.y][p.x] < 0)) {
         problems.push(`patrol ${foe.id} has a point at ${p.x},${p.y} that cannot be walked to`);
+      } else if (onFoot[p.y][p.x] < 0) {
+        problems.push(`patrol ${foe.id} has a point at ${p.x},${p.y} behind a closed door`);
       }
     }
   }

@@ -53,7 +53,7 @@ export function populate(g: Grid, rnd: Rnd, r: Recipe, enemies: number): Mission
   const order = [...placed].sort((a, b) => a.y - b.y || a.x - b.x);
   for (let i = 0; i < order.length; i++) {
     const start = order[i];
-    const d = distances(g, start, (c) => c !== '#');
+    const d = distances(g, start, (c) => c !== '#' && c !== '+'); // a patrolling enemy never opens a door
     const spots = floors.filter((p) => g[p.y][p.x] === '.' && d[p.y][p.x] >= 3 && d[p.y][p.x] <= 8);
     if (spots.length === 0) return null;
     patrols[`e${i + 1}`] = [spots[Math.floor(rnd() * spots.length)], { x: start.x, y: start.y }];
