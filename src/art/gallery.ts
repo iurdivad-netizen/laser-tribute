@@ -2,9 +2,14 @@ import { VIEW } from '../render/layout';
 import { drawText } from '../ui/text';
 import type { Atlas } from './atlas';
 import { FIGURE_H, armedFigure } from './figure';
+import { imageOf, type ImageName } from './image';
 import { SPRITE_NAMES } from './sprites';
 
 const SCALE = 3;
+const IMAGE_LIST: ImageName[] = [
+  'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
+  'item_rifle', 'item_pistol', 'item_grenade', 'corpse_player', 'corpse_enemy',
+];
 const CELL_W = 58;
 const CELL_H = 56;
 
@@ -22,9 +27,20 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
     const label = name.replace('door_', 'd_');
     drawText(ctx, label.slice(0, 9), x, y + 16 * SCALE + 2, '#8a8fa8');
   });
+  // the eleven tile, door, item and corpse images at 2x on one row
+  IMAGE_LIST.forEach((name, i) => {
+    const x = 4 + i * 42;
+    ctx.fillStyle = '#2a2f45';
+    ctx.fillRect(x, 120, 32, 32);
+    ctx.save();
+    ctx.translate(x, 120);
+    ctx.scale(2, 2);
+    art.drawImage(ctx, imageOf(name), 0, 0);
+    ctx.restore();
+  });
   // the figures at 2x: squad then enemy, five views each (the other three facings are mirrors), rifle row then pistol row
   const views = ['n', 'ne', 'e', 'se', 's'] as const;
-  const rows: [number, 'rifle' | 'pistol'][] = [[176, 'rifle'], [246, 'pistol']];
+  const rows: [number, 'rifle' | 'pistol'][] = [[160, 'rifle'], [230, 'pistol']];
   for (const [y, weapon] of rows) {
     (['squad', 'enemy'] as const).forEach((side, s) => {
       views.forEach((view, v) => {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { drawGallery } from '../src/art/gallery';
+import { IMAGE_NAMES } from '../scripts/figures-lib.mjs';
 import { SPRITE_NAMES } from '../src/art/sprites';
 
 describe('drawGallery', () => {
-  it('draws every sprite once, enlarged three times, and the twenty figures, inside the canvas', () => {
+  it('draws every sprite once, enlarged three times, then the eleven images and the twenty soldiers, inside the canvas', () => {
     const drawn: { name: string; x: number; y: number; scale: number }[] = [];
     const figures: { name: string; flip: boolean }[] = [];
     const art = {
@@ -29,9 +30,10 @@ describe('drawGallery', () => {
       expect(d.x + 48).toBeLessThanOrEqual(480);
       expect(d.y + 48).toBeLessThanOrEqual(360);
     }
-    expect(figures).toHaveLength(20); // 5 views x 2 sides x 2 weapons
-    expect(new Set(figures.map((f) => f.name)).size).toBe(20);
-    expect(translates).toHaveLength(20);
+    expect(figures).toHaveLength(31); // 11 images, then 5 views x 2 sides x 2 weapons
+    expect(new Set(figures.map((f) => f.name)).size).toBe(31);
+    expect(figures.slice(0, 11).map((f) => f.name)).toEqual([...IMAGE_NAMES]);
+    expect(translates).toHaveLength(31);
     for (const t of translates) {
       expect(t.x).toBeGreaterThanOrEqual(0);
       expect(t.x + 32).toBeLessThanOrEqual(480);
