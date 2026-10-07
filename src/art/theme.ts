@@ -30,7 +30,7 @@ export function tileImage(theme: string, kind: TileKind, open: boolean, x: numbe
   return imageOf(t.floors[floorVariant(x, y)]);
 }
 
-const ITEM_IMAGES: Record<ItemKind, ImageName> = { rifle: 'item_rifle', pistol: 'item_pistol', grenade: 'item_grenade' };
+const ITEM_IMAGES: Record<ItemKind, ImageName> = { rifle: 'item_rifle', pistol: 'item_pistol', grenade: 'item_grenade', shotgun: 'item_rifle', smg: 'item_pistol', sniper: 'item_rifle' }; // placeholders until the new images exist (milestone 18 task 5)
 
 export function itemImage(kind: ItemKind): Figure {
   return imageOf(ITEM_IMAGES[kind]);

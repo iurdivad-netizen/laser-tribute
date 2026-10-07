@@ -1,20 +1,13 @@
-import { emptyStash, type Stash } from './stash';
+import { STASH_KEYS, emptyStash, type Stash } from './stash';
 import type { GameState } from './types';
 
 /** The most weapons and the most spare clips the squad stash keeps. */
 export const STASH_CAP = { weapons: 4, clips: 4, gadgets: 4 } as const;
 
 export function addStash(a: Stash, b: Stash): Stash {
-  return {
-    rifle: a.rifle + b.rifle,
-    pistol: a.pistol + b.pistol,
-    grenade: a.grenade + b.grenade,
-    clip: a.clip + b.clip,
-    medkit: a.medkit + b.medkit,
-    armour: a.armour + b.armour,
-    scanner: a.scanner + b.scanner,
-    scope: a.scope + b.scope,
-  };
+  const out = emptyStash();
+  for (const k of STASH_KEYS) out[k] = a[k] + b[k];
+  return out;
 }
 
 /** What the squad recovers from the enemies it killed: each dead enemy's weapon and the spare clips it still had. */
@@ -28,18 +21,18 @@ export function lootFrom(finished: GameState): Stash {
   return loot;
 }
 
-/** At most 4 weapons (rifles first) and 4 clips; grenades are not capped. */
+/** Heaviest weapons are kept first when the stash is over its cap of four weapons. */
+const KEEP_ORDER = ['sniper', 'rifle', 'shotgun', 'smg', 'pistol'] as const;
+
+/** At most 4 weapons (heaviest first), 4 clips, 4 of each gadget; throwables are not capped. */
 export function capStash(s: Stash): Stash {
-  const rifle = Math.min(s.rifle, STASH_CAP.weapons);
-  const pistol = Math.min(s.pistol, STASH_CAP.weapons - rifle);
-  return {
-    rifle,
-    pistol,
-    grenade: s.grenade,
-    clip: Math.min(s.clip, STASH_CAP.clips),
-    medkit: Math.min(s.medkit, STASH_CAP.gadgets),
-    armour: Math.min(s.armour, STASH_CAP.gadgets),
-    scanner: Math.min(s.scanner, STASH_CAP.gadgets),
-    scope: Math.min(s.scope, STASH_CAP.gadgets),
-  };
+  const out = { ...s };
+  let room: number = STASH_CAP.weapons;
+  for (const w of KEEP_ORDER) {
+    out[w] = Math.min(s[w], room);
+    room -= out[w];
+  }
+  out.clip = Math.min(s.clip, STASH_CAP.clips);
+  for (const g of ['medkit', 'armour', 'scanner', 'scope'] as const) out[g] = Math.min(s[g], STASH_CAP.gadgets);
+  return out;
 }

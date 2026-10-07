@@ -15,7 +15,8 @@ export interface Tile {
   open: boolean; // only meaningful when kind === 'door'
 }
 
-export type WeaponId = 'pistol' | 'rifle';
+export type WeaponId = 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'sniper';
+export type ThrowableId = 'frag' | 'smoke' | 'flash' | 'incendiary';
 export type GadgetId = 'medkit' | 'armour' | 'scanner';
 export type AttachmentId = 'scope';
 export type ItemKind = WeaponId | 'grenade';
@@ -34,6 +35,8 @@ export interface Unit {
   maxAp: number;
   weapon: WeaponId;
   grenades: number;
+  /** The kind of the grenades carried (one kind per soldier). */
+  throwable: ThrowableId;
   alive: boolean;
   /** On alert: keeps AP for the other side's turn and fires at enemies that move into view. */
   alert: boolean;

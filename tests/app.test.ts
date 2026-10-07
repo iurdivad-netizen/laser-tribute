@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stashOf } from '../src/core/stash';
 import { App, type AppOptions } from '../src/app';
 import { campaignBudget } from '../src/core/campaign';
 import { cheapLoadout, defaultLoadout, fitLoadout, validateLoadout, type Loadout } from '../src/core/loadout';
@@ -352,13 +353,13 @@ describe('found gear carries to the next mission', () => {
     expect(app.loadout[0].weapon).toBe('pistol');
     app.click(START);
     endWin(app, 1000);
-    expect(app.campaign.stash).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(app.campaign.stash).toEqual(stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
     wait();
     app.click(CONTINUE); // on to the next equipment screen
     expect(app.screen).toBe('equipment');
     wait();
     app.click(START);
-    expect(stashes.at(-1)).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(stashes.at(-1)).toEqual(stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 });
 
@@ -427,7 +428,7 @@ describe('loot after a mission', () => {
         return s;
       },
     });
-    app.campaign.stash = { rifle: 4, pistol: 0, grenade: 0, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 };
+    app.campaign.stash = stashOf({ rifle: 4, pistol: 0, grenade: 0, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 });
     app.click(START);
     endWin(app, 1000);
     expect(app.loot).toBe('1 rifle, 1 clip (stash full)');

@@ -1,18 +1,23 @@
-import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, WEAPONS } from './config';
+import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, WEAPONS, WEAPON_IDS } from './config';
 import { coverage, emptyStash, type Stash } from './stash';
-import type { AttachmentId, GadgetId, GameState, WeaponId } from './types';
+import type { AttachmentId, GadgetId, GameState, ThrowableId, WeaponId } from './types';
 
 export const LOADOUT = {
   budget: 120,
-  prices: { pistol: 10, rifle: 25, grenade: 8, clip: 5 },
+  prices: { pistol: WEAPONS.pistol.price, rifle: WEAPONS.rifle.price, grenade: THROWABLES.frag.price, clip: 5 },
   maxGrenades: 3,
 } as const;
+
+export const weaponPrice = (id: WeaponId): number => WEAPONS[id].price;
+export const throwablePrice = (s: { throwable?: ThrowableId }): number => THROWABLES[s.throwable ?? 'frag'].price;
 
 export const SQUAD_SIZE = 4;
 
 export interface SoldierLoadout {
   weapon: WeaponId;
   grenades: number;
+  /** The kind of grenade carried; absent means frag. */
+  throwable?: ThrowableId;
   /** Spare clips, 1 to 4; the first is included in the weapon price. */
   clips: number;
   /** The one gadget carried; absent means none. */
@@ -33,7 +38,7 @@ export function defaultLoadout(): Loadout {
 }
 
 export function soldierCost(s: SoldierLoadout): number {
-  return LOADOUT.prices[s.weapon] + LOADOUT.prices.grenade * s.grenades + LOADOUT.prices.clip * (s.clips - 1) +
+  return weaponPrice(s.weapon) + throwablePrice(s) * s.grenades + LOADOUT.prices.clip * (s.clips - 1) +
     (s.gadget ? GADGETS[s.gadget].price : 0) +
     (s.attachment ? ATTACHMENTS[s.attachment].price : 0);
 }
@@ -43,7 +48,7 @@ export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
   const gross = l.reduce((sum, s) => sum + soldierCost(s), 0);
   const free = coverage(l, stash).reduce(
     (sum, c, i) =>
-      sum + (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) + c.grenades * LOADOUT.prices.grenade + c.clips * LOADOUT.prices.clip +
+      sum + (c.weapon ? weaponPrice(l[i].weapon) : 0) + c.grenades * throwablePrice(l[i]) + c.clips * LOADOUT.prices.clip +
       (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) +
       (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0),
     0,
@@ -56,8 +61,8 @@ export function netSoldierCost(l: Loadout, i: number, stash: Stash = emptyStash(
   const c = coverage(l, stash)[i];
   return (
     soldierCost(l[i]) -
-    (c.weapon ? LOADOUT.prices[l[i].weapon] : 0) -
-    c.grenades * LOADOUT.prices.grenade -
+    (c.weapon ? weaponPrice(l[i].weapon) : 0) -
+    c.grenades * throwablePrice(l[i]) -
     c.clips * LOADOUT.prices.clip -
     (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) -
     (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0)
@@ -73,7 +78,8 @@ export function validateLoadout(
 ): string | null {
   if (l.length !== SQUAD_SIZE) return `A loadout needs exactly ${SQUAD_SIZE} soldiers`;
   for (const [i, s] of l.entries()) {
-    if (s.weapon !== 'pistol' && s.weapon !== 'rifle') return `Soldier ${i + 1} needs a weapon`;
+    if (!WEAPON_IDS.includes(s.weapon)) return `Soldier ${i + 1} needs a weapon`;
+    if (s.throwable !== undefined && !THROWABLE_IDS.includes(s.throwable)) return `Soldier ${i + 1} has an unknown throwable`;
     if (!Number.isInteger(s.grenades) || s.grenades < 0 || s.grenades > LOADOUT.maxGrenades) {
       return `Soldier ${i + 1} must carry 0 to ${LOADOUT.maxGrenades} grenades`;
     }
@@ -113,6 +119,7 @@ export function applyLoadout(
     .forEach((u, i) => {
       u.weapon = l[i].weapon;
       u.grenades = l[i].grenades;
+      u.throwable = l[i].throwable ?? 'frag';
       u.clips = l[i].clips;
       u.ammo = WEAPONS[l[i].weapon].magazine;
       u.gadget = l[i].gadget ?? null;

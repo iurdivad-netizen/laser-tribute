@@ -1,22 +1,24 @@
 import type { Loadout } from './loadout';
-import type { GameState } from './types';
+import type { GameState, ThrowableId } from './types';
 
-/** Free gear the squad has found: it covers the same kit items on the equipment screen at no cost. */
-export interface Stash {
-  rifle: number;
-  pistol: number;
-  grenade: number;
-  /** Spare clips: each covers the 5-credit price of an extra clip (the first clip is always included). */
-  clip: number;
-  medkit: number;
-  armour: number;
-  scanner: number;
-  scope: number;
-}
+export const STASH_KEYS = [
+  'rifle', 'pistol', 'shotgun', 'smg', 'sniper',
+  'grenade', 'smoke', 'flash', 'incendiary',
+  'clip', 'medkit', 'armour', 'scanner', 'scope',
+] as const;
+export type StashKey = (typeof STASH_KEYS)[number];
+
+/** Free gear the squad has found: it covers the same kit items on the equipment screen at no cost. `grenade` counts frags; `clip` spare clips. */
+export type Stash = Record<StashKey, number>;
 
 export function emptyStash(): Stash {
-  return { rifle: 0, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 };
+  return Object.fromEntries(STASH_KEYS.map((k) => [k, 0])) as Stash;
 }
+
+export const stashOf = (partial: Partial<Stash>): Stash => ({ ...emptyStash(), ...partial });
+
+/** The stash key of a throwable kind: frags are the old `grenade` counter. */
+export const throwableKey = (id: ThrowableId): StashKey => (id === 'frag' ? 'grenade' : id);
 
 export interface Cover {
   /** The soldier's weapon comes from the stash. */
@@ -37,8 +39,9 @@ export function coverage(l: Loadout, stash: Stash): Cover[] {
   return l.map((s) => {
     const weapon = left[s.weapon] > 0;
     if (weapon) left[s.weapon] -= 1;
-    const grenades = Math.min(s.grenades, left.grenade);
-    left.grenade -= grenades;
+    const tk = throwableKey(s.throwable ?? 'frag');
+    const grenades = Math.min(s.grenades, left[tk]);
+    left[tk] -= grenades;
     const clips = Math.min(Math.max(0, s.clips - 1), left.clip);
     left.clip -= clips;
     const g = s.gadget;
@@ -62,7 +65,7 @@ export function nextStash(stash: Stash, used: Loadout, finished: GameState): Sta
   const next: Stash = { ...stash };
   for (const [i, s] of used.entries()) {
     next[s.weapon] -= cover[i].weapon ? 1 : 0;
-    next.grenade -= cover[i].grenades;
+    next[throwableKey(s.throwable ?? 'frag')] -= cover[i].grenades;
     next.clip -= cover[i].clips;
     if (cover[i].gadget && s.gadget) next[s.gadget] -= 1;
     if (cover[i].attachment && s.attachment) next[s.attachment] -= 1;
@@ -73,7 +76,7 @@ export function nextStash(stash: Stash, used: Loadout, finished: GameState): Sta
     if (!u || !u.alive) continue;
     if (u.weapon !== s.weapon) next[u.weapon] += 1; // found
     else if (cover[i].weapon) next[u.weapon] += 1; // lent, returned
-    next.grenade += Math.max(0, u.grenades - (s.grenades - cover[i].grenades));
+    next[throwableKey(u.throwable)] += Math.max(0, u.grenades - (s.grenades - cover[i].grenades));
     next.clip += Math.max(0, u.clips - (s.clips - cover[i].clips));
     if (s.attachment && u.attachment === s.attachment) next[s.attachment] += 1;
     if (s.gadget && u.gadget === s.gadget) next[s.gadget] += 1; // carried through the mission: lent or bought, it comes back
@@ -81,17 +84,13 @@ export function nextStash(stash: Stash, used: Loadout, finished: GameState): Sta
   return next;
 }
 
-/** e.g. "1 rifle, 2 grenades, 3 clips"; empty string for an empty stash. */
+const NAMES: Record<StashKey, [string, string]> = {
+  rifle: ['rifle', 'rifles'], pistol: ['pistol', 'pistols'], shotgun: ['shotgun', 'shotguns'], smg: ['smg', 'smgs'],
+  sniper: ['sniper', 'snipers'], grenade: ['grenade', 'grenades'], smoke: ['smoke', 'smoke'],
+  flash: ['flashbang', 'flashbangs'], incendiary: ['incendiary', 'incendiaries'], clip: ['clip', 'clips'],
+  medkit: ['medkit', 'medkits'], armour: ['armour', 'armour'], scanner: ['scanner', 'scanners'], scope: ['scope', 'scopes'],
+};
 export function describeStash(stash: Stash): string {
-  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  return [
-    stash.rifle > 0 ? plural(stash.rifle, 'rifle', 'rifles') : '',
-    stash.pistol > 0 ? plural(stash.pistol, 'pistol', 'pistols') : '',
-    stash.grenade > 0 ? plural(stash.grenade, 'grenade', 'grenades') : '',
-    stash.clip > 0 ? plural(stash.clip, 'clip', 'clips') : '',
-    stash.medkit > 0 ? plural(stash.medkit, 'medkit', 'medkits') : '',
-    stash.armour > 0 ? plural(stash.armour, 'armour', 'armour') : '',
-    stash.scanner > 0 ? plural(stash.scanner, 'scanner', 'scanners') : '',
-    stash.scope > 0 ? plural(stash.scope, 'scope', 'scopes') : '',
-  ].filter(Boolean).join(', ');
+  return STASH_KEYS.filter((k) => stash[k] > 0).map((k) => `${stash[k]} ${NAMES[k][stash[k] === 1 ? 0 : 1]}`).join(', ');
 }
+

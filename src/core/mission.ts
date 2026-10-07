@@ -19,6 +19,7 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     maxAp: CONFIG.maxAp,
     weapon,
     grenades: side === 'player' ? CONFIG.soldierGrenades : 0,
+    throwable: 'frag',
     alive: true,
     alert: false,
     kills: 0,

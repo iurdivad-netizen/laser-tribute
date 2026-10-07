@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stashOf } from '../src/core/stash';
 import { newCampaign, recordMission, type Campaign } from '../src/core/campaign';
 import { defaultLoadout } from '../src/core/loadout';
 import { SAVE_KEY, SaveStore, defaultSaveStore, parseSave, type SaveStorage } from '../src/save';
@@ -29,7 +30,7 @@ function played(): Campaign {
   unit(s, 'p1').kills = 2;
   s.status = 'won';
   const c = recordMission(newCampaign(), s, 3, defaultLoadout());
-  c.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 };
+  c.stash = stashOf({ rifle: 2, pistol: 1, grenade: 3, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 });
   return c;
 }
 
@@ -93,7 +94,7 @@ describe('parseSave', () => {
     ['not JSON', '{nope'],
     ['an array', '[]'],
     ['a string', '"x"'],
-    ['the wrong version', json((o) => { o.version = 2; })],
+    ['the wrong version', json((o) => { o.version = 3; })],
     ['a missing campaign', json((o) => { delete o.campaign; })],
     ['a finished campaign', json((o) => { o.campaign.status = 'won'; })],
     ['a lost campaign', json((o) => { o.campaign.status = 'lost'; })],
@@ -194,5 +195,35 @@ describe('the sightscope in a save', () => {
     for (const bad of [-1, 1.5, 100]) {
       expect(parseSave(json((o) => { o.campaign.stash.scope = bad; }), 3)).toBeNull();
     }
+  });
+});
+
+describe('saves with the new items', () => {
+  const base = () => JSON.parse(JSON.stringify({ version: 2, campaign: newCampaign(), loadout: defaultLoadout() }));
+  it('loads a version 1 save unchanged (the old stash has no new keys)', () => {
+    const raw = base();
+    raw.version = 1;
+    delete raw.campaign.stash.shotgun; // old stashes only had the eight old keys
+    const save = parseSave(JSON.stringify(raw), 3);
+    expect(save).not.toBeNull();
+    expect(save!.campaign.stash.shotgun).toBe(0);
+  });
+
+  it('loads new stash keys and a throwable', () => {
+    const raw = base();
+    raw.campaign.stash.smoke = 2;
+    raw.loadout[0].throwable = 'smoke';
+    const save = parseSave(JSON.stringify(raw), 3)!;
+    expect(save.campaign.stash.smoke).toBe(2);
+    expect(save.loadout[0].throwable).toBe('smoke');
+  });
+
+  it('falls back to the default loadout for an unknown weapon or throwable, and rejects a bad stash count', () => {
+    const w = base(); w.loadout[0].weapon = 'bazooka';
+    expect(parseSave(JSON.stringify(w), 3)!.loadout).toEqual(defaultLoadout());
+    const t = base(); t.loadout[0].throwable = 'laser';
+    expect(parseSave(JSON.stringify(t), 3)!.loadout).toEqual(defaultLoadout());
+    const s = base(); s.campaign.stash.smoke = -1;
+    expect(parseSave(JSON.stringify(s), 3)).toBeNull();
   });
 });

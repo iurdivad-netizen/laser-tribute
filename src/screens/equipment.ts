@@ -1,6 +1,6 @@
 import { ATTACHMENTS, CONFIG, GADGETS, GADGET_IDS, WEAPONS } from '../core/config';
 import {
-  LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, type Loadout,
+  LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, weaponPrice, type Loadout,
 } from '../core/loadout';
 import { coverage, describeStash, emptyStash, type Stash } from '../core/stash';
 import type { GadgetId, WeaponId } from '../core/types';
@@ -230,7 +230,7 @@ export function drawEquipment(
     }
     drawButton(
       ctx, { x: EQ.weapon.x, y, w: EQ.weapon.w, h: EQ.btnH },
-      `${WEAPONS[s.weapon].name} (${cover.weapon ? 'FREE' : LOADOUT.prices[s.weapon]})`,
+      `${WEAPONS[s.weapon].name} (${cover.weapon ? 'FREE' : weaponPrice(s.weapon)})`,
       buttonState(toggleBlockReason(l, i, view.budget, view.stash) === null, hot('weapon')),
     );
     drawText(ctx, 'Grenades', 190, y + 8, UI.dim);
