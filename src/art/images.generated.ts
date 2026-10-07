@@ -253,7 +253,7 @@ export const IMAGE_DATA: Record<ImageName, { palette: string[]; rows: string[] }
       "#2a74cc",
       "#e6b5aa",
       "#121d3a",
-      "#701629"
+      "#b3262c"
     ],
     "rows": [
       "................",
@@ -283,7 +283,7 @@ export const IMAGE_DATA: Record<ImageName, { palette: string[]; rows: string[] }
       "#b66d57",
       "#e4b1a8",
       "#272e35",
-      "#4e1b28"
+      "#b3262c"
     ],
     "rows": [
       "................",

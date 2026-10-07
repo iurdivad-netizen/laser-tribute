@@ -83,11 +83,11 @@ describe('drawGame with sprites', () => {
     enemy.pos = { x: soldier.pos.x + 1, y: soldier.pos.y };
     const near = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, near.atlas);
-    expect(near.drawn.some((d) => d.name === 'corpse_enemy')).toBe(true);
+    expect(near.drawn.some((d) => d.name.startsWith('corpse_enemy'))).toBe(true);
     enemy.pos = { x: 28, y: 18 }; // far away, in the dark
     const far = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, far.atlas);
-    expect(far.drawn.some((d) => d.name === 'corpse_enemy')).toBe(false);
+    expect(far.drawn.some((d) => d.name.startsWith('corpse_enemy'))).toBe(false);
   });
 
   it('draws corpses before the living, so a soldier standing on a corpse stays visible', () => {
@@ -99,7 +99,7 @@ describe('drawGame with sprites', () => {
     state.units.push(state.units.splice(state.units.indexOf(enemy), 1)[0]); // listed after the soldier: drawn after him unless corpses get their own pass
     const { atlas, drawn } = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
-    const corpse = drawn.findIndex((d) => d.name === 'corpse_enemy');
+    const corpse = drawn.findIndex((d) => d.name.startsWith('corpse_enemy'));
     const alive = drawn.findIndex((d) => d.name.startsWith('squad_') && d.x === soldier.pos.x * 16 && d.y === soldier.pos.y * 16 - RISE);
     expect(corpse).toBeGreaterThanOrEqual(0);
     expect(alive).toBeGreaterThan(corpse);
@@ -114,7 +114,7 @@ describe('drawGame with sprites', () => {
     state.items.push({ id: 'i77', pos: { ...enemy.pos }, kind: 'rifle' });
     const { atlas, drawn } = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
-    expect(drawn.findIndex((d) => d.name === 'item_rifle')).toBeLessThan(drawn.findIndex((d) => d.name === 'corpse_enemy'));
+    expect(drawn.findIndex((d) => d.name === 'item_rifle')).toBeLessThan(drawn.findIndex((d) => d.name.startsWith('corpse_enemy')));
   });
 
   it('draws item icons where the player can see them', () => {
@@ -184,7 +184,8 @@ describe('drawGame with sprites', () => {
     const realImage = atlas.drawImage.bind(atlas);
     atlas.drawImage = (c, fig, x, y, opts = {}) => { images.push(fig.name); return realImage(c, fig, x, y, opts); };
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
-    expect(images).toEqual(expect.arrayContaining(['wall', 'item_pistol', 'corpse_enemy']));
+    expect(images).toEqual(expect.arrayContaining(['wall', 'item_pistol']));
+    expect(images.some((n) => n.startsWith('corpse_enemy'))).toBe(true);
     expect(images.some((n) => n.startsWith('floor_'))).toBe(true);
     expect(letterSprites.filter((n) => /^(floor|wall|door|item|corpse)/.test(n))).toEqual([]);
   });

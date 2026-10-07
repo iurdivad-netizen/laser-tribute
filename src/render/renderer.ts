@@ -1,7 +1,8 @@
 import { Atlas } from '../art/atlas';
 import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
-import { corpseImage, itemImage, themeFor, tileImage } from '../art/theme';
+import { corpseHalves, corpseLook } from '../art/corpse';
+import { itemImage, themeFor, tileImage } from '../art/theme';
 import { CONFIG } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
@@ -86,7 +87,16 @@ export function drawGame(
   // Corpses first, in their own pass, so a living unit standing on (or sliding past) a corpse is drawn on top of it.
   for (const u of state.units) {
     if (u.alive || !visible[u.pos.y][u.pos.x]) continue;
-    art.drawImage(ctx, corpseImage(u.side), u.pos.x * T, u.pos.y * T);
+    const { image, extend } = corpseLook(state, u);
+    if (extend === 0) {
+      art.drawImage(ctx, image, u.pos.x * T, u.pos.y * T);
+      continue;
+    }
+    // a lying soldier is two tiles long: draw each half, but never over a tile the player has not explored
+    const left = u.pos.x + Math.min(0, extend);
+    corpseHalves(image).forEach((half, i) => {
+      if (state.explored[u.pos.y][left + i]) art.drawImage(ctx, half, (left + i) * T, u.pos.y * T);
+    });
   }
 
   // Living units in order of tile row, the lowest row last, so a figure in front covers the one behind it (and the wall
