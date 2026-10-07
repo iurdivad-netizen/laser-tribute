@@ -54,6 +54,12 @@ export const throwLabel = (u: Unit): string => `${THROWABLES[u.throwable].name.t
 
 const THROW_SHORT: Record<ThrowableId, string> = { frag: 'FRAG', smoke: 'SMOKE', flash: 'FLASH', incendiary: 'FIRE' };
 
+/** The throw button's text, the longest of the keyed label, the label, the short name with count and the key that `fits`. */
+export function throwButtonText(u: Unit, key: string, fits: (s: string) => boolean): string {
+  const candidates = [`${key} ${throwLabel(u)}`, throwLabel(u), `${THROW_SHORT[u.throwable]} (${u.grenades})`, THROW_SHORT[u.throwable], key];
+  return candidates.find((c) => fits(c)) ?? key;
+}
+
 const MODE_NAMES: Partial<Record<UiState['mode'], string>> = {
   snap: 'Snap shot', aimed: 'Aimed shot', throw: 'Grenade', door: 'Door', stab: 'Stab', heal: 'Heal', turn: 'Turn',
 };
@@ -168,9 +174,9 @@ export function drawPanel(
     const blocked = !!u && actionBlocked(u, b.id);
     const style: ButtonState = active ? 'pressed' : blocked ? 'disabled' : 'raised';
     drawFrame(ctx, r.x, r.y, r.w, r.h, style);
-    const word = b.id === 'throw' && u ? throwLabel(u) : b.id === 'gadget' && u?.gadget === 'medkit' ? 'HEAL' : b.id === 'gadget' && u?.gadget === 'scanner' ? 'SCAN' : b.label;
+    const word = b.id === 'throw' && u ? THROW_SHORT[u.throwable] : b.id === 'gadget' && u?.gadget === 'medkit' ? 'HEAL' : b.id === 'gadget' && u?.gadget === 'scanner' ? 'SCAN' : b.label;
     const keyed = `${b.key} ${word}`;
-    const label = fits(keyed, r.w - 6) ? keyed : word;
+    const label = b.id === 'throw' && u ? throwButtonText(u, b.key, (t) => fits(t, r.w - 6)) : fits(keyed, r.w - 6) ? keyed : word;
     const cost = u ? actionCost(u, b.id) : null;
     const twoLines = cost !== null && r.h >= textH * 2 + 6;
     const colourOf = active ? UI.accent : blocked ? UI.disabledText : UI.text;

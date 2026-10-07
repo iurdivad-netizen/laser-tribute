@@ -100,9 +100,10 @@ export function drawGame(
     });
   }
 
-  // fire lies under the units, smoke over them; both only where the player can see
+  // fire lies under the units, smoke over them; on every tile the player has explored (smoke tiles themselves are never
+  // 'visible', and the player threw them)
   for (const h of state.hazards) {
-    if (h.kind === 'fire' && visible[h.pos.y][h.pos.x]) art.draw(ctx, `fire_${Math.floor(now / 200) % 2}` as SpriteName, h.pos.x * T, h.pos.y * T);
+    if (h.kind === 'fire' && state.explored[h.pos.y][h.pos.x]) art.draw(ctx, `fire_${Math.floor(now / 200) % 2}` as SpriteName, h.pos.x * T, h.pos.y * T);
   }
 
   // Living units in order of tile row, the lowest row last, so a figure in front covers the one behind it (and the wall
@@ -143,7 +144,7 @@ export function drawGame(
   }
   ctx.globalAlpha = 0.8;
   for (const h of state.hazards) {
-    if (h.kind === 'smoke' && visible[h.pos.y][h.pos.x]) art.draw(ctx, 'smoke', h.pos.x * T, h.pos.y * T);
+    if (h.kind === 'smoke' && state.explored[h.pos.y][h.pos.x]) art.draw(ctx, 'smoke', h.pos.x * T, h.pos.y * T);
   }
   ctx.globalAlpha = 1;
   if (selectedAt) {

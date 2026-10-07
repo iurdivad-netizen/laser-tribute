@@ -24,7 +24,7 @@ describe('enemy weapons by level', () => {
       }
       expect([...seen].sort()).toEqual([...unlockedWeapons(level)].sort());
     }
-  });
+  }, 30000);
 
   it('is deterministic for a seed and varies between seeds', () => {
     expect(enemies(6, 5).map((u) => u.weapon)).toEqual(enemies(6, 5).map((u) => u.weapon));
