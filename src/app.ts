@@ -417,7 +417,7 @@ export class App {
           this.startMission();
           return;
         }
-        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash);
+        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash, levelOf(this.campaign));
         if (next !== this.loadout) this.sound.play('click', 0.9);
         this.loadout = next;
         return;
@@ -595,6 +595,7 @@ export class App {
       breakdown: budgetBreakdown(c),
       soldiers: c.roster.map((r) => ({ ...r, rank: rankFor(r.kills).name })),
       stash: c.stash,
+      level: levelOf(c),
     };
   }
 

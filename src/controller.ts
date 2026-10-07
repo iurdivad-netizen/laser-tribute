@@ -299,10 +299,11 @@ export class Controller {
     this.ui.mode = mode;
     this.clearPending();
     const w = WEAPONS[sel.weapon];
+    const burst = w.burst && w.burst > 1 ? ` x${w.burst}` : '';
     const hint: Record<Mode, string> = {
       move: '',
-      snap: `Snap shot, ${w.snapAp} AP: click an enemy`,
-      aimed: `Aimed shot, ${w.aimedAp} AP: click an enemy`,
+      snap: `Snap shot${burst}, ${w.snapAp} AP: click an enemy`,
+      aimed: `Aimed shot${burst}, ${w.aimedAp} AP: click an enemy`,
       throw: `${THROWABLES[sel.throwable].name}, ${THROWABLES[sel.throwable].apCost} AP: click a tile`,
       door: 'Door, 2 AP: click an adjacent door',
       stab: `Stab, ${CONFIG.knife.apCost} AP: click an adjacent enemy`,
