@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Atlas, type CanvasLike } from '../src/art/atlas';
-import type { SpriteName } from '../src/art/sprites';
+import { RISE } from '../src/art/figure';
 import { createMission, MISSIONS } from '../src/core/missions';
 import { computeVisible } from '../src/core/vision';
 import { createUiState } from '../src/input/uiState';
@@ -14,12 +14,17 @@ class FakeCanvas implements CanvasLike {
 
 /** An atlas that records what it is asked to draw. */
 function spyAtlas() {
-  const drawn: { name: SpriteName; x: number; y: number; flip: boolean }[] = [];
+  const drawn: { name: string; x: number; y: number; flip: boolean }[] = [];
   const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
   const real = atlas.draw.bind(atlas);
   atlas.draw = (ctx, name, x, y, opts = {}) => {
     drawn.push({ name, x, y, flip: !!opts.flip });
     return real(ctx, name, x, y, opts);
+  };
+  const realFigure = atlas.drawFigure.bind(atlas);
+  atlas.drawFigure = (ctx, fig, x, y, opts = {}) => {
+    drawn.push({ name: fig.name, x, y, flip: !!opts.flip });
+    return realFigure(ctx, fig, x, y, opts);
   };
   return { atlas, drawn };
 }
@@ -38,7 +43,7 @@ describe('drawGame with sprites', () => {
     const names = new Set(drawn.map((d) => d.name));
     expect(names.has('wall')).toBe(true);
     expect([...names].some((n) => n.startsWith('floor_'))).toBe(true);
-    expect([...names].some((n) => n.startsWith('soldier_'))).toBe(true);
+    expect([...names].some((n) => n.startsWith('squad_'))).toBe(true);
   });
 
   it('draws a soldier sprite per living soldier, mirrored for facings 5 to 7', () => {
@@ -48,10 +53,10 @@ describe('drawGame with sprites', () => {
     soldiers[1].facing = 0;
     const { atlas, drawn } = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
-    const units = drawn.filter((d) => d.name.startsWith('soldier_'));
+    const units = drawn.filter((d) => d.name.startsWith('squad_'));
     expect(units).toHaveLength(4);
-    expect(units.find((d) => d.name === 'soldier_rifle_e')!.flip).toBe(true);
-    expect(units.find((d) => d.name === 'soldier_rifle_n')!.flip).toBe(false);
+    expect(units.find((d) => d.name === 'squad_rifle_e')!.flip).toBe(true);
+    expect(units.find((d) => d.name === 'squad_rifle_n')!.flip).toBe(false);
   });
 
   it('does not draw an enemy that is out of sight, and draws one that is seen', () => {
@@ -95,7 +100,7 @@ describe('drawGame with sprites', () => {
     const { atlas, drawn } = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
     const corpse = drawn.findIndex((d) => d.name === 'corpse_enemy');
-    const alive = drawn.findIndex((d) => d.name.startsWith('soldier_') && d.x === soldier.pos.x * 16 && d.y === soldier.pos.y * 16);
+    const alive = drawn.findIndex((d) => d.name.startsWith('squad_') && d.x === soldier.pos.x * 16 && d.y === soldier.pos.y * 16 - RISE);
     expect(corpse).toBeGreaterThanOrEqual(0);
     expect(alive).toBeGreaterThan(corpse);
   });
@@ -119,6 +124,49 @@ describe('drawGame with sprites', () => {
     const { atlas, drawn } = spyAtlas();
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
     expect(drawn.some((d) => d.name === 'item_grenade')).toBe(true);
+  });
+
+  it('draws a figure with its feet on the unit tile: RISE px up and in the tile column', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const { atlas, drawn } = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    for (const u of state.units.filter((x) => x.side === 'player')) {
+      expect(drawn.some((d) => d.name.startsWith('squad_') && d.x === u.pos.x * 16 && d.y === u.pos.y * 16 - RISE), u.id).toBe(true);
+    }
+  });
+
+  it('draws the units in order of tile row, the lowest row last, whatever order they are listed in', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    state.units.reverse();
+    const { atlas, drawn } = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    const ys = drawn.filter((d) => d.name.startsWith('squad_') || d.name.startsWith('enemy_')).map((d) => d.y);
+    expect(ys).toEqual([...ys].sort((a, b) => a - b));
+  });
+
+  it('draws the head of a soldier on the first walkable row over the border wall, never above the map', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const p1 = state.units.find((u) => u.id === 'p1')!;
+    p1.pos = { x: 1, y: 1 }; // the first walkable row
+    const { atlas, drawn } = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    const fig = drawn.find((d) => d.name.startsWith('squad_') && d.x === 16 && d.y === 16 - RISE);
+    expect(fig).toBeDefined();
+    expect(fig!.y).toBeGreaterThanOrEqual(0); // the head rows lie in row 0, the wall; the world starts at y = 0
+  });
+
+  it('draws an enemy at the edge of vision only when its own tile is in view', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const soldier = state.units.find((u) => u.side === 'player')!;
+    const enemy = state.units.find((u) => u.side === 'enemy')!;
+    enemy.pos = { x: 28, y: 1 }; // far corner, in the dark
+    const hidden = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, hidden.atlas);
+    expect(hidden.drawn.some((d) => d.name.startsWith('enemy_'))).toBe(false);
+    enemy.pos = { x: soldier.pos.x + 1, y: soldier.pos.y };
+    const seen = spyAtlas();
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, seen.atlas);
+    expect(seen.drawn.some((d) => d.name.startsWith('enemy_'))).toBe(true);
   });
 
   it('completes with an atlas that has no canvas (nothing is drawn)', () => {
@@ -186,7 +234,7 @@ describe('gadget markers', () => {
     armoured.gadget = 'armour';
     const worn = recorder();
     drawGame(worn.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
-    expect(worn.fills).toContainEqual({ style: '#4da6ff', x: armoured.pos.x * 16 + 13, y: armoured.pos.y * 16 + 13, w: 2, h: 2 });
+    expect(worn.fills).toContainEqual({ style: '#4da6ff', x: armoured.pos.x * 16 + 12, y: armoured.pos.y * 16 - RISE - 9, w: 2, h: 2 });
   });
 
   it('keeps the armour pip clear of the rank pips of a promoted soldier', () => {
@@ -196,8 +244,8 @@ describe('gadget markers', () => {
     const r = recorder();
     drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
     const x0 = p1.pos.x * 16;
-    const y0 = p1.pos.y * 16;
-    const near = (f: { x: number; y: number }) => f.x >= x0 && f.x < x0 + 16 && f.y >= y0 && f.y < y0 + 16;
+    const y0 = p1.pos.y * 16 - RISE - 12; // the status row above the head
+    const near = (f: { x: number; y: number }) => f.x >= x0 && f.x < x0 + 16 && f.y >= y0 && f.y < y0 + 8;
     const pips = r.fills.filter((f) => f.style === '#ffe14d' && f.w === 1 && f.h === 2 && near(f));
     const armour = r.fills.filter((f) => f.style === '#4da6ff' && near(f));
     expect(pips).toHaveLength(3);
@@ -209,13 +257,13 @@ describe('gadget markers', () => {
     }
   });
 
-  it('draws the health bar entirely above the tile, so it never covers the helmet or the rank pips', () => {
+  it('draws the health bar entirely above the figure, so it never covers the helmet or the rank pips', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const p1 = state.units.find((u) => u.id === 'p1')!;
     const r = recorder();
     drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
     const bars = r.fills.filter((f) => f.style === '#7dff9a' && f.h === 2 && f.x >= p1.pos.x * 16 && f.x < p1.pos.x * 16 + 16);
     expect(bars.length).toBeGreaterThan(0);
-    for (const b of bars) expect(b.y + b.h).toBeLessThanOrEqual(p1.pos.y * 16);
+    for (const b of bars) expect(b.y + b.h).toBeLessThanOrEqual(p1.pos.y * 16 - RISE - 4); // a 4 px gap over the head
   });
 });

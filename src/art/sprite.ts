@@ -1,5 +1,6 @@
 import type { Facing, Pos, Side, WeaponId } from '../core/types';
 import { PALETTE, TRANSPARENT } from './palette';
+import { RISE } from './figure';
 import type { SpriteName } from './sprites';
 
 export const SPRITE_SIZE = 16;
@@ -84,15 +85,16 @@ export function rankPips(rank: string): number {
 }
 
 /**
- * Rank pips: 1x2 pixels in a row at the top-left (x 1 to 3, rows 1-2): clear of every sprite, mirrored or not, of the
- * selection outline on the tile edge and of the health bar above the tile.
+ * Rank pips: 1x2 pixels in a row in the status row just above the health bar, which floats above the head of the
+ * figure (offsets from the top-left of the feet tile, so y is negative). A figure fills the tile it stands on down to
+ * the boots, so no corner of the feet tile is free; above the head nothing is.
  */
 export function pipPositions(count: number): { x: number; y: number }[] {
-  return Array.from({ length: count }, (_, i) => ({ x: 1 + i, y: 1 }));
+  return Array.from({ length: count }, (_, i) => ({ x: 2 + 2 * i, y: -RISE - 9 }));
 }
 
-/** The 2x2 armour pip at the bottom-right of the tile, clear of the legs, the boots and the weapon. */
-export const ARMOUR_PIP = { x: 13, y: 13, w: 2, h: 2 } as const;
+/** The 2x2 armour pip at the right end of the same status row. */
+export const ARMOUR_PIP = { x: 12, y: -RISE - 9, w: 2, h: 2 } as const;
 
 /** The sign of each axis from one tile to another. */
 export function directionTo(from: Pos, to: Pos): Pos {

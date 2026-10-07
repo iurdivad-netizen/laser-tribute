@@ -1,5 +1,6 @@
 import { Atlas } from '../art/atlas';
-import { ARMOUR_PIP, floorVariant, pipPositions, rankPips, unitSprite } from '../art/sprite';
+import { RISE, unitFigure } from '../art/figure';
+import { ARMOUR_PIP, floorVariant, pipPositions, rankPips } from '../art/sprite';
 import type { SpriteName } from '../art/sprites';
 import { CONFIG } from '../core/config';
 import type { GameState } from '../core/types';
@@ -89,18 +90,18 @@ export function drawGame(
     art.draw(ctx, u.side === 'player' ? 'corpse_player' : 'corpse_enemy', u.pos.x * T, u.pos.y * T);
   }
 
-  for (const u of state.units) {
-    if (!u.alive) continue;
-    const seen = visible[u.pos.y][u.pos.x];
-    if (u.side === 'enemy' && !seen) continue;
-
+  // Living units in order of tile row, the lowest row last, so a figure in front covers the one behind it (and the wall
+  // its head overlaps). The sort is stable: units on one row keep their list order.
+  const living = state.units
+    .filter((u) => u.alive && !(u.side === 'enemy' && !visible[u.pos.y][u.pos.x]))
+    .sort((p, q) => p.pos.y - q.pos.y);
+  for (const u of living) {
     const off = effects.unitOffset(u.id, now);
-    const x0 = Math.round(u.pos.x * T + off.x);
+    const x0 = Math.round(u.pos.x * T + off.x); // the top-left of the tile the feet stand on
     const y0 = Math.round(u.pos.y * T + off.y + effects.unitBob(u.id, now));
-    const { name, flip } = unitSprite(u.side, u.facing, u.weapon);
-    art.draw(ctx, name, x0, y0, { flip });
+    const { figure, flip } = unitFigure(u.side, u.facing, u.weapon);
+    art.drawFigure(ctx, figure, x0, y0 - RISE, { flip });
     const cx = x0 + T / 2;
-    const cy = y0 + T / 2;
 
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
@@ -111,12 +112,13 @@ export function drawGame(
       }
     }
 
+    const barY = y0 - RISE - 6; // the bar's bottom is 4 px above the top of the figure
     ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 6, cy - 10, 12, 2); // entirely above the tile, so it never covers the helmet or the rank pips
+    ctx.fillRect(cx - 6, barY, 12, 2);
     ctx.fillStyle = '#7dff9a';
-    ctx.fillRect(cx - 6, cy - 10, (12 * u.hp) / u.maxHp, 2);
+    ctx.fillRect(cx - 6, barY, (12 * u.hp) / u.maxHp, 2);
     if (u.alert) {
-      drawText(ctx, '!', cx + 5, cy - 17, COLORS.select);
+      drawText(ctx, '!', cx + 8, barY - 7, COLORS.select);
     }
     if (u.id === ui.selectedId) {
       ctx.strokeStyle = COLORS.select;
