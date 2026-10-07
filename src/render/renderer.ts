@@ -95,6 +95,7 @@ export function drawGame(
   const living = state.units
     .filter((u) => u.alive && !(u.side === 'enemy' && !visible[u.pos.y][u.pos.x]))
     .sort((p, q) => p.pos.y - q.pos.y);
+  let selectedAt: { x: number; y: number } | null = null;
   for (const u of living) {
     const off = effects.unitOffset(u.id, now);
     const x0 = Math.round(u.pos.x * T + off.x); // the top-left of the tile the feet stand on
@@ -103,16 +104,19 @@ export function drawGame(
     art.drawFigure(ctx, figure, x0, y0 - RISE, { flip });
     const cx = x0 + T / 2;
 
+    // The status stack (pips, bar, alert mark) floats above the head; for a unit on the first walkable row there is no
+    // room above the map's top edge, so the stack is pushed down over the head instead of being clipped away.
+    const shift = Math.max(0, -(y0 - RISE - (u.alert ? 13 : 9)));
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
-      for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y, 1, 2);
+      for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y + shift, 1, 2);
       if (u.gadget === 'armour') {
         ctx.fillStyle = COLORS.armour;
-        ctx.fillRect(x0 + ARMOUR_PIP.x, y0 + ARMOUR_PIP.y, ARMOUR_PIP.w, ARMOUR_PIP.h);
+        ctx.fillRect(x0 + ARMOUR_PIP.x, y0 + ARMOUR_PIP.y + shift, ARMOUR_PIP.w, ARMOUR_PIP.h);
       }
     }
 
-    const barY = y0 - RISE - 6; // the bar's bottom is 4 px above the top of the figure
+    const barY = y0 - RISE - 6 + shift; // the bar's bottom is 4 px above the top of the figure
     ctx.fillStyle = '#000';
     ctx.fillRect(cx - 6, barY, 12, 2);
     ctx.fillStyle = '#7dff9a';
@@ -120,10 +124,12 @@ export function drawGame(
     if (u.alert) {
       drawText(ctx, '!', cx + 8, barY - 7, COLORS.select);
     }
-    if (u.id === ui.selectedId) {
-      ctx.strokeStyle = COLORS.select;
-      ctx.strokeRect(u.pos.x * T + 0.5, u.pos.y * T + 0.5, T - 1, T - 1);
-    }
+    if (u.id === ui.selectedId) selectedAt = { x: u.pos.x * T, y: u.pos.y * T };
+  }
+  if (selectedAt) {
+    // after every figure, so one standing in front cannot cover the outline of the selected soldier's tile
+    ctx.strokeStyle = COLORS.select;
+    ctx.strokeRect(selectedAt.x + 0.5, selectedAt.y + 0.5, T - 1, T - 1);
   }
 
   ctx.fillStyle = COLORS.scan;

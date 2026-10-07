@@ -257,6 +257,43 @@ describe('gadget markers', () => {
     }
   });
 
+  it('keeps the health bar, the rank pips and the armour pip inside the map for a unit on the first walkable row', () => {
+    const state = createMission(MISSIONS[0], 1, roster); // roster[0] is a Captain: three pips
+    const p1 = state.units.find((u) => u.id === 'p1')!;
+    p1.pos = { x: 1, y: 1 };
+    p1.gadget = 'armour';
+    p1.alert = true;
+    const r = recorder();
+    drawGame(r.ctx, state, createUiState('p1'), new Effects(), 0, spyAtlas().atlas);
+    const mine = r.fills.filter((f) => f.x >= 16 && f.x < 32 && f.y < 16 + 8);
+    const bars = mine.filter((f) => f.style === '#7dff9a' && f.h === 2);
+    const pips = mine.filter((f) => f.style === '#ffe14d' && f.w === 1 && f.h === 2);
+    const armour = mine.filter((f) => f.style === '#4da6ff');
+    expect(bars.length).toBeGreaterThan(0);
+    expect(pips).toHaveLength(3);
+    expect(armour).toHaveLength(1);
+    for (const f of [...bars, ...pips, ...armour]) expect(f.y, `mark at ${f.x},${f.y} is above the map`).toBeGreaterThanOrEqual(0);
+  });
+
+  it('draws the selection outline after every figure, so a figure in front cannot cover it', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const log: string[] = [];
+    const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
+    const realFigure = atlas.drawFigure.bind(atlas);
+    atlas.drawFigure = (c, fig, x, y, opts = {}) => {
+      log.push('figure');
+      return realFigure(c, fig, x, y, opts);
+    };
+    const target = new Proxy({}, {
+      get: (_t, k) => (k === 'strokeRect' ? () => log.push('outline') : () => ({ width: 0 })),
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    drawGame(target, state, createUiState('p1'), new Effects(), 0, atlas);
+    const outline = log.indexOf('outline');
+    expect(outline).toBeGreaterThanOrEqual(0);
+    expect(log.lastIndexOf('figure')).toBeLessThan(outline);
+  });
+
   it('draws the health bar entirely above the figure, so it never covers the helmet or the rank pips', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const p1 = state.units.find((u) => u.id === 'p1')!;

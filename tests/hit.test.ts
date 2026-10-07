@@ -99,6 +99,26 @@ describe('unitAtScreen', () => {
     expect(unitAtScreen(state, camera, layout, pt.x, pt.y)?.id).toBe(enemy.id);
   });
 
+  it('skips units the caller does not accept and returns the next figure under the point', () => {
+    const { state, camera } = setup();
+    const back = state.units.find((u) => u.id === 'p1')!;
+    const front = state.units.find((u) => u.id === 'p2')!;
+    back.pos = { x: 5, y: 10 };
+    front.pos = { x: 5, y: 11 };
+    const a = maskOf(back);
+    const b = maskOf(front);
+    let both: { x: number; y: number } | null = null;
+    for (let ly = 0; ly < FIGURE_H && !both; ly++) {
+      for (let lx = 0; lx < FIGURE_W && !both; lx++) {
+        const fy = back.pos.y * 16 - RISE + ly - (front.pos.y * 16 - RISE);
+        if (fy >= 0 && fy < FIGURE_H && a[ly * FIGURE_W + lx] === 1 && b[fy * FIGURE_W + lx] === 1) both = { x: lx, y: ly };
+      }
+    }
+    const pt = screenOf(state, camera, back, both!.x, both!.y);
+    expect(unitAtScreen(state, camera, layout, pt.x, pt.y, (u) => u.id !== 'p2')?.id).toBe('p1');
+    expect(unitAtScreen(state, camera, layout, pt.x, pt.y, () => false)).toBeNull();
+  });
+
   it('ignores the dead and points outside the map rectangle', () => {
     const { state, camera } = setup();
     const p = state.units.find((u) => u.id === 'p1')!;
