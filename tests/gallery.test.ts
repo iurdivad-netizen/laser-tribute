@@ -3,15 +3,24 @@ import { drawGallery } from '../src/art/gallery';
 import { SPRITE_NAMES } from '../src/art/sprites';
 
 describe('drawGallery', () => {
-  it('draws every sprite once, enlarged three times, inside the canvas', () => {
+  it('draws every sprite once, enlarged three times, and the twenty figures, inside the canvas', () => {
     const drawn: { name: string; x: number; y: number; scale: number }[] = [];
+    const figures: { name: string; flip: boolean }[] = [];
     const art = {
       draw: (_ctx: unknown, name: string, x: number, y: number, opts?: { scale?: number }) => {
         drawn.push({ name, x, y, scale: opts?.scale ?? 1 });
         return true;
       },
+      drawFigure: (_ctx: unknown, fig: { name: string }, _x: number, _y: number, opts?: { flip?: boolean }) => {
+        figures.push({ name: fig.name, flip: !!opts?.flip });
+        return true;
+      },
     };
-    const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
+    const translates: { x: number; y: number }[] = [];
+    const ctx = new Proxy({}, {
+      get: (_t, k) => (k === 'translate' ? (x: number, y: number) => translates.push({ x, y }) : () => undefined),
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
     drawGallery(ctx, art as never);
     expect(drawn.map((d) => d.name)).toEqual([...SPRITE_NAMES]);
     for (const d of drawn) {
@@ -19,6 +28,14 @@ describe('drawGallery', () => {
       expect(d.x).toBeGreaterThanOrEqual(0);
       expect(d.x + 48).toBeLessThanOrEqual(480);
       expect(d.y + 48).toBeLessThanOrEqual(360);
+    }
+    expect(figures).toHaveLength(20); // 5 views x 2 sides x 2 weapons
+    expect(new Set(figures.map((f) => f.name)).size).toBe(20);
+    expect(translates).toHaveLength(20);
+    for (const t of translates) {
+      expect(t.x).toBeGreaterThanOrEqual(0);
+      expect(t.x + 32).toBeLessThanOrEqual(480);
+      expect(t.y + 64).toBeLessThanOrEqual(352); // above the sample text
     }
   });
 });

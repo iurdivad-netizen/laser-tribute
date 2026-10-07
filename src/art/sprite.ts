@@ -1,4 +1,4 @@
-import type { Facing, Pos, Side, WeaponId } from '../core/types';
+import type { Pos } from '../core/types';
 import { PALETTE, TRANSPARENT } from './palette';
 import { RISE } from './figure';
 import type { SpriteName } from './sprites';
@@ -61,16 +61,6 @@ export function rotateRows(rows: string[], degrees: number): string[] {
 
 export function recolorRows(rows: string[], map: Record<string, string>): string[] {
   return rows.map((r) => [...r].map((ch) => map[ch] ?? ch).join(''));
-}
-
-const FACING_SUFFIX = ['n', 'ne', 'e', 'se', 's'] as const;
-
-/** Facings 0 to 4 have their own sprite; 5, 6, 7 are the horizontal mirror of 3, 2, 1. */
-export function unitSprite(side: Side, facing: Facing, weapon: WeaponId): { name: SpriteName; flip: boolean } {
-  const flip = facing > 4;
-  const base = flip ? 8 - facing : facing;
-  const prefix = side === 'player' ? 'soldier' : 'enemy';
-  return { name: `${prefix}_${weapon}_${FACING_SUFFIX[base]}` as SpriteName, flip };
 }
 
 /** Which of the three floor sprites a tile uses: a fixed hash of its position, so the floor never flickers. */
