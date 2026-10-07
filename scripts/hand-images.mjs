@@ -72,6 +72,43 @@ const ITEM_GRENADE_BASE = [
   ...Array(4).fill(blank()),
 ];
 
+const ITEM_SHOTGUN_BASE = [
+  ...Array(5).fill(blank()),
+  '.kkkkkkkkkkkkkk.',
+  '.kaaaaaaaaaaaak.',
+  '.kAAAAAAAAAAAAk.',
+  '.kkkOOOkkkkkkkk.',
+  '....kOOk........',
+  '....kkkk........',
+  ...Array(5).fill(blank()),
+];
+const ITEM_SMG_BASE = [
+  ...Array(5).fill(blank()),
+  '..kkkkkkkkkk....',
+  '..kaaaaaaaaakk..',
+  '..kAAAAAAAAAak..',
+  '..kkkOOkkkkkk...',
+  '.....kOOk.......',
+  '.....kaak.......',
+  '.....kAAk.......',
+  '.....kkkk.......',
+  ...Array(3).fill(blank()),
+];
+const ITEM_SNIPER_BASE = [
+  ...Array(4).fill(blank()),
+  '....kkkk........',
+  '....kAAk........',
+  '.kkkkkkkkkkkkkk.',
+  '.kOOOOaaaaaaaaa.',
+  '.kkkAAAkkkkkkkk.',
+  '....kAAk........',
+  '....kkkk........',
+  ...Array(5).fill(blank()),
+];
+const ITEM_SHOTGUN = shiftRows(ITEM_SHOTGUN_BASE, -4);
+const ITEM_SMG = shiftRows(ITEM_SMG_BASE, -4);
+const ITEM_SNIPER = shiftRows(ITEM_SNIPER_BASE, -4);
+
 const ITEM_PISTOL = shiftRows(ITEM_PISTOL_BASE, -4);
 const ITEM_RIFLE = shiftRows(ITEM_RIFLE_BASE, -4);
 const ITEM_GRENADE = shiftRows(ITEM_GRENADE_BASE, -4);
@@ -106,6 +143,9 @@ export const HAND_IMAGES = {
   item_pistol: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_PISTOL },
   item_rifle: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_RIFLE },
   item_grenade: { palette: { k: '#0b0c12', e: '#3cb371', E: '#26734a', y: '#ffe14d' }, rows: ITEM_GRENADE },
+  item_shotgun: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_SHOTGUN },
+  item_smg: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_SMG },
+  item_sniper: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_SNIPER },
   corpse_player: {
     palette: { k: '#0b0a09', H: '#174fa2', h: '#80bdfb', T: '#1a60c2', t: '#2a74cc', S: '#e6b5aa', L: '#121d3a', u: '#b3262c' },
     rows: CORPSE,

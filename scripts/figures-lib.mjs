@@ -158,11 +158,12 @@ export function renderModule(data) {
 
 export const IMAGE_NAMES = [
   'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
-  'item_rifle', 'item_pistol', 'item_grenade', 'corpse_player', 'corpse_enemy',
+  'item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy',
 ];
 const IMAGE_SOURCES = {
   floor_a: 'tiles/floor', wall: 'tiles/wall', door_closed: 'tiles/door_closed', door_open: 'tiles/door_open',
   item_rifle: 'items/rifle', item_pistol: 'items/pistol', item_grenade: 'items/grenade',
+  item_shotgun: 'items/shotgun', item_smg: 'items/smg', item_sniper: 'items/sniper',
   corpse_player: 'corpses/squad', corpse_enemy: 'corpses/enemy',
 };
 const SIZE = 16;

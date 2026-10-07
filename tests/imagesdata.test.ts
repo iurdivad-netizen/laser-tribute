@@ -4,7 +4,7 @@ import { IMAGE_DATA } from '../src/art/images.generated';
 
 const DIGITS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const SOLID = ['floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open'] as const;
-const LOOSE = ['item_rifle', 'item_pistol', 'item_grenade', 'corpse_player', 'corpse_enemy'] as const;
+const LOOSE = ['item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy'] as const;
 type Name = (typeof IMAGE_NAMES)[number];
 
 const rowsOf = (n: Name) => IMAGE_DATA[n].rows;
@@ -22,8 +22,8 @@ function redness(n: Name): number {
 }
 
 describe('the generated image data', () => {
-  it('has the eleven images, each 16x16 with a valid hex palette and valid indexes', () => {
-    expect(IMAGE_NAMES).toHaveLength(11);
+  it('has the fourteen images, each 16x16 with a valid hex palette and valid indexes', () => {
+    expect(IMAGE_NAMES).toHaveLength(14);
     expect(Object.keys(IMAGE_DATA).sort()).toEqual([...IMAGE_NAMES].sort());
     for (const name of IMAGE_NAMES) {
       const { palette, rows } = IMAGE_DATA[name];
@@ -59,7 +59,7 @@ describe('the generated image data', () => {
       rowsOf(n).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') out.add(`${x},${y}`); }));
       return out;
     };
-    for (const item of ['item_rifle', 'item_pistol', 'item_grenade'] as const) {
+    for (const item of ['item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper'] as const) {
       for (const corpse of ['corpse_player', 'corpse_enemy'] as const) {
         const body = cells(corpse);
         const cells_ = [...cells(item)];
