@@ -29,10 +29,15 @@ export function lineTiles(a: Pos, b: Pos): Pos[] {
   return out;
 }
 
-export function hasLineOfSight(s: GameState, from: Pos, to: Pos): boolean {
+export function smokeAt(s: GameState, p: Pos): boolean {
+  return s.hazards.some((h) => h.kind === 'smoke' && h.pos.x === p.x && h.pos.y === p.y);
+}
+
+export function hasLineOfSight(s: GameState, from: Pos, to: Pos, ignoreSmoke = false): boolean {
   const tiles = lineTiles(from, to);
   for (let i = 1; i < tiles.length - 1; i++) {
     if (isBlocking(tileAt(s, tiles[i]))) return false;
+    if (!ignoreSmoke && smokeAt(s, tiles[i])) return false;
   }
   return true;
 }
@@ -45,6 +50,7 @@ export function sightOf(u: Unit): number {
 export function canSee(s: GameState, unit: Unit, pos: Pos): boolean {
   if (!unit.alive) return false;
   if (chebyshev(unit.pos, pos) <= 1) return true;
+  if (smokeAt(s, unit.pos) || smokeAt(s, pos)) return false; // inside smoke you see (and are seen) only from next to it
   if (distance(unit.pos, pos) > sightOf(unit)) return false;
   const f = FACING_VECTORS[unit.facing];
   const dot = (pos.x - unit.pos.x) * f.x + (pos.y - unit.pos.y) * f.y;

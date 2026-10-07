@@ -18,7 +18,6 @@ export const CONFIG = {
   sightRange: 10,
   coverMultiplier: 0.6,
   maxHitChance: 0.95,
-  grenade: { apCost: 24, range: 8, damage: 40, radius: 1 },
   knife: { apCost: 20, damage: 60, accuracy: 0.9 },
   reloadAp: 15,
   spareClips: 1,

@@ -45,7 +45,7 @@ describe('soundsFor: other events', () => {
   });
 
   it('a grenade is an explosion, quieter out of sight', () => {
-    const ev: GameEvent = { type: 'grenade', unitId: 'p1', at, hits: [], doorsDestroyed: [] };
+    const ev: GameEvent = { type: 'grenade', kind: 'frag', hazards: [], stunned: [], unitId: 'p1', at, hits: [], doorsDestroyed: [] };
     expect(soundsFor(ev, state(), true)).toEqual([{ name: 'explosion', volume: 1 }]);
     expect(soundsFor(ev, state(), false)).toEqual([{ name: 'explosion', volume: 0.35 }]);
   });

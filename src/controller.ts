@@ -2,7 +2,7 @@ import { soundsFor } from './audio/mapping';
 import type { SoundPlayer } from './audio/sound';
 import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
-import { CONFIG, GADGETS, WEAPONS } from './core/config';
+import { CONFIG, GADGETS, THROWABLES, WEAPONS } from './core/config';
 import { posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
 import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
@@ -303,7 +303,7 @@ export class Controller {
       move: '',
       snap: `Snap shot, ${w.snapAp} AP: click an enemy`,
       aimed: `Aimed shot, ${w.aimedAp} AP: click an enemy`,
-      throw: 'Grenade, 24 AP: click a tile',
+      throw: `${THROWABLES[sel.throwable].name}, ${THROWABLES[sel.throwable].apCost} AP: click a tile`,
       door: 'Door, 2 AP: click an adjacent door',
       stab: `Stab, ${CONFIG.knife.apCost} AP: click an adjacent enemy`,
       heal: `Heal, ${GADGETS.medkit.apCost} AP: click yourself or an adjacent soldier`,

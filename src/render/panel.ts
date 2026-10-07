@@ -1,4 +1,4 @@
-import { CONFIG, GADGETS, WEAPONS } from '../core/config';
+import { CONFIG, GADGETS, THROWABLES, WEAPONS } from '../core/config';
 import { rankShort } from '../core/ranks';
 import type { GameState, Unit } from '../core/types';
 import type { UiState } from '../input/uiState';
@@ -26,7 +26,7 @@ export function actionCost(u: Unit, id: ButtonId): number | null {
   switch (id) {
     case 'snap': return WEAPONS[u.weapon].snapAp;
     case 'aimed': return WEAPONS[u.weapon].aimedAp;
-    case 'throw': return CONFIG.grenade.apCost;
+    case 'throw': return THROWABLES[u.throwable].apCost;
     case 'stab': return CONFIG.knife.apCost;
     case 'reload': return CONFIG.reloadAp;
     case 'door': return CONFIG.doorCost;
