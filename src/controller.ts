@@ -209,6 +209,7 @@ export class Controller {
         }
       }
       this.ui.pendingTile = null;
+      if (touch) this.ui.hover = null; // no pointer on a touchscreen: the tapped tile must not linger as a hover
       const path = findPath(this.state, sel.id, t, { seenBy: 'player', doorView: this.state.doorMemory });
       if (!path) {
         this.refuse('No path there');

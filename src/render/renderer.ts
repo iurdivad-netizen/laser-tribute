@@ -177,14 +177,6 @@ export function drawGame(
     ctx.strokeRect(selectedAt.x + 0.5, selectedAt.y + 0.5, T - 1, T - 1);
   }
 
-  if (selected && blastAt) {
-    // who a throw at the hovered tile would hit: foes in red, friends (the thrower too) in yellow
-    for (const v of blastVictims(state, selected, blastAt)) {
-      ctx.strokeStyle = v.friend ? RANGE_COLORS.friend : RANGE_COLORS.foe;
-      ctx.strokeRect(v.unit.pos.x * T + 0.5, v.unit.pos.y * T + 0.5, T - 1, T - 1);
-    }
-  }
-
   ctx.fillStyle = COLORS.scan;
   for (const p of state.scanned) {
     if (!visible[p.y][p.x]) ctx.fillRect(p.x * T + 6, p.y * T + 6, 4, 4);
@@ -195,6 +187,15 @@ export function drawGame(
   if (ui.hover) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
+  }
+
+  if (selected && blastAt) {
+    // who a throw at the hovered tile would hit: foes in red, friends (the thrower too) in cyan; above the hover outline
+    for (const v of blastVictims(state, selected, blastAt)) {
+      ctx.strokeStyle = v.friend ? RANGE_COLORS.friend : RANGE_COLORS.foe;
+      const inset = v.friend ? 2 : 0; // friends get an inner box, so the selection outline cannot hide it
+      ctx.strokeRect(v.unit.pos.x * T + 0.5 + inset, v.unit.pos.y * T + 0.5 + inset, T - 1 - 2 * inset, T - 1 - 2 * inset);
+    }
   }
 
   effects.draw(ctx, now, art);

@@ -167,3 +167,54 @@ describe('health bars', () => {
     }
   });
 });
+
+describe('review fixes', () => {
+  it('marks a friend (and the thrower) with an inset box in its own colour, so the selection outline cannot hide it', () => {
+    const { state, p } = setup();
+    p.throwable = 'flash';
+    const ui = createUiState(p.id);
+    ui.mode = 'throw';
+    ui.hover = { ...p.pos };
+    const out = draw(state, ui);
+    const mine = out.strokes.filter((s) => s.style === RANGE_COLORS.friend && Math.floor(s.x / 16) === p.pos.x && Math.floor(s.y / 16) === p.pos.y);
+    expect(mine.length).toBeGreaterThan(0);
+    for (const m of mine) expect(m.w).toBeLessThan(15); // inset: not the full-tile selection box
+    expect(RANGE_COLORS.friend).not.toBe('#ffe14d');
+  });
+
+  it('previews a throw at the thrower own tile', () => {
+    const { state, p } = setup();
+    const ui = createUiState(p.id);
+    ui.mode = 'throw';
+    ui.hover = { ...p.pos };
+    expect(tints(draw(state, ui).fills, RANGE_COLORS.blast.frag).length).toBeGreaterThan(0);
+  });
+
+  it('draws no health bar for a hurt enemy the player cannot see', () => {
+    const { state, p } = setup();
+    const foe = state.units.find((u) => u.side === 'enemy')!;
+    foe.hp = foe.maxHp - 10;
+    foe.pos = { x: state.width - 3, y: state.height - 3 }; // far away in the dark
+    const out = draw(state, createUiState(p.id));
+    const bars = out.fills.filter((f) => f.style === '#7dff9a' && f.h === 2 && f.x >= foe.pos.x * 16 && f.x < foe.pos.x * 16 + 16);
+    expect(bars).toHaveLength(0);
+  });
+
+  it('draws the victim marks above the hover outline', () => {
+    const { state, p } = setup();
+    const at = throwTiles(state, p).find((t) => t.x !== p.pos.x || t.y !== p.pos.y)!;
+    const foe = state.units.find((u) => u.side === 'enemy')!;
+    foe.pos = { ...at };
+    const order: string[] = [];
+    let stroke = '';
+    const ctx = new Proxy({}, {
+      get: (_t, k) => (k === 'strokeRect' ? () => order.push(stroke) : () => ({ width: 0 })),
+      set: (_t, k, v) => { if (k === 'strokeStyle') stroke = String(v); return true; },
+    }) as unknown as CanvasRenderingContext2D;
+    const ui = createUiState(p.id);
+    ui.mode = 'throw';
+    ui.hover = at;
+    drawGame(ctx, state, ui, new Effects(), 0, new Atlas((w, h) => new FakeCanvas(w, h)));
+    expect(order.lastIndexOf(RANGE_COLORS.foe)).toBeGreaterThan(order.indexOf('rgba(255,255,255,0.5)'));
+  });
+});

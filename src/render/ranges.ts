@@ -14,7 +14,8 @@ export const RANGE_COLORS = {
     flash: 'rgba(255,255,255,0.40)',
   },
   foe: '#ff5555',
-  friend: '#ffe14d',
+  /** Not the selection yellow, and drawn inset, so the selected thrower caught in his own blast shows. */
+  friend: '#6ef0ff',
 } as const;
 
 function around(s: GameState, from: Pos, reach: number): Pos[] {
@@ -35,10 +36,11 @@ export function shotTiles(s: GameState, u: Unit): Pos[] {
   return around(s, u.pos, Math.max(range, sightOf(u))).filter((p) => distance(u.pos, p) <= range && canSee(s, u, p));
 }
 
-/** The tiles the soldier could throw at: within the range of his grenade and in line of sight, which smoke does not stop. */
+/** The tiles the soldier could throw at, his own included: within the range of his grenade and in line of sight, which smoke does not stop. */
 export function throwTiles(s: GameState, u: Unit): Pos[] {
   const range = THROWABLES[u.throwable].range;
-  return around(s, u.pos, range).filter((p) => distance(u.pos, p) <= range && hasLineOfSight(s, u.pos, p, true));
+  const reach = around(s, u.pos, range).filter((p) => distance(u.pos, p) <= range && hasLineOfSight(s, u.pos, p, true));
+  return [{ ...u.pos }, ...reach]; // throwing at his own feet is allowed, and the most dangerous target
 }
 
 /** The non-wall tiles of the square blast of the given radius around `at`. */
