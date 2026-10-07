@@ -1,117 +1,69 @@
-import { recolorRows } from './sprite';
-
 export const SPRITE_NAMES = [
-  'floor_0', 'floor_1', 'floor_2', 'wall', 'door_closed', 'door_open',
-  'item_pistol', 'item_rifle', 'item_grenade', 'corpse_player', 'corpse_enemy',
   'flash_0', 'flash_1', 'spark', 'slash_0', 'slash_1', 'splash',
   'boom_0', 'boom_1', 'boom_2', 'boom_3',
 ] as const;
 
 export type SpriteName = (typeof SPRITE_NAMES)[number];
 
-const ENEMY_COLOURS = { B: 'R', C: 'P', N: 'M' };
+const SIZE = 16;
+const C = (SIZE - 1) / 2; // the centre lies between pixels 7 and 8
 
-const CORPSE_PLAYER = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '....kkkkkkkk....',
-  '...kNNNNNNNNk...',
-  '..kNNssNNNNNNk..',
-  '..kNNssNNuuNNk..',
-  '..kNNNNNuuuNNk..',
-  '...kNNNNNuNNk...',
-  '....kkkkkkkk....',
-  '................',
-  '................',
-  '................',
-  '................',
-];
+const blank = (): string[][] => Array.from({ length: SIZE }, () => Array<string>(SIZE).fill('.'));
 
-/** A tile of floor: seams on the bottom and right edge and a few specks, the same for a given variant. */
-function floorRows(variant: number): string[] {
-  const grid = Array.from({ length: 16 }, () => Array<string>(16).fill('g'));
-  for (let i = 0; i < 16; i++) {
-    grid[15][i] = 'h';
-    grid[i][15] = 'h';
+/** A dark outline `k` around every shape (4 neighbours), as the soldiers have. */
+function outlined(grid: string[][]): string[] {
+  const out = grid.map((r) => [...r]);
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if (grid[y][x] !== '.') continue;
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (grid[y + dy]?.[x + dx] ?? '.') !== '.')) out[y][x] = 'k';
+    }
   }
-  let seed = 12345 + variant * 7919;
-  const next = () => {
-    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
-    return seed >>> 8;
-  };
-  for (let n = 0; n < 7; n++) {
-    const x = next() % 14;
-    const y = next() % 14;
-    grid[y][x] = n % 3 === 0 ? 'G' : 'h';
-  }
-  return grid.map((r) => r.join(''));
+  return out.map((r) => r.join(''));
 }
 
-/** Brick-like wall with a lit top edge and darker mortar. */
-const WALL = (() => {
-  const a = 'wwwwwwwvwwwwwwwv';
-  const b = 'wwwvwwwwwwwvwwww';
-  const m = 'vvvvvvvvvvvvvvvv';
-  return ['WWWWWWWWWWWWWWWW', a, a, a, m, b, b, b, m, a, a, a, m, b, b, m];
-})();
+/** A muzzle flash: a star with a white core, a yellow ring and orange rays along the axes and diagonals. */
+function flashRows(big: boolean): string[] {
+  const g = blank();
+  const reach = big ? 5.5 : 3.2;
+  const core = big ? 1.8 : 1.2;
+  const ring = big ? 3.2 : 2.4;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const dx = Math.abs(x - C);
+      const dy = Math.abs(y - C);
+      const r = Math.hypot(dx, dy);
+      const ray = (dx <= 0.8 || dy <= 0.8 || Math.abs(dx - dy) <= 0.8) && r <= reach;
+      if (!ray && r > ring) continue;
+      g[y][x] = r <= core ? 'f' : r <= ring ? 'y' : 'o';
+    }
+  }
+  return outlined(g);
+}
 
-const DOOR_CLOSED = (() => {
-  const frame = 'kkkkkkkkkkkkkkkk';
-  const light = 'kOOOOOOOOOOOOOOk';
-  const dark = 'kddddddddddddddk';
-  const handle = 'kdddddddddddyddk';
-  return [frame, light, dark, light, dark, light, dark, light, handle, light, dark, light, dark, light, dark, frame];
-})();
+/** A hit spark: a small cross, white in the middle, pink arms, red tips. */
+function sparkRows(): string[] {
+  const g = blank();
+  for (const [x, y] of [[7, 7], [8, 7], [7, 8], [8, 8]]) g[y][x] = 'f';
+  for (const [x, y] of [[6, 7], [9, 7], [6, 8], [9, 8], [7, 6], [8, 6], [7, 9], [8, 9]]) g[y][x] = 'P';
+  for (const [x, y] of [[5, 7], [10, 8], [7, 5], [8, 10]]) g[y][x] = 'R';
+  return outlined(g);
+}
 
-const DOOR_OPEN = (() => {
-  const edge = 'DDDDDDDDDDDDDDDD';
-  const inner = 'D' + 'd'.repeat(14) + 'D';
-  const mid = 'Dd' + 'g'.repeat(12) + 'dD';
-  return [edge, inner, ...Array.from({ length: 12 }, () => mid), inner, edge];
-})();
+function slashRows(frame: number): string[] {
+  const g = blank();
+  const length = frame === 0 ? 8 : 11;
+  for (let i = 0; i < length; i++) {
+    const x = 13 - i;
+    const y = 2 + i;
+    g[y][x] = 'f';
+    g[y][x + 1] = frame === 0 ? 'f' : 'C';
+  }
+  return outlined(g);
+}
 
-const FLASH_0 = [
-  '................',
-  '................',
-  '................',
-  '.......yy.......',
-  '......yooy......',
-  '..yy.yoffoy.yy..',
-  '...yyoffffoyy...',
-  '....yoffffoy....',
-  '....yoffffoy....',
-  '...yyoffffoyy...',
-  '..yy.yoffoy.yy..',
-  '......yooy......',
-  '.......yy.......',
-  '................',
-  '................',
-  '................',
-];
-
-const FLASH_1 = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.......oo.......',
-  '......oyyo......',
-  '.....oyffyo.....',
-  '.....oyffyo.....',
-  '......oyyo......',
-  '.......oo.......',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-];
-
-const SPLASH = [
+/** Blood: a dark red blob with bright red flecks. */
+const SPLASH_BODY = [
   '................',
   '................',
   '................',
@@ -130,113 +82,28 @@ const SPLASH = [
   '................',
 ];
 
-function slashRows(frame: number): string[] {
-  const grid = Array.from({ length: 16 }, () => Array<string>(16).fill('.'));
-  const length = frame === 0 ? 8 : 11;
-  for (let i = 0; i < length; i++) {
-    const x = 13 - i;
-    const y = 2 + i;
-    grid[y][x] = 'f';
-    grid[y][x + 1] = frame === 0 ? 'f' : 'C';
-  }
-  return grid.map((r) => r.join(''));
-}
-
 /** An explosion frame: a fireball that grows, then thins to a dark ring. */
 function boomRows(frame: number): string[] {
   const radius = [3.5, 5.5, 7, 7.5][frame];
-  const rows: string[] = [];
-  for (let y = 0; y < 16; y++) {
-    let line = '';
-    for (let x = 0; x < 16; x++) {
-      const t = Math.hypot(x - 7.5, y - 7.5) / radius;
-      let ch = '.';
-      if (t <= 1) {
-        if (frame === 3) ch = t >= 0.6 ? 'M' : '.';
-        else ch = t < 0.35 ? 'f' : t < 0.65 ? 'y' : t < 0.9 ? 'o' : 'M';
-      }
-      line += ch;
+  const g = blank();
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const t = Math.hypot(x - C, y - C) / radius;
+      if (t > 1) continue;
+      if (frame === 3) g[y][x] = t >= 0.6 ? 'M' : '.';
+      else g[y][x] = t < 0.35 ? 'f' : t < 0.65 ? 'y' : t < 0.9 ? 'o' : 'M';
     }
-    rows.push(line);
   }
-  return rows;
+  return frame === 3 ? g.map((r) => r.join('')) : outlined(g);
 }
 
-const ITEM_PISTOL = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '....kkkkkkkk....',
-  '...kaaaaaaaak...',
-  '...kkkkkAAkkk...',
-  '......kAAk......',
-  '......kAAk......',
-  '......kkkk......',
-  '................',
-  '................',
-  '................',
-  '................',
-];
-
-const ITEM_RIFLE = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.kkkkkkkkkkkkkk.',
-  '.kaaaaaaaaaaaak.',
-  '.kkkAAAkkkkkkkk.',
-  '....kAAk........',
-  '....kkkk........',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-];
-
-const ITEM_GRENADE = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '......kk........',
-  '.....kyyk.......',
-  '....kkkkkk......',
-  '...keeeeeEk.....',
-  '...keeeeeEk.....',
-  '...keeeeEEk.....',
-  '...kEEEEEEk.....',
-  '....kkkkkk......',
-  '................',
-  '................',
-  '................',
-  '................',
-];
-
 export const SPRITE_ROWS: Record<SpriteName, string[]> = {
-  floor_0: floorRows(0),
-  floor_1: floorRows(1),
-  floor_2: floorRows(2),
-  wall: WALL,
-  door_closed: DOOR_CLOSED,
-  door_open: DOOR_OPEN,
-  item_pistol: ITEM_PISTOL,
-  item_rifle: ITEM_RIFLE,
-  item_grenade: ITEM_GRENADE,
-  corpse_player: CORPSE_PLAYER,
-  corpse_enemy: recolorRows(CORPSE_PLAYER, ENEMY_COLOURS),
-  flash_0: FLASH_0,
-  flash_1: FLASH_1,
-  spark: recolorRows(FLASH_1, { o: 'u', y: 'R', f: 'P' }),
+  flash_0: flashRows(true),
+  flash_1: flashRows(false),
+  spark: sparkRows(),
   slash_0: slashRows(0),
   slash_1: slashRows(1),
-  splash: SPLASH,
+  splash: outlined(SPLASH_BODY.map((r) => [...r])),
   boom_0: boomRows(0),
   boom_1: boomRows(1),
   boom_2: boomRows(2),

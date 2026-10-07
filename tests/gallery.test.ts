@@ -24,6 +24,7 @@ describe('drawGallery', () => {
     }) as unknown as CanvasRenderingContext2D;
     drawGallery(ctx, art as never);
     expect(drawn.map((d) => d.name)).toEqual([...SPRITE_NAMES]);
+    expect(SPRITE_NAMES).toHaveLength(10);
     for (const d of drawn) {
       expect(d.scale).toBe(3);
       expect(d.x).toBeGreaterThanOrEqual(0);

@@ -40,20 +40,20 @@ describe('Atlas', () => {
   it('bakes a sprite once, one rectangle per opaque pixel in the palette colour', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx, calls } = fakeCtx();
-    expect(atlas.draw(ctx, 'wall', 0, 0)).toBe(true);
-    expect(atlas.draw(ctx, 'wall', 16, 0)).toBe(true);
+    expect(atlas.draw(ctx, 'splash', 0, 0)).toBe(true);
+    expect(atlas.draw(ctx, 'splash', 16, 0)).toBe(true);
     expect(canvases).toHaveLength(1);
     expect(calls).toHaveLength(2);
-    const opaque = SPRITE_ROWS.wall.join('').replace(/\./g, '').length;
+    const opaque = SPRITE_ROWS.splash.join('').replace(/\./g, '').length;
     expect(canvases[0].ops).toHaveLength(opaque);
-    expect(canvases[0].ops[0].colour).toBe(PALETTE.W);
+    expect(canvases[0].ops[0].colour).toBe(PALETTE.k); // the outline is the first opaque pixel in reading order
     expect(canvases[0].ops.every((o) => o.w === 1 && o.h === 1)).toBe(true);
   });
 
   it('draws the baked canvas at the rounded position and size', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx, calls } = fakeCtx();
-    atlas.draw(ctx, 'wall', 32.4, 47.6);
+    atlas.draw(ctx, 'splash', 32.4, 47.6);
     expect(calls[0]).toEqual([canvases[0], 32, 48, 16, 16]);
   });
 
@@ -67,9 +67,9 @@ describe('Atlas', () => {
   it('keeps a mirrored copy as a separate cache entry with the pixels mirrored', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx } = fakeCtx();
-    atlas.draw(ctx, 'item_rifle', 0, 0);
-    atlas.draw(ctx, 'item_rifle', 0, 0, { flip: true });
-    atlas.draw(ctx, 'item_rifle', 0, 0, { flip: true });
+    atlas.draw(ctx, 'slash_0', 0, 0);
+    atlas.draw(ctx, 'slash_0', 0, 0, { flip: true });
+    atlas.draw(ctx, 'slash_0', 0, 0, { flip: true });
     expect(canvases).toHaveLength(2);
     const key = (o: Op) => `${o.x},${o.y},${o.colour}`;
     const plain = new Set(canvases[0].ops.map(key));
@@ -80,15 +80,15 @@ describe('Atlas', () => {
   it('draws nothing and does not throw when there is no canvas', () => {
     const atlas = new Atlas(() => null);
     const { ctx, calls } = fakeCtx();
-    expect(atlas.draw(ctx, 'wall', 0, 0)).toBe(false);
-    expect(atlas.draw(ctx, 'item_rifle', 0, 0, { flip: true })).toBe(false);
+    expect(atlas.draw(ctx, 'splash', 0, 0)).toBe(false);
+    expect(atlas.draw(ctx, 'slash_0', 0, 0, { flip: true })).toBe(false);
     expect(calls).toHaveLength(0);
   });
 
   it('the default atlas in a plain Node environment has no canvas and stays silent', () => {
     const atlas = new Atlas();
     const { ctx, calls } = fakeCtx();
-    expect(() => atlas.draw(ctx, 'wall', 0, 0)).not.toThrow();
+    expect(() => atlas.draw(ctx, 'splash', 0, 0)).not.toThrow();
     expect(calls).toHaveLength(0);
   });
 });
