@@ -1,5 +1,5 @@
 import { NOT_ENOUGH_AP, WEAPONS } from '../config';
-import { fireShot } from '../combat';
+import { fireBurst } from '../combat';
 import { distance } from '../geometry';
 import type { Command, GameEvent, GameState, ShotMode, Unit } from '../types';
 import { canSee } from '../vision';
@@ -22,6 +22,6 @@ export function handleShot(
   if (!canSee(s, unit, target.pos)) return 'Target is not visible';
 
   unit.ap -= cost;
-  fireShot(s, unit, target, mode, events);
+  fireBurst(s, unit, target, mode, events);
   return null;
 }

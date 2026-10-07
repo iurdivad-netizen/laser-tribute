@@ -1,4 +1,4 @@
-import { CONFIG } from './config';
+import { CONFIG, WEAPONS } from './config';
 import {
   FACING_VECTORS, chebyshev, distance, inBounds, isBlocking, posEq, tileAt,
 } from './geometry';
@@ -37,10 +37,15 @@ export function hasLineOfSight(s: GameState, from: Pos, to: Pos): boolean {
   return true;
 }
 
+/** How far a unit sees: its weapon's own sight (the sniper rifle's is longer), else the standard range. */
+export function sightOf(u: Unit): number {
+  return WEAPONS[u.weapon].sight ?? CONFIG.sightRange;
+}
+
 export function canSee(s: GameState, unit: Unit, pos: Pos): boolean {
   if (!unit.alive) return false;
   if (chebyshev(unit.pos, pos) <= 1) return true;
-  if (distance(unit.pos, pos) > CONFIG.sightRange) return false;
+  if (distance(unit.pos, pos) > sightOf(unit)) return false;
   const f = FACING_VECTORS[unit.facing];
   const dot = (pos.x - unit.pos.x) * f.x + (pos.y - unit.pos.y) * f.y;
   if (dot < 0) return false;
