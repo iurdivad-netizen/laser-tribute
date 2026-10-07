@@ -179,3 +179,17 @@ describe('a figure never takes a click that belongs to the tile under it', () =>
     expect(c.ui.hover).toEqual({ x: 10, y: 16 });
   });
 });
+
+describe('touch taps and the hover', () => {
+  it('a confirmed touch move leaves no stale hover behind, so entering throw mode shows no blast there', () => {
+    const { app, wait } = inMission();
+    const c = app.controller!;
+    const sel = c.state.units.find((u) => u.id === c.ui.selectedId)!;
+    const dest = { x: sel.pos.x, y: sel.pos.y - 1 };
+    c.clickTile(dest, true); // the first tap previews the path
+    expect(c.ui.hover).toEqual(dest);
+    c.clickTile(dest, true); // the second tap moves
+    wait();
+    expect(c.ui.hover).toBeNull();
+  });
+});

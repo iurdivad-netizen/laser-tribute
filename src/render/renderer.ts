@@ -4,7 +4,7 @@ import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
 import { corpseHalves, corpseLook } from '../art/corpse';
 import { itemImage, themeFor, tileImage } from '../art/theme';
-import { CONFIG } from '../core/config';
+import { CONFIG, THROWABLES } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
 import type { UiState } from '../input/uiState';
@@ -13,6 +13,7 @@ import { drawText } from '../ui/text';
 import { type Camera, createCamera, originOf } from './camera';
 import type { Effects } from './effects';
 import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
+import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
 
 const T = CONFIG.tileSize;
 
@@ -85,6 +86,26 @@ export function drawGame(
     art.drawImage(ctx, itemImage(item.kind), item.pos.x * T, item.pos.y * T);
   }
 
+  // What the selected soldier could shoot or throw at (a faint tint on explored tiles), and the blast of a throw at the
+  // hovered tile; under the corpses and the units.
+  const selected = ui.selectedId ? state.units.find((u) => u.id === ui.selectedId && u.alive && u.side === 'player') : undefined;
+  const aiming = selected && state.turn === 'player' && (ui.mode === 'snap' || ui.mode === 'aimed' || ui.mode === 'throw');
+  let blastAt: { x: number; y: number } | null = null;
+  if (selected && aiming) {
+    const kind = ui.mode === 'throw' ? 'throw' : 'shot';
+    const reach = rangeTiles(kind, state, selected);
+    ctx.fillStyle = RANGE_COLORS[kind];
+    for (const p of reach) if (state.explored[p.y][p.x]) ctx.fillRect(p.x * T, p.y * T, T, T);
+    const hover = ui.hover;
+    if (kind === 'throw' && hover && reach.some((p) => p.x === hover.x && p.y === hover.y)) {
+      blastAt = hover;
+      ctx.fillStyle = RANGE_COLORS.blast[selected.throwable];
+      for (const p of blastTiles(state, hover, THROWABLES[selected.throwable].radius)) {
+        if (state.explored[p.y][p.x]) ctx.fillRect(p.x * T, p.y * T, T, T);
+      }
+    }
+  }
+
   // Corpses first, in their own pass, so a living unit standing on (or sliding past) a corpse is drawn on top of it.
   for (const u of state.units) {
     if (u.alive || !visible[u.pos.y][u.pos.x]) continue;
@@ -133,10 +154,13 @@ export function drawGame(
     }
 
     const barY = y0 - RISE - 6 + shift; // the bar's bottom is 4 px above the top of the figure
-    ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 6, barY, 12, 2);
-    ctx.fillStyle = '#7dff9a';
-    ctx.fillRect(cx - 6, barY, (12 * u.hp) / u.maxHp, 2);
+    if (u.id === ui.selectedId || u.hp < u.maxHp) {
+      // only the selected unit (which also marks who is selected) and the hurt ones show their health
+      ctx.fillStyle = '#000';
+      ctx.fillRect(cx - 6, barY, 12, 2);
+      ctx.fillStyle = '#7dff9a';
+      ctx.fillRect(cx - 6, barY, (12 * u.hp) / u.maxHp, 2);
+    }
     if (u.alert) {
       drawText(ctx, '!', cx + 8, barY - 7, COLORS.select);
     }
@@ -163,6 +187,15 @@ export function drawGame(
   if (ui.hover) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
+  }
+
+  if (selected && blastAt) {
+    // who a throw at the hovered tile would hit: foes in red, friends (the thrower too) in cyan; above the hover outline
+    for (const v of blastVictims(state, selected, blastAt)) {
+      ctx.strokeStyle = v.friend ? RANGE_COLORS.friend : RANGE_COLORS.foe;
+      const inset = v.friend ? 2 : 0; // friends get an inner box, so the selection outline cannot hide it
+      ctx.strokeRect(v.unit.pos.x * T + 0.5 + inset, v.unit.pos.y * T + 0.5 + inset, T - 1 - 2 * inset, T - 1 - 2 * inset);
+    }
   }
 
   effects.draw(ctx, now, art);
