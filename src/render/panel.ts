@@ -78,8 +78,33 @@ export function squadAt(layout: Layout, px: number, py: number): number | null {
   return i < 0 ? null : i;
 }
 
-/** True for a position over the detail line, which opens the soldier card. */
-export const detailHit = (layout: Layout, px: number, py: number): boolean => inRect(layout.detail, px, py);
+/** The text of the detail line: the soldier line, with the weapon numbers when the whole line still fits. */
+export function detailLineFor(u: Unit, layout: Layout): string {
+  const weapon = WEAPONS[u.weapon];
+  const tag = rankShort(u.rank);
+  const parts = [
+    `${tag ? `${tag} ` : ''}${u.name}`,
+    `AP ${u.ap}/${u.maxAp}`,
+    `${weapon.name.toUpperCase()} ${u.ammo}/${weapon.magazine} +${u.clips}`,
+    `${THROW_SHORT[u.throwable]} ${u.grenades}`,
+  ];
+  if (u.gadget) parts.push(GADGETS[u.gadget].name.toUpperCase());
+  if (u.attachment) parts.push('SCOPE');
+  if (u.alert) parts.push('ALERT');
+  // the weapon numbers join the line only when the whole line still fits; the soldier card always has them
+  const withNumbers = [...parts.slice(0, 3), weaponLine(u), ...parts.slice(3)].join('  ');
+  return textWidth(withNumbers) * layout.text <= layout.detail.w - 4 ? withNumbers : parts.join('  ');
+}
+
+/**
+ * True for a position over the detail line, which opens the soldier card. In a landscape overlay layout the strip lies over
+ * the live map, so only the width of the drawn text counts and a tap on the rest still reaches the tile under it.
+ */
+export function detailHit(layout: Layout, px: number, py: number, line?: string): boolean {
+  if (!inRect(layout.detail, px, py)) return false;
+  if (!layout.overlay || line === undefined) return true;
+  return px < layout.detail.x + 2 + textWidth(line) * layout.text;
+}
 export const cancelHit = (layout: Layout, px: number, py: number): boolean => inRect(layout.cancel, px, py);
 export const soundHit = (layout: Layout, px: number, py: number): boolean => inRect(layout.sound, px, py);
 
@@ -142,20 +167,7 @@ export function drawPanel(
 
   // the detail line for the selected soldier
   if (u) {
-    const weapon = WEAPONS[u.weapon];
-    const tag = rankShort(u.rank);
-    const parts = [
-      `${tag ? `${tag} ` : ''}${u.name}`,
-      `AP ${u.ap}/${u.maxAp}`,
-      `${weapon.name.toUpperCase()} ${u.ammo}/${weapon.magazine} +${u.clips}`,
-      `${THROW_SHORT[u.throwable]} ${u.grenades}`,
-    ];
-    if (u.gadget) parts.push(GADGETS[u.gadget].name.toUpperCase());
-    if (u.attachment) parts.push('SCOPE');
-    if (u.alert) parts.push('ALERT');
-    // the weapon numbers join the line only when the whole line still fits; the soldier card always has them
-    const withNumbers = [...parts.slice(0, 3), weaponLine(u), ...parts.slice(3)].join('  ');
-    const line = fits(withNumbers, layout.detail.w - 4) ? withNumbers : parts.join('  ');
+    const line = detailLineFor(u, layout);
     text(clipText(line, (layout.detail.w - 4) / scale), layout.detail.x + 2, midY(layout.detail), UI.text);
   } else {
     text('NO SOLDIER SELECTED', layout.detail.x + 2, midY(layout.detail), UI.dim);

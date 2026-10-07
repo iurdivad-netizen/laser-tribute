@@ -22,7 +22,7 @@ import {
   createCamera, followTile, panBy, screenToTile, setZoom, tileToScreen, type Camera,
 } from './render/camera';
 import { VIEW } from './render/layout';
-import { cancelHit, detailHit, panelButtonAt, soundHit, squadAt } from './render/panel';
+import { cancelHit, detailHit, detailLineFor, panelButtonAt, soundHit, squadAt } from './render/panel';
 import { unitAtScreen } from './render/hit';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
@@ -436,7 +436,8 @@ export class App {
           c.ui.card = false; // any click closes the soldier card
           return;
         }
-        if (detailHit(L, p.x, p.y)) {
+        const picked = c.state.units.find((u) => u.id === c.ui.selectedId && u.alive);
+        if (detailHit(L, p.x, p.y, picked ? detailLineFor(picked, L) : '')) {
           this.openCard();
           return;
         }

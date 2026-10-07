@@ -152,6 +152,19 @@ describe('opening the soldier card', () => {
     expect(c.ui.mode).toBe('snap');
   });
 
+  it('in a landscape overlay layout only the drawn text opens the card, so a tap on the map under the strip still reaches the map', () => {
+    const app = inMission();
+    const c = app.controller!;
+    app.resize(844, 390, 3);
+    const L = app.layout;
+    expect(L.overlay).toBe(true);
+    const y = L.detail.y + L.detail.h / 2;
+    app.click({ x: L.detail.x + L.detail.w - 4, y }); // the right end of the strip: no text there
+    expect(c.ui.card).toBe(false);
+    app.click({ x: L.detail.x + 6, y }); // on the soldier line
+    expect(c.ui.card).toBe(true);
+  });
+
   it('does not open with nobody selected', () => {
     const app = inMission();
     const c = app.controller!;
@@ -161,7 +174,9 @@ describe('opening the soldier card', () => {
   });
 });
 
-const SIZES: [number, number, number][] = [[480, 400, 1], [390, 844, 3], [844, 390, 3], [1366, 768, 1], [320, 568, 2]];
+const SIZES: [number, number, number][] = [
+  [480, 400, 1], [390, 844, 3], [844, 390, 3], [1366, 768, 1], [320, 568, 2], [568, 270, 2], [740, 260, 3], [320, 480, 2], [667, 375, 2],
+];
 
 describe.each(SIZES)('the soldier card at %i x %i (dpr %i)', (w, h, dpr) => {
   const L: Layout = w === 480 ? DEFAULT_LAYOUT : computeLayout(w, h, dpr);
@@ -186,12 +201,13 @@ describe.each(SIZES)('the soldier card at %i x %i (dpr %i)', (w, h, dpr) => {
       expect(left(r), r.text).toBeGreaterThanOrEqual(L.map.x);
       expect(left(r) + r.width, r.text).toBeLessThanOrEqual(L.map.x + L.map.w);
       expect(r.y, r.text).toBeGreaterThanOrEqual(L.map.y);
-      expect(r.y + 7, r.text).toBeLessThanOrEqual(L.map.y + L.map.h);
+      expect(r.y + 7 * (r.scale ?? 1), r.text).toBeLessThanOrEqual(L.map.y + L.map.h);
+      if (L.dpr > 1 || w !== 480) expect(((r.scale ?? 1) * L.dpr) % 1, `${r.text}: scale ${r.scale} at dpr ${L.dpr}`).toBeCloseTo(0, 6);
     }
     for (let i = 0; i < runs.length; i++) {
       for (let j = i + 1; j < runs.length; j++) {
-        const a = { x: left(runs[i]), y: runs[i].y, w: runs[i].width, h: 7 };
-        const b = { x: left(runs[j]), y: runs[j].y, w: runs[j].width, h: 7 };
+        const a = { x: left(runs[i]), y: runs[i].y, w: runs[i].width, h: 7 * (runs[i].scale ?? 1) };
+        const b = { x: left(runs[j]), y: runs[j].y, w: runs[j].width, h: 7 * (runs[j].scale ?? 1) };
         const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
         expect(overlap, `"${runs[i].text}" overlaps "${runs[j].text}"`).toBe(false);
       }
