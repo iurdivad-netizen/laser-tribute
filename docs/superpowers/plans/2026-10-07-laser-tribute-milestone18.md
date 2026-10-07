@@ -1714,7 +1714,7 @@ describe('cycling weapons and throwables', () => {
 });
 ```
 
-Also add one hit-test in the same file: copy the file's existing `equipmentHitAt` test for the weapon button, point it at the centre of `EQ.throwable` for the same row, and expect `{ kind: 'throwable', index: 0 }`.`
+Also add one hit-test in the same file: copy the file's existing `equipmentHitAt` test for the weapon button, point it at the centre of `EQ.throwable` for the same row, and expect `{ kind: 'throwable', index: 0 }`.
 
 Replace the last placeholder test body with the real call, copied from an existing `equipmentHitAt`/`hitTest` test in the file and a point at the centre of the new button rectangle (`EQ.throwable.x + 2, y + 2` where `y` is the row's y exactly as the other tests compute it). Do not leave the placeholder in.
 
