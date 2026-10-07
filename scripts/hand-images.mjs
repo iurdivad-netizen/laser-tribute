@@ -107,11 +107,11 @@ export const HAND_IMAGES = {
   item_rifle: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_RIFLE },
   item_grenade: { palette: { k: '#0b0c12', e: '#3cb371', E: '#26734a', y: '#ffe14d' }, rows: ITEM_GRENADE },
   corpse_player: {
-    palette: { k: '#0b0a09', H: '#174fa2', h: '#80bdfb', T: '#1a60c2', t: '#2a74cc', S: '#e6b5aa', L: '#121d3a', u: '#701629' },
+    palette: { k: '#0b0a09', H: '#174fa2', h: '#80bdfb', T: '#1a60c2', t: '#2a74cc', S: '#e6b5aa', L: '#121d3a', u: '#b3262c' },
     rows: CORPSE,
   },
   corpse_enemy: {
-    palette: { k: '#0a0202', H: '#852131', h: '#dc5262', T: '#922634', t: '#b66d57', S: '#e4b1a8', L: '#272e35', u: '#4e1b28' },
+    palette: { k: '#0a0202', H: '#852131', h: '#dc5262', T: '#922634', t: '#b66d57', S: '#e4b1a8', L: '#272e35', u: '#b3262c' },
     rows: CORPSE,
   },
 };
