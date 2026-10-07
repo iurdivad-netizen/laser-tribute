@@ -68,13 +68,18 @@ function free(s: GameState, x: number, y: number): boolean {
   return s.tiles[y]?.[x]?.kind === 'floor' && !s.items.some((it) => it.pos.x === x && it.pos.y === y);
 }
 
+/** A tile a body may stretch over: free, already explored (the shape must not give away unexplored map) and no other corpse on it. */
+function roomFor(s: GameState, x: number, y: number): boolean {
+  return free(s, x, y) && s.explored[y][x] && !s.units.some((o) => !o.alive && o.pos.x === x && o.pos.y === y);
+}
+
 /** How a dead unit lies: a soldier laid down over two tiles when there is room, else the compact one-tile body. */
 export function corpseLook(s: GameState, u: Unit): CorpseLook {
   const compact: CorpseLook = { image: corpseImage(u.side), extend: 0 };
   if (!free(s, u.pos.x, u.pos.y)) return compact; // an item under the body must stay visible
   const h = hash(u.id);
   const first = h & 1 ? 1 : -1;
-  const extend = [first, -first as 1 | -1].find((d) => free(s, u.pos.x + d, u.pos.y));
+  const extend = [first, -first as 1 | -1].find((d) => roomFor(s, u.pos.x + d, u.pos.y));
   if (extend === undefined) return compact;
   return { image: corpsePose(u.side === 'player' ? 'squad' : 'enemy', (h >>> 8) % POSES), extend: extend as 1 | -1 };
 }

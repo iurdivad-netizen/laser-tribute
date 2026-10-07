@@ -26,6 +26,7 @@ function dead(before: number, after: number, id = 'e1') {
   const u = s.units[0];
   u.id = id;
   u.alive = false;
+  s.explored = s.explored.map((row) => row.map(() => true));
   return { s, u };
 }
 
@@ -118,6 +119,27 @@ describe('corpseLook', () => {
     expect(corpseLook(own.s, own.u).image.name).toBe('corpse_enemy'); // a pickup under the body must stay visible
   });
 
+  it('does not lie over another corpse', () => {
+    for (let i = 0; i < 20; i++) {
+      const { s, u } = dead(4, 4, `e${i}`);
+      s.units.push({ ...u, id: 'other', pos: { x: u.pos.x + 1, y: 1 } }); // dead too
+      s.units.push({ ...u, id: 'other2', pos: { x: u.pos.x - 1, y: 1 } });
+      expect(corpseLook(s, u).extend).toBe(0);
+      s.units.pop();
+      expect(corpseLook(s, u).extend).toBe(-1);
+    }
+  });
+
+  it('only lies over a tile the player has explored, so the shape never gives away the unexplored map', () => {
+    for (let i = 0; i < 20; i++) {
+      const { s, u } = dead(4, 4, `e${i}`);
+      s.explored[1][u.pos.x + 1] = false;
+      expect(corpseLook(s, u).extend).toBe(-1);
+      s.explored[1][u.pos.x - 1] = false;
+      expect(corpseLook(s, u).extend).toBe(0);
+    }
+  });
+
   it('gives the squad its own colours', () => {
     const { s, u } = dead(4, 4);
     u.side = 'player';
@@ -169,14 +191,13 @@ describe('drawing a lying corpse', () => {
     expect(drawCorpseHalves(s).map((d) => d.name)).toEqual(['corpse_enemy']);
   });
 
-  it('does not draw the half over a tile the player has not explored', () => {
+  it('never draws over a tile the player has not explored, and still shows a whole body', () => {
     for (let i = 0; i < 12; i++) {
       const { s, u } = seen(`e${i}`);
-      const look = corpseLook(s, u);
-      if (look.extend === 0) continue;
-      s.explored[1][u.pos.x + look.extend] = false;
+      s.explored[1][u.pos.x + 1] = false;
       const drawn = drawCorpseHalves(s);
-      expect(drawn.map((d) => d.x / 16)).toEqual([u.pos.x]);
+      expect(drawn.map((d) => d.x / 16).every((x) => s.explored[1][x])).toBe(true);
+      expect(drawn.length).toBe(2); // lies over the explored west side instead of being cut in half
     }
   });
 });

@@ -92,10 +92,10 @@ export function drawGame(
       art.drawImage(ctx, image, u.pos.x * T, u.pos.y * T);
       continue;
     }
-    // a lying soldier is two tiles long: draw each half, but never over a tile the player has not explored
+    // a lying soldier is two tiles long; corpseLook only picks tiles the player has explored
     const left = u.pos.x + Math.min(0, extend);
     corpseHalves(image).forEach((half, i) => {
-      if (state.explored[u.pos.y][left + i]) art.drawImage(ctx, half, (left + i) * T, u.pos.y * T);
+      art.drawImage(ctx, half, (left + i) * T, u.pos.y * T);
     });
   }
 
