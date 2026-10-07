@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Effects } from '../src/render/effects';
+import { Effects, aimPoint } from '../src/render/effects';
 
 const T = 16;
 const sprites = (fx: Effects, now: number) => fx.frames(now).filter((d) => d.type === 'sprite');
@@ -16,7 +16,7 @@ describe('shot effects', () => {
     fx.add([shot(true)], 0);
     const first = sprites(fx, 10)[0] as { name: string; x: number; y: number };
     expect(first.name).toBe('flash_0');
-    expect(first).toMatchObject({ x: 2 * T + 8, y: 3 * T });
+    expect(first).toMatchObject({ x: 2 * T + 8, y: 3 * T - 8 });
     expect(names(fx, 70)).toContain('flash_1');
     expect(names(fx, 200)).not.toContain('flash_0');
     expect(names(fx, 200)).not.toContain('flash_1');
@@ -26,12 +26,21 @@ describe('shot effects', () => {
     const hit = new Effects();
     hit.add([shot(true)], 0);
     const spark = sprites(hit, 100).find((d) => (d as { name: string }).name === 'spark') as { x: number; y: number; alpha: number };
-    expect(spark).toMatchObject({ x: 6 * T, y: 3 * T });
+    expect(spark).toMatchObject({ x: 6 * T, y: 3 * T - 8 });
     expect(spark.alpha).toBeGreaterThan(0);
     expect(spark.alpha).toBeLessThanOrEqual(1);
     const miss = new Effects();
     miss.add([shot(false)], 0);
     expect(names(miss, 100)).not.toContain('spark');
+  });
+
+  it('the tracer starts and ends at the chest of the shooter and of the target', () => {
+    const fx = new Effects();
+    fx.add([shot(true)], 0);
+    const line = fx.frames(50).find((d) => d.type === 'line') as { from: { x: number; y: number }; to: { x: number; y: number } };
+    expect(line.from).toEqual({ x: 2 * T + 8, y: 3 * T + 8 - 8 });
+    expect(line.to).toEqual({ x: 6 * T + 8, y: 3 * T + 8 - 8 });
+    expect(aimPoint({ x: 1, y: 1 })).toEqual({ x: 16 + 8, y: 16 + 8 - 8 });
   });
 
   it('the old tracer line is still drawn for the life of the shot, and gone afterwards', () => {
@@ -47,6 +56,7 @@ describe('stab, death, grenade and reload effects', () => {
     const fx = new Effects();
     fx.add([{ type: 'stab', unitId: 'p1', targetId: 'e1', hit: true, damage: 60, from: { x: 1, y: 1 }, at: { x: 2, y: 1 } }], 0);
     expect(names(fx, 10)).toContain('slash_0');
+    expect(sprites(fx, 10).find((d) => (d as { name: string }).name === 'slash_0')).toMatchObject({ x: 2 * T, y: 1 * T - 8 });
     expect(names(fx, 150)).toContain('slash_1');
     expect(names(fx, 100)).toContain('spark');
     expect(fx.frames(5000)).toEqual([]);

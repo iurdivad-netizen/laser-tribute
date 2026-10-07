@@ -18,7 +18,9 @@ export type EffectDraw =
   | { type: 'line'; from: Pos; to: Pos; hit: boolean }
   | { type: 'rect'; x: number; y: number; w: number; h: number; color: string; alpha: number };
 
-const center = (p: Pos) => ({ x: p.x * T + T / 2, y: p.y * T + T / 2 });
+/** How far above its tile's centre a soldier's chest is: shots and blows start and end there, not at the feet. */
+export const AIM_RAISE = 8;
+export const aimPoint = (p: Pos): Pos => ({ x: p.x * T + T / 2, y: p.y * T + T / 2 - AIM_RAISE });
 const tilePx = (p: Pos) => ({ x: p.x * T, y: p.y * T });
 
 export class Effects {
@@ -36,16 +38,20 @@ export class Effects {
         this.list.push({ kind: 'shot', from: e.from, to: e.impact, hit: e.hit, start: now, dur: 180 });
         const dir = directionTo(e.from, e.impact);
         const muzzle = tilePx(e.from);
-        this.sprite(['flash_0', 'flash_1'], { x: muzzle.x + dir.x * 8, y: muzzle.y + dir.y * 8 }, now, 90);
-        if (e.hit) this.sprite(['spark'], tilePx(e.impact), now + 80, 220, { fade: true });
+        this.sprite(['flash_0', 'flash_1'], { x: muzzle.x + dir.x * 8, y: muzzle.y + dir.y * 8 - AIM_RAISE }, now, 90);
+        if (e.hit) {
+          const at = tilePx(e.impact);
+          this.sprite(['spark'], { x: at.x, y: at.y - AIM_RAISE }, now + 80, 220, { fade: true });
+        }
         if (e.hit && e.crit) {
           const t = tilePx(e.impact);
-          this.sprite(['spark'], { x: t.x - 8, y: t.y - 8 }, now + 80, 300, { scale: 2, fade: true });
+          this.sprite(['spark'], { x: t.x - 8, y: t.y - 8 - AIM_RAISE }, now + 80, 300, { scale: 2, fade: true });
           this.list.push({ kind: 'flash', at: e.impact, color: '255,225,77', start: now, dur: 300 });
         }
       } else if (e.type === 'stab') {
-        this.sprite(['slash_0', 'slash_1'], tilePx(e.at), now, 220);
-        if (e.hit) this.sprite(['spark'], tilePx(e.at), now + 60, 220, { fade: true });
+        const at = tilePx(e.at);
+        this.sprite(['slash_0', 'slash_1'], { x: at.x, y: at.y - AIM_RAISE }, now, 220);
+        if (e.hit) this.sprite(['spark'], { x: at.x, y: at.y - AIM_RAISE }, now + 60, 220, { fade: true });
       } else if (e.type === 'died') {
         this.sprite(['splash'], tilePx(e.at), now, 450, { fade: true });
       } else if (e.type === 'grenade') {
@@ -86,7 +92,7 @@ export class Effects {
       const p = (now - e.start) / e.dur;
       if (p < 0 || p >= 1) continue;
       if (e.kind === 'shot') {
-        out.push({ type: 'line', from: center(e.from), to: center(e.to), hit: e.hit });
+        out.push({ type: 'line', from: aimPoint(e.from), to: aimPoint(e.to), hit: e.hit });
       } else if (e.kind === 'flash') {
         out.push({ type: 'rect', x: e.at.x * T, y: e.at.y * T, w: T, h: T, color: e.color, alpha: 1 - p });
       } else if (e.kind === 'sprite') {
