@@ -75,7 +75,7 @@ describe('stab, death, grenade and reload effects', () => {
 
   it('a grenade is a four-frame explosion, three tiles wide, centred on the blast', () => {
     const fx = new Effects();
-    fx.add([{ type: 'grenade', unitId: 'p1', at: { x: 10, y: 5 }, hits: [], doorsDestroyed: [] }], 0);
+    fx.add([{ type: 'grenade', kind: 'frag', hazards: [], stunned: [], unitId: 'p1', at: { x: 10, y: 5 }, hits: [], doorsDestroyed: [] }], 0);
     const seen = new Set<string>();
     for (let t = 0; t < 450; t += 10) {
       for (const d of sprites(fx, t)) {
@@ -99,7 +99,7 @@ describe('stab, death, grenade and reload effects', () => {
   it('never picks a frame outside the animation, at any moment of its life', () => {
     const fx = new Effects();
     fx.add([
-      { type: 'grenade', unitId: 'p1', at: { x: 3, y: 3 }, hits: [], doorsDestroyed: [] },
+      { type: 'grenade', kind: 'frag', hazards: [], stunned: [], unitId: 'p1', at: { x: 3, y: 3 }, hits: [], doorsDestroyed: [] },
       { type: 'stab', unitId: 'p1', targetId: 'e1', hit: true, damage: 60, from: { x: 1, y: 1 }, at: { x: 2, y: 1 } },
     ], 0);
     const allowed = new Set(['boom_0', 'boom_1', 'boom_2', 'boom_3', 'slash_0', 'slash_1', 'spark']);
@@ -112,7 +112,7 @@ describe('stab, death, grenade and reload effects', () => {
 describe('drawing the frames', () => {
   it('stamps sprites through the atlas with their scale and resets the alpha afterwards', () => {
     const fx = new Effects();
-    fx.add([{ type: 'grenade', unitId: 'p1', at: { x: 3, y: 3 }, hits: [], doorsDestroyed: [] }], 0);
+    fx.add([{ type: 'grenade', kind: 'frag', hazards: [], stunned: [], unitId: 'p1', at: { x: 3, y: 3 }, hits: [], doorsDestroyed: [] }], 0);
     const drawn: unknown[][] = [];
     const art = { draw: (...a: unknown[]) => { drawn.push(a); return true; } };
     const alphas: number[] = [];

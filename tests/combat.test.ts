@@ -145,7 +145,7 @@ describe('Throw', () => {
     expect(unit(r.state, 'p1').grenades).toBe(0);
     expect(unit(r.state, 'p1').ap).toBe(36);
     expect(r.events[0]).toEqual({
-      type: 'grenade', unitId: 'p1', at: { x: 7, y: 1 },
+      type: 'grenade', kind: 'frag', hazards: [], stunned: [], unitId: 'p1', at: { x: 7, y: 1 },
       hits: [{ unitId: 'e1', damage: 40 }], doorsDestroyed: [],
     });
     expect(r.events).toContainEqual({ type: 'died', unitId: 'e1', at: { x: 7, y: 1 } });

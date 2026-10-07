@@ -30,7 +30,7 @@ export function tileImage(theme: string, kind: TileKind, open: boolean, x: numbe
   return imageOf(t.floors[floorVariant(x, y)]);
 }
 
-const ITEM_IMAGES: Record<ItemKind, ImageName> = { rifle: 'item_rifle', pistol: 'item_pistol', grenade: 'item_grenade' };
+const ITEM_IMAGES: Record<ItemKind, ImageName> = { rifle: 'item_rifle', pistol: 'item_pistol', grenade: 'item_grenade', shotgun: 'item_shotgun', smg: 'item_smg', sniper: 'item_sniper' };
 
 export function itemImage(kind: ItemKind): Figure {
   return imageOf(ITEM_IMAGES[kind]);

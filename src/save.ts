@@ -1,14 +1,14 @@
 import { CAMPAIGN, type Campaign, type Mode, type RosterSoldier } from './core/campaign';
-import { ATTACHMENT_IDS, GADGET_IDS } from './core/config';
+import { ATTACHMENT_IDS, GADGET_IDS, THROWABLE_IDS, WEAPON_IDS } from './core/config';
 import { CAMPAIGN_LENGTH, VARIATIONS } from './core/gen';
 import { defaultLoadout, type Loadout } from './core/loadout';
-import type { Stash } from './core/stash';
+import { STASH_KEYS, emptyStash, type Stash } from './core/stash';
 
 export const SAVE_KEY = 'laser-tribute-save';
 export const CAMPAIGN_SAVE_KEY = 'laser-tribute-campaign';
 export const LAST_KEY = 'laser-tribute-last';
 const keyFor = (mode: Mode): string => (mode === 'campaign' ? CAMPAIGN_SAVE_KEY : SAVE_KEY);
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 export interface SaveStorage {
   getItem(key: string): string | null;
@@ -46,15 +46,14 @@ function soldiers(v: unknown, exactly?: number): RosterSoldier[] | null {
 
 function stash(v: unknown): Stash | null {
   if (!isObj(v)) return null;
-  const { rifle, pistol, grenade, clip } = v;
-  const optional = (n: unknown): number | null => (n === undefined ? 0 : isInt(n, 0, 99) ? n : null);
-  const medkit = optional(v.medkit);
-  const armour = optional(v.armour);
-  const scanner = optional(v.scanner);
-  const scope = optional(v.scope);
-  if (!isInt(rifle, 0, 99) || !isInt(pistol, 0, 99) || !isInt(grenade, 0, 99) || !isInt(clip, 0, 99)) return null;
-  if (medkit === null || armour === null || scanner === null || scope === null) return null;
-  return { rifle, pistol, grenade, clip, medkit, armour, scanner, scope };
+  const out = emptyStash();
+  for (const k of STASH_KEYS) {
+    const n = v[k];
+    if (n === undefined && !['rifle', 'pistol', 'grenade', 'clip'].includes(k)) continue; // keys added later may be absent
+    if (!isInt(n, 0, 99)) return null;
+    out[k] = n;
+  }
+  return out;
 }
 
 /** The saved loadout when it is well formed; the default one otherwise (the app then fits it to the budget). */
@@ -62,12 +61,14 @@ function loadout(v: unknown): Loadout {
   if (!Array.isArray(v) || v.length !== CAMPAIGN.rosterSize) return defaultLoadout();
   const out: Loadout = [];
   for (const s of v) {
-    if (!isObj(s) || (s.weapon !== 'pistol' && s.weapon !== 'rifle')) return defaultLoadout();
+    if (!isObj(s) || !WEAPON_IDS.includes(s.weapon as never)) return defaultLoadout();
     if (!isInt(s.grenades, 0, 3) || !isInt(s.clips, 1, 4)) return defaultLoadout();
+    if (s.throwable !== undefined && !THROWABLE_IDS.includes(s.throwable as never)) return defaultLoadout();
     if (s.gadget !== undefined && !GADGET_IDS.includes(s.gadget as never)) return defaultLoadout();
     if (s.attachment !== undefined && !ATTACHMENT_IDS.includes(s.attachment as never)) return defaultLoadout();
     out.push({
-      weapon: s.weapon, grenades: s.grenades, clips: s.clips,
+      weapon: s.weapon as (typeof WEAPON_IDS)[number], grenades: s.grenades, clips: s.clips,
+      ...(s.throwable !== undefined ? { throwable: s.throwable as (typeof THROWABLE_IDS)[number] } : {}),
       ...(s.gadget !== undefined ? { gadget: s.gadget as (typeof GADGET_IDS)[number] } : {}),
       ...(s.attachment !== undefined ? { attachment: s.attachment as (typeof ATTACHMENT_IDS)[number] } : {}),
     });
@@ -95,7 +96,7 @@ export function parseSave(text: string | null, missionCount: number, mode: Mode 
   } catch {
     return null;
   }
-  if (!isObj(raw) || raw.version !== SAVE_VERSION || !isObj(raw.campaign)) return null;
+  if (!isObj(raw) || (raw.version !== 1 && raw.version !== SAVE_VERSION) || !isObj(raw.campaign)) return null;
   const c = raw.campaign;
   if (c.status !== 'active') return null;
   if (!isInt(c.missionIndex, 0, missionCount - 1) || c.missionsWon !== c.missionIndex) return null;

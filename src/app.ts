@@ -5,6 +5,7 @@ import {
   type Campaign, type Mode, type RosterSoldier,
 } from './core/campaign';
 import { CAMPAIGN_LENGTH, drawVariations, generateMission } from './core/gen';
+import { levelOf } from './core/campaign';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
 import { addStash, capStash, lootFrom } from './core/loot';
@@ -48,7 +49,7 @@ export interface AppOptions {
   newSeed?: () => number;
   missions?: MissionDef[];
   createMission?: (
-    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash,
+    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash, level: number,
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
@@ -115,8 +116,8 @@ export class App {
     this.missions = opts.missions ?? MISSIONS;
     this.createMission =
       opts.createMission ??
-      ((def, seed, roster, loadout, budget, stash) =>
-        createMission(def, seed, roster, loadout, budget, stash));
+      ((def, seed, roster, loadout, budget, stash, level) =>
+        createMission(def, seed, roster, loadout, budget, stash, level));
     this.width = opts.width ?? LEGACY_SIZE.width;
     this.height = opts.height ?? LEGACY_SIZE.height;
     this.dpr = opts.dpr ?? 1;
@@ -267,10 +268,10 @@ export class App {
   }
 
   private startMission(): void {
-    if (validateLoadout(this.loadout, this.budget(), this.campaign.stash) !== null) return;
+    if (validateLoadout(this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign)) !== null) return;
     const def = this.mission();
     const state = this.createMission(
-      def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash,
+      def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign),
     );
     this.usedLoadout = this.loadout;
     this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
@@ -288,7 +289,7 @@ export class App {
   /** From the result screen: the next mission's equipment while the campaign is active, else the end screen. */
   private continueFromResult(): void {
     if (this.campaign.status === 'active') {
-      this.loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash);
+      this.loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign));
       this.screen = 'equipment';
     } else {
       this.screen = 'end';
@@ -339,7 +340,7 @@ export class App {
     this.newArmedUntil = 0;
     this.campaign = save.campaign;
     this.generated.clear();
-    this.loadout = fitLoadout(save.loadout, campaignBudget(save.campaign), save.campaign.stash);
+    this.loadout = fitLoadout(save.loadout, campaignBudget(save.campaign), save.campaign.stash, levelOf(save.campaign));
     this.lastMode?.set(mode);
     this.screen = 'equipment';
     this.hover = null;
@@ -416,7 +417,7 @@ export class App {
           this.startMission();
           return;
         }
-        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash);
+        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash, levelOf(this.campaign));
         if (next !== this.loadout) this.sound.play('click', 0.9);
         this.loadout = next;
         return;
@@ -558,7 +559,7 @@ export class App {
       this.campaign = recordMission(this.campaign, c.state, this.missionCount(), this.usedLoadout);
       const mode = this.campaign.mode;
       if (this.campaign.status === 'active') {
-        const loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash);
+        const loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign));
         this.storeFor(mode)?.save(this.campaign, loadout);
         this.saves[mode] = { campaign: this.campaign, loadout };
         this.lastMode?.set(mode);
@@ -594,6 +595,7 @@ export class App {
       breakdown: budgetBreakdown(c),
       soldiers: c.roster.map((r) => ({ ...r, rank: rankFor(r.kills).name })),
       stash: c.stash,
+      level: levelOf(c),
     };
   }
 

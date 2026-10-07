@@ -2,10 +2,13 @@ import { CONFIG } from './config';
 import { NEIGHBORS_8, inBounds, posEq, tileAt } from './geometry';
 import { stepBlockedReason, stepCost } from './movement';
 import type { GameState, Pos, Side, Unit } from './types';
-import { visibleToSide } from './vision';
+import { fireAt, visibleToSide } from './vision';
 
 /** Counts findPath calls; lets tests check that the AI skips needless pathfinding. */
 export const pathStats = { calls: 0 };
+
+/** Extra route cost of stepping onto a tile that is on fire: a detour is preferred, but fire is not a wall. */
+const FIRE_STEP_COST = 40;
 
 export interface PathOptions {
   ignoreOccupantAtGoal?: boolean;
@@ -59,7 +62,8 @@ export function findPath(
       if (stepBlockedReason(s, cur, next, ignoreUnits, doorsOpen) !== null) continue;
       const nk = key(next);
       const doorExtra = opts.openDoors && nextTile!.kind === 'door' && !nextTile!.open ? CONFIG.doorCost : 0;
-      const nd = dist.get(ck)! + stepCost(cur, next) + doorExtra;
+      const fireExtra = fireAt(s, next) ? FIRE_STEP_COST : 0;
+      const nd = dist.get(ck)! + stepCost(cur, next) + doorExtra + fireExtra;
       if (nd < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nd);
         prev.set(nk, cur);

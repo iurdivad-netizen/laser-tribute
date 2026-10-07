@@ -1,3 +1,4 @@
+import type { SpriteName } from '../art/sprites';
 import { Atlas } from '../art/atlas';
 import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
@@ -99,6 +100,12 @@ export function drawGame(
     });
   }
 
+  // fire lies under the units, smoke over them; on every tile the player has explored (smoke tiles themselves are never
+  // 'visible', and the player threw them)
+  for (const h of state.hazards) {
+    if (h.kind === 'fire' && state.explored[h.pos.y][h.pos.x]) art.draw(ctx, `fire_${Math.floor(now / 200) % 2}` as SpriteName, h.pos.x * T, h.pos.y * T);
+  }
+
   // Living units in order of tile row, the lowest row last, so a figure in front covers the one behind it (and the wall
   // its head overlaps). The sort is stable: units on one row keep their list order.
   const living = state.units
@@ -135,6 +142,11 @@ export function drawGame(
     }
     if (u.id === ui.selectedId) selectedAt = { x: u.pos.x * T, y: u.pos.y * T };
   }
+  ctx.globalAlpha = 0.8;
+  for (const h of state.hazards) {
+    if (h.kind === 'smoke' && state.explored[h.pos.y][h.pos.x]) art.draw(ctx, 'smoke', h.pos.x * T, h.pos.y * T);
+  }
+  ctx.globalAlpha = 1;
   if (selectedAt) {
     // after every figure, so one standing in front cannot cover the outline of the selected soldier's tile
     ctx.strokeStyle = COLORS.select;

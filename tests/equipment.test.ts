@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stashOf } from '../src/core/stash';
 import { defaultLoadout, loadoutCost } from '../src/core/loadout';
 import type { Stash } from '../src/core/stash';
 import { textWidth, unsupportedChars } from '../src/ui/font';
@@ -136,7 +137,7 @@ describe('drawEquipment', () => {
         { name: 'Brandt', kills: 4, rank: 'Private' },
         { name: 'Chen', kills: 12, rank: 'Captain' },
       ],
-      stash: { rifle: 2, pistol: 1, grenade: 3, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 },
+      stash: stashOf({ rifle: 2, pistol: 1, grenade: 3, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }),
     });
     stop();
     for (const r of runs) expect(unsupportedChars(r.text), r.text).toEqual([]);
@@ -160,8 +161,8 @@ describe('drawEquipment with a stash', () => {
   };
 
   it('shows the net price of each soldier, FREE when the stash covers everything, and marks stash weapons', () => {
-    const runs = draw({ rifle: 1, pistol: 0, grenade: 1, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
-    const costs = runs.filter((r) => r.x === 380).map((r) => r.text);
+    const runs = draw(stashOf({ rifle: 1, pistol: 0, grenade: 1, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
+    const costs = runs.filter((r) => r.x === 432).map((r) => r.text);
     expect(costs[0]).toBe('FREE'); // soldier 1: rifle and grenade both from the stash
     expect(costs[1]).toBe('33 cr'); // soldier 2 pays in full
     expect(runs.some((r) => r.text === 'Rifle (FREE)')).toBe(true);
@@ -169,13 +170,13 @@ describe('drawEquipment with a stash', () => {
   });
 
   it('shows full prices with an empty stash', () => {
-    const runs = draw({ rifle: 0, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
-    expect(runs.filter((r) => r.x === 380).map((r) => r.text)).toEqual(['33 cr', '33 cr', '18 cr', '18 cr']);
+    const runs = draw(stashOf({ rifle: 0, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
+    expect(runs.filter((r) => r.x === 432).map((r) => r.text)).toEqual(['33 cr', '33 cr', '18 cr', '18 cr']);
     expect(runs.some((r) => r.text.includes('FREE'))).toBe(false);
   });
 
   it('lists clips in the found-gear line', () => {
-    const runs = draw({ rifle: 1, pistol: 0, grenade: 0, clip: 2, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    const runs = draw(stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 2, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
     expect(runs.some((r) => r.text === 'Found gear is free: 1 rifle, 2 clips')).toBe(true);
   });
 });

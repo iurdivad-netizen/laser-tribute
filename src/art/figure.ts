@@ -35,6 +35,15 @@ export const WEAPON_AT: Record<FigureView, { x: number; y: number; dx: number; d
   s: { x: 13, y: 22, dx: 0, dy: 1, rifle: 5, thick: [-1, 0] },
 };
 
+/** How many pixels long each weapon is drawn, from the rifle length of the view. */
+const WEAPON_LENGTH: Record<WeaponId, (rifle: number, view: FigureView) => number> = {
+  pistol: (r) => Math.max(2, Math.round(r / 2)),
+  smg: (r) => Math.max(3, Math.round(r * 0.7)),
+  shotgun: (r) => r - 1,
+  rifle: (r) => r,
+  sniper: (r) => r + 3,
+};
+
 const bodies = new Map<string, Figure>();
 const armed = new Map<string, Figure>();
 const masks = new Map<string, Uint8Array>();
@@ -60,7 +69,15 @@ export function armedFigure(side: FigureSide, view: FigureView, weapon: WeaponId
     const body = bodyFigure(side, view);
     const pixels = [...body.pixels];
     const at = WEAPON_AT[view];
-    const length = weapon === 'rifle' ? at.rifle : Math.max(2, Math.round(at.rifle / 2));
+    let length = WEAPON_LENGTH[weapon](at.rifle, view);
+    // a weapon never runs off the figure: shorten it until its tip fits (the long sniper rifle in the diagonal views)
+    const fits = (n: number): boolean => {
+      const x = at.x + at.dx * (n - 1);
+      const y = at.y + at.dy * (n - 1);
+      return x >= 0 && y >= 0 && x < FIGURE_W && y < FIGURE_H;
+    };
+    while (length > 1 && !fits(length)) length--;
+    const thick = weapon === 'shotgun' || weapon === 'sniper' ? at.thick ?? [0, 1] : at.thick;
     const put = (x: number, y: number, colour: string): void => {
       if (x < 0 || y < 0 || x >= FIGURE_W || y >= FIGURE_H) throw new Error(`${key}: weapon pixel ${x},${y} is outside the figure`);
       pixels[y * FIGURE_W + x] = colour;
@@ -68,7 +85,16 @@ export function armedFigure(side: FigureSide, view: FigureView, weapon: WeaponId
     for (let i = 0; i < length; i++) {
       put(at.x + at.dx * i, at.y + at.dy * i, i === length - 1 ? TIP : METAL);
       // a second pixel beside the barrel (not on diagonals) so the weapon shows at game size
-      if (at.thick && i < length - 1) put(at.x + at.dx * i + at.thick[0], at.y + at.dy * i + at.thick[1], METAL);
+      if (thick && i < length - 1) put(at.x + at.dx * i + thick[0], at.y + at.dy * i + thick[1], METAL);
+    }
+    if (weapon === 'sniper') {
+      // a scope on top of the barrel: two pixels set off sideways
+      const side = thick ?? [0, 1];
+      for (const i of [2, 3]) {
+        const x = at.x + at.dx * i + side[0] * 2;
+        const y = at.y + at.dy * i + side[1] * 2;
+        if (i < length && x >= 0 && y >= 0 && x < FIGURE_W && y < FIGURE_H) put(x, y, METAL);
+      }
     }
     f = { name: key, width: FIGURE_W, height: FIGURE_H, pixels };
     armed.set(key, f);

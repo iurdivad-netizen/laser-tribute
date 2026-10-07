@@ -1,6 +1,6 @@
-import { CONFIG, GADGETS, WEAPONS } from '../core/config';
+import { CONFIG, GADGETS, THROWABLES, WEAPONS } from '../core/config';
 import { rankShort } from '../core/ranks';
-import type { GameState, Unit } from '../core/types';
+import type { GameState, ThrowableId, Unit } from '../core/types';
 import type { UiState } from '../input/uiState';
 import { textWidth } from '../ui/font';
 import { UI, drawFrame, type ButtonState } from '../ui/frame';
@@ -26,7 +26,7 @@ export function actionCost(u: Unit, id: ButtonId): number | null {
   switch (id) {
     case 'snap': return WEAPONS[u.weapon].snapAp;
     case 'aimed': return WEAPONS[u.weapon].aimedAp;
-    case 'throw': return CONFIG.grenade.apCost;
+    case 'throw': return THROWABLES[u.throwable].apCost;
     case 'stab': return CONFIG.knife.apCost;
     case 'reload': return CONFIG.reloadAp;
     case 'door': return CONFIG.doorCost;
@@ -47,6 +47,17 @@ export function actionBlocked(u: Unit, id: ButtonId): boolean {
   if (id === 'throw') return u.grenades < 1;
   if (id === 'gadget') return u.gadget !== 'medkit' && u.gadget !== 'scanner';
   return false;
+}
+
+/** The throw button's text: the kind of grenade carried and how many are left. */
+export const throwLabel = (u: Unit): string => `${THROWABLES[u.throwable].name.toUpperCase()} (${u.grenades})`;
+
+const THROW_SHORT: Record<ThrowableId, string> = { frag: 'FRAG', smoke: 'SMOKE', flash: 'FLASH', incendiary: 'FIRE' };
+
+/** The throw button's text, the longest of the keyed label, the label, the short name with count and the key that `fits`. */
+export function throwButtonText(u: Unit, key: string, fits: (s: string) => boolean): string {
+  const candidates = [`${key} ${throwLabel(u)}`, throwLabel(u), `${THROW_SHORT[u.throwable]} (${u.grenades})`, THROW_SHORT[u.throwable], key];
+  return candidates.find((c) => fits(c)) ?? key;
 }
 
 const MODE_NAMES: Partial<Record<UiState['mode'], string>> = {
@@ -101,7 +112,8 @@ export function drawPanel(
   else if (ui.previewCost !== null) line = `Move: ${ui.previewCost} AP`;
   else if (u && MODE_NAMES[ui.mode]) {
     const cost = actionCost(u, ui.mode === 'heal' ? 'gadget' : (ui.mode as ButtonId));
-    line = cost === null ? MODE_NAMES[ui.mode]! : `${MODE_NAMES[ui.mode]}: ${cost} AP`;
+    const name = ui.mode === 'throw' ? THROWABLES[u.throwable].name : MODE_NAMES[ui.mode]!;
+    line = cost === null ? name : `${name}: ${cost} AP`;
   }
   if (!line) {
     line = `TURN ${state.turnNumber}  ${state.turn === 'player' ? 'YOUR MOVE' : 'ENEMY MOVE'}`;
@@ -126,7 +138,7 @@ export function drawPanel(
       `${tag ? `${tag} ` : ''}${u.name}`,
       `AP ${u.ap}/${u.maxAp}`,
       `${weapon.name.toUpperCase()} ${u.ammo}/${weapon.magazine} +${u.clips}`,
-      `GREN ${u.grenades}`,
+      `${THROW_SHORT[u.throwable]} ${u.grenades}`,
     ];
     if (u.gadget) parts.push(GADGETS[u.gadget].name.toUpperCase());
     if (u.attachment) parts.push('SCOPE');
@@ -162,9 +174,9 @@ export function drawPanel(
     const blocked = !!u && actionBlocked(u, b.id);
     const style: ButtonState = active ? 'pressed' : blocked ? 'disabled' : 'raised';
     drawFrame(ctx, r.x, r.y, r.w, r.h, style);
-    const word = b.id === 'gadget' && u?.gadget === 'medkit' ? 'HEAL' : b.id === 'gadget' && u?.gadget === 'scanner' ? 'SCAN' : b.label;
+    const word = b.id === 'throw' && u ? THROW_SHORT[u.throwable] : b.id === 'gadget' && u?.gadget === 'medkit' ? 'HEAL' : b.id === 'gadget' && u?.gadget === 'scanner' ? 'SCAN' : b.label;
     const keyed = `${b.key} ${word}`;
-    const label = fits(keyed, r.w - 6) ? keyed : word;
+    const label = b.id === 'throw' && u ? throwButtonText(u, b.key, (t) => fits(t, r.w - 6)) : fits(keyed, r.w - 6) ? keyed : word;
     const cost = u ? actionCost(u, b.id) : null;
     const twoLines = cost !== null && r.h >= textH * 2 + 6;
     const colourOf = active ? UI.accent : blocked ? UI.disabledText : UI.text;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stashOf } from '../src/core/stash';
 import { App } from '../src/app';
 import { defaultLoadout } from '../src/core/loadout';
 import { createMission, MISSIONS } from '../src/core/missions';
@@ -57,7 +58,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
     later.campaign.roster = [
       { name: 'Lindqvist 2', kills: 99 }, { name: 'Kowalski 2', kills: 12 }, { name: 'Fontaine', kills: 5 }, { name: 'Dubois', kills: 2 },
     ];
-    later.campaign.stash = { rifle: 2, pistol: 1, grenade: 3, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 };
+    later.campaign.stash = stashOf({ rifle: 2, pistol: 1, grenade: 3, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
     check('equipment (late)', collect(() => later.draw(ctx, 0)));
   });
 
@@ -103,7 +104,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
     check('equipment gadgets', collect(() => drawEquipment(ctx, l, null, {
       budget: 999, title: 'MISSION 3 OF 3: COMPOUND', breakdown: 'Base 120 + wins 40 + kills 55',
       soldiers: Array.from({ length: 4 }, () => ({ name: 'Lindqvist 2', kills: 9, rank: 'Captain' })),
-      stash: { rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 0 },
+      stash: stashOf({ rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 0 }),
     })));
   });
 
@@ -112,7 +113,7 @@ describe('every screen lays out inside the canvas, with the longest content', ()
     check('equipment full', collect(() => drawEquipment(ctx, l, null, {
       budget: 999, title: 'MISSION 3 OF 3: COMPOUND', breakdown: 'Base 120 + wins 40 + kills 55',
       soldiers: Array.from({ length: 4 }, () => ({ name: 'Lindqvist 2', kills: 99, rank: 'Captain' })),
-      stash: { rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 4 },
+      stash: stashOf({ rifle: 4, pistol: 0, grenade: 9, clip: 4, medkit: 4, armour: 4, scanner: 4, scope: 4 }),
     })));
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newCampaign, recordMission } from '../src/core/campaign';
 import { defaultLoadout, loadoutCost, netSoldierCost, type Loadout } from '../src/core/loadout';
 import { addStash, capStash, lootFrom } from '../src/core/loot';
-import { describeStash, emptyStash, nextStash } from '../src/core/stash';
+import { describeStash, emptyStash, nextStash, stashOf } from '../src/core/stash';
 import { corridorRows, makeState, unit } from './helpers';
 
 /** P with four enemies: e1 rifle, e2 pistol, e3 rifle, e4 pistol (the map's default weapons). */
@@ -12,7 +12,7 @@ describe('lootFrom', () => {
   it('collects the weapon and the spare clip of every killed enemy', () => {
     const s = arena();
     for (const id of ['e1', 'e2', 'e3']) unit(s, id).alive = false;
-    expect(lootFrom(s)).toEqual({ rifle: 2, pistol: 1, grenade: 0, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(lootFrom(s)).toEqual(stashOf({ rifle: 2, pistol: 1, grenade: 0, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 
   it('takes only the clips an enemy still has, and ignores living enemies and dead soldiers', () => {
@@ -20,24 +20,24 @@ describe('lootFrom', () => {
     unit(s, 'e1').alive = false;
     unit(s, 'e1').clips = 0;
     unit(s, 'p1').alive = false;
-    expect(lootFrom(s)).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(lootFrom(s)).toEqual(stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 });
 
 describe('capStash', () => {
   it('keeps at most 4 weapons, rifles first, and 4 clips; grenades are not capped', () => {
-    expect(capStash({ rifle: 3, pistol: 3, grenade: 9, clip: 6, medkit: 0, armour: 0, scanner: 0, scope: 0 })).toEqual({ rifle: 3, pistol: 1, grenade: 9, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 });
-    expect(capStash({ rifle: 6, pistol: 2, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 })).toEqual({ rifle: 4, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(capStash(stashOf({ rifle: 3, pistol: 3, grenade: 9, clip: 6, medkit: 0, armour: 0, scanner: 0, scope: 0 }))).toEqual(stashOf({ rifle: 3, pistol: 1, grenade: 9, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
+    expect(capStash(stashOf({ rifle: 6, pistol: 2, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }))).toEqual(stashOf({ rifle: 4, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 
   it('leaves a stash under the caps unchanged', () => {
-    const s = { rifle: 1, pistol: 2, grenade: 1, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 };
+    const s = stashOf({ rifle: 1, pistol: 2, grenade: 1, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 });
     expect(capStash(s)).toEqual(s);
   });
 
   it('adds two stashes field by field', () => {
-    expect(addStash({ rifle: 1, pistol: 0, grenade: 2, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 }, { rifle: 2, pistol: 1, grenade: 0, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 }))
-      .toEqual({ rifle: 3, pistol: 1, grenade: 2, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(addStash(stashOf({ rifle: 1, pistol: 0, grenade: 2, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 }), stashOf({ rifle: 2, pistol: 1, grenade: 0, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 })))
+      .toEqual(stashOf({ rifle: 3, pistol: 1, grenade: 2, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 });
 
@@ -53,7 +53,7 @@ describe('loot after a mission', () => {
 
   it('a won mission adds the capped loot to the stash', () => {
     const next = recordMission(newCampaign(), won(['e1', 'e2', 'e3', 'e4']), 3, four());
-    expect(next.stash).toEqual({ rifle: 2, pistol: 2, grenade: 0, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(next.stash).toEqual(stashOf({ rifle: 2, pistol: 2, grenade: 0, clip: 4, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 
   it('the stash never grows beyond 4 weapons and 4 clips over several missions', () => {
@@ -68,8 +68,8 @@ describe('loot after a mission', () => {
     const s = won(['e1', 'e2']);
     s.status = 'lost';
     const before = newCampaign();
-    before.stash = { rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 };
-    expect(recordMission(before, s, 3, four()).stash).toEqual({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    before.stash = stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 });
+    expect(recordMission(before, s, 3, four()).stash).toEqual(stashOf({ rifle: 1, pistol: 0, grenade: 0, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }));
   });
 });
 
@@ -96,8 +96,8 @@ describe('spare clips in the stash', () => {
   });
 
   it('describes clips in the stash text', () => {
-    expect(describeStash({ rifle: 1, pistol: 0, grenade: 2, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 })).toBe('1 rifle, 2 grenades, 3 clips');
-    expect(describeStash({ rifle: 0, pistol: 0, grenade: 0, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 })).toBe('1 clip');
+    expect(describeStash(stashOf({ rifle: 1, pistol: 0, grenade: 2, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 }))).toBe('1 rifle, 2 grenades, 3 clips');
+    expect(describeStash(stashOf({ rifle: 0, pistol: 0, grenade: 0, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 }))).toBe('1 clip');
     expect(describeStash(emptyStash())).toBe('');
   });
 });
@@ -107,7 +107,7 @@ describe('netSoldierCost', () => {
     const l = defaultLoadout(); // soldier 1: rifle 25 + one grenade 8
     expect(netSoldierCost(l, 0, emptyStash())).toBe(33);
     expect(netSoldierCost(l, 0, { ...emptyStash(), rifle: 1 })).toBe(8);
-    expect(netSoldierCost(l, 0, { rifle: 1, pistol: 0, grenade: 1, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 })).toBe(0);
+    expect(netSoldierCost(l, 0, stashOf({ rifle: 1, pistol: 0, grenade: 1, clip: 0, medkit: 0, armour: 0, scanner: 0, scope: 0 }))).toBe(0);
     expect(netSoldierCost(l, 1, { ...emptyStash(), rifle: 1 })).toBe(33); // the stash rifle goes to soldier 1 first, so soldier 2 pays in full
   });
 });
@@ -122,9 +122,9 @@ describe('row prices and the total agree', () => {
     ];
     const stashes = [
       emptyStash(),
-      { rifle: 1, pistol: 0, grenade: 2, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 },
-      { rifle: 0, pistol: 2, grenade: 9, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 },
-      { rifle: 9, pistol: 9, grenade: 9, clip: 9, medkit: 0, armour: 0, scanner: 0, scope: 0 },
+      stashOf({ rifle: 1, pistol: 0, grenade: 2, clip: 3, medkit: 0, armour: 0, scanner: 0, scope: 0 }),
+      stashOf({ rifle: 0, pistol: 2, grenade: 9, clip: 1, medkit: 0, armour: 0, scanner: 0, scope: 0 }),
+      stashOf({ rifle: 9, pistol: 9, grenade: 9, clip: 9, medkit: 0, armour: 0, scanner: 0, scope: 0 }),
     ];
     for (const stash of stashes) {
       const sum = [0, 1, 2, 3].reduce((n, i) => n + netSoldierCost(l, i, stash), 0);

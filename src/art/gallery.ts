@@ -8,7 +8,7 @@ import { SPRITE_NAMES } from './sprites';
 const SCALE = 3;
 const IMAGE_LIST: ImageName[] = [
   'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
-  'item_rifle', 'item_pistol', 'item_grenade', 'corpse_player', 'corpse_enemy',
+  'item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy',
 ];
 const CELL_W = 58;
 const CELL_H = 56;
@@ -27,9 +27,9 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
     const label = name.replace('door_', 'd_');
     drawText(ctx, label.slice(0, 9), x, y + 16 * SCALE + 2, '#8a8fa8');
   });
-  // the eleven tile, door, item and corpse images at 2x on one row
+  // the fourteen tile, door, item and corpse images at 2x on one row
   IMAGE_LIST.forEach((name, i) => {
-    const x = 4 + i * 42;
+    const x = 4 + i * 34;
     ctx.fillStyle = '#2a2f45';
     ctx.fillRect(x, 120, 32, 32);
     ctx.save();

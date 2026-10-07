@@ -1,8 +1,8 @@
-import { CONFIG } from './config';
+import { CONFIG, WEAPONS } from './config';
 import {
   FACING_VECTORS, chebyshev, distance, inBounds, isBlocking, posEq, tileAt,
 } from './geometry';
-import type { GameState, Pos, Side, Unit } from './types';
+import type { GameState, Hazard, Pos, Side, Unit } from './types';
 
 export function lineTiles(a: Pos, b: Pos): Pos[] {
   const out: Pos[] = [];
@@ -29,18 +29,45 @@ export function lineTiles(a: Pos, b: Pos): Pos[] {
   return out;
 }
 
-export function hasLineOfSight(s: GameState, from: Pos, to: Pos): boolean {
+const hazardKey = (p: Pos): number => p.y * 4096 + p.x;
+const hazardIndexes = new WeakMap<Hazard[], { len: number; smoke: Set<number>; fire: Set<number> }>();
+
+/**
+ * The smoke and fire tiles as sets, built once per hazard list. Hazards only change by being pushed (the length
+ * changes) or by the list being replaced (a new array), so the length and the array identity say when to rebuild.
+ */
+function hazardIndex(s: GameState): { smoke: Set<number>; fire: Set<number> } {
+  let e = hazardIndexes.get(s.hazards);
+  if (!e || e.len !== s.hazards.length) {
+    e = { len: s.hazards.length, smoke: new Set(), fire: new Set() };
+    for (const h of s.hazards) (h.kind === 'smoke' ? e.smoke : e.fire).add(hazardKey(h.pos));
+    hazardIndexes.set(s.hazards, e);
+  }
+  return e;
+}
+
+export const smokeAt = (s: GameState, p: Pos): boolean => hazardIndex(s).smoke.has(hazardKey(p));
+export const fireAt = (s: GameState, p: Pos): boolean => hazardIndex(s).fire.has(hazardKey(p));
+
+export function hasLineOfSight(s: GameState, from: Pos, to: Pos, ignoreSmoke = false): boolean {
   const tiles = lineTiles(from, to);
   for (let i = 1; i < tiles.length - 1; i++) {
     if (isBlocking(tileAt(s, tiles[i]))) return false;
+    if (!ignoreSmoke && smokeAt(s, tiles[i])) return false;
   }
   return true;
+}
+
+/** How far a unit sees: its weapon's own sight (the sniper rifle's is longer), else the standard range. */
+export function sightOf(u: Unit): number {
+  return WEAPONS[u.weapon].sight ?? CONFIG.sightRange;
 }
 
 export function canSee(s: GameState, unit: Unit, pos: Pos): boolean {
   if (!unit.alive) return false;
   if (chebyshev(unit.pos, pos) <= 1) return true;
-  if (distance(unit.pos, pos) > CONFIG.sightRange) return false;
+  if (distance(unit.pos, pos) > sightOf(unit)) return false;
+  if (smokeAt(s, unit.pos) || smokeAt(s, pos)) return false; // inside smoke you see (and are seen) only from next to it
   const f = FACING_VECTORS[unit.facing];
   const dot = (pos.x - unit.pos.x) * f.x + (pos.y - unit.pos.y) * f.y;
   if (dot < 0) return false;

@@ -24,9 +24,11 @@ export function hitChance(s: GameState, shooter: Unit, target: Unit, mode: ShotM
   const weaponAccuracy = mode === 'snap' ? w.snapAccuracy : w.aimedAccuracy;
   const scope = shooter.attachment === 'scope' ? ATTACHMENTS.scope.accuracy : 0;
   const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy + scope);
-  const rangeFactor = 1 - 0.5 * (distance(shooter.pos, target.pos) / w.range);
+  const d = distance(shooter.pos, target.pos);
+  const rangeFactor = Math.max(0, 1 - (w.falloff ?? 0.5) * (d / w.range));
+  const close = w.closePenalty && d <= w.closePenalty.within ? w.closePenalty.multiplier : 1;
   const cover = isCovered(s, shooter.pos, target.pos) ? CONFIG.coverMultiplier : 1;
-  return base * rangeFactor * cover;
+  return base * rangeFactor * close * cover;
 }
 
 function missImpact(s: GameState, target: Pos): Pos {
@@ -83,6 +85,15 @@ export function fireShot(
   }
 }
 
+/** One shot action: `burst` rounds (default 1), each its own roll; stops at an empty magazine or a dead target. */
+export function fireBurst(s: GameState, shooter: Unit, target: Unit, mode: ShotMode, events: GameEvent[]): void {
+  const rounds = WEAPONS[shooter.weapon].burst ?? 1;
+  for (let i = 0; i < rounds; i++) {
+    if (shooter.ammo < 1 || !target.alive) break;
+    fireShot(s, shooter, target, mode, events);
+  }
+}
+
 /** Alerted units on the other side fire one snap shot at a mover they can see, once per turn per target. */
 export function applyReactionFire(s: GameState, mover: Unit, events: GameEvent[]): void {
   for (const o of s.units) {
@@ -97,7 +108,7 @@ export function applyReactionFire(s: GameState, mover: Unit, events: GameEvent[]
     if (s.reacted.includes(key)) continue;
     s.reacted.push(key);
     o.ap -= w.snapAp;
-    fireShot(s, o, mover, 'snap', events);
+    fireBurst(s, o, mover, 'snap', events);
     if (o.ap < w.snapAp || o.ammo < 1) o.alert = false;
   }
 }

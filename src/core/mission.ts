@@ -19,6 +19,8 @@ function makeUnit(id: string, side: Side, x: number, y: number, weapon: WeaponId
     maxAp: CONFIG.maxAp,
     weapon,
     grenades: side === 'player' ? CONFIG.soldierGrenades : 0,
+    throwable: 'frag',
+    apPenalty: 0,
     alive: true,
     alert: false,
     kills: 0,
@@ -80,6 +82,7 @@ export function parseMap(rows: string[], seed = 1): GameState {
     doorMemory: Array.from({ length: height }, () => Array<boolean>(width).fill(false)),
     enemyMemory: null,
     scanned: [],
+    hazards: [],
     reacted: [],
     status: 'playing',
   };

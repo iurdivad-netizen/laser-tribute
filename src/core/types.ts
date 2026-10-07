@@ -15,7 +15,8 @@ export interface Tile {
   open: boolean; // only meaningful when kind === 'door'
 }
 
-export type WeaponId = 'pistol' | 'rifle';
+export type WeaponId = 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'sniper';
+export type ThrowableId = 'frag' | 'smoke' | 'flash' | 'incendiary';
 export type GadgetId = 'medkit' | 'armour' | 'scanner';
 export type AttachmentId = 'scope';
 export type ItemKind = WeaponId | 'grenade';
@@ -34,6 +35,10 @@ export interface Unit {
   maxAp: number;
   weapon: WeaponId;
   grenades: number;
+  /** The kind of the grenades carried (one kind per soldier). */
+  throwable: ThrowableId;
+  /** AP this unit loses at the start of its next turn (a flashbang); cleared when applied. */
+  apPenalty: number;
   alive: boolean;
   /** On alert: keeps AP for the other side's turn and fires at enemies that move into view. */
   alert: boolean;
@@ -53,6 +58,13 @@ export interface Unit {
   attachment: AttachmentId | null;
   patrol: Pos[];
   patrolIndex: number;
+}
+
+export interface Hazard {
+  pos: Pos;
+  kind: 'smoke' | 'fire';
+  /** Player turns left; removed at 0. */
+  turnsLeft: number;
 }
 
 export interface FloorItem {
@@ -82,6 +94,8 @@ export interface GameState {
   enemyMemory: Pos | null; // where the enemy side last saw a player unit
   /** Enemy positions found by a scan this turn; cleared when the player ends the turn. Never read by the AI. */
   scanned: Pos[];
+  /** Smoke and fire left by throwables. */
+  hazards: Hazard[];
   /** Reaction shots already taken this turn, as 'shooterId>targetId'. Cleared when a turn ends. */
   reacted: string[];
   status: GameStatus;
@@ -126,10 +140,16 @@ export type GameEvent =
   | {
       type: 'grenade';
       unitId: string;
+      kind: ThrowableId;
       at: Pos;
       hits: { unitId: string; damage: number }[];
       doorsDestroyed: Pos[];
+      /** The tiles that now hold a hazard from this throw. */
+      hazards: Pos[];
+      /** Units given an AP penalty. */
+      stunned: string[];
     }
+  | { type: 'burned'; unitId: string; damage: number; at: Pos }
   | { type: 'healed'; unitId: string; targetId: string; amount: number; at: Pos }
   | { type: 'scanned'; unitId: string; found: Pos[] }
   | { type: 'turnEnded'; side: Side }
