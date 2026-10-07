@@ -57,6 +57,6 @@ export function attachInput(canvas: HTMLCanvasElement, app: App): void {
   });
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (app.key(e.key, e.repeat)) e.preventDefault();
+    if (app.key(e.shiftKey && e.key === 'Tab' ? 'Shift+Tab' : e.key, e.repeat)) e.preventDefault();
   });
 }

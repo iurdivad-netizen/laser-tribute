@@ -433,7 +433,10 @@ export class App {
         if (!c) return;
         const L = this.layout;
         if (c.ui.card) {
-          c.ui.card = false; // any click closes the soldier card
+          // the squad strip stays live under the card (it switches soldier); any other click closes it
+          const pick = squadAt(L, p.x, p.y);
+          if (pick !== null) this.selectSquad(pick);
+          else c.ui.card = false;
           return;
         }
         const picked = c.state.units.find((u) => u.id === c.ui.selectedId && u.alive);
@@ -533,12 +536,14 @@ export class App {
         return false;
       case 'mission':
         if (this.controller?.ui.card) {
-          // the soldier card is modal: I or Escape close it, every other game key is ignored
-          if (k === 'i' || k === 'I' || k === 'Escape') this.controller.ui.card = false;
+          // the soldier card is modal: I or Escape close it, Tab, Shift+Tab and 1 to 4 browse soldiers, the rest is ignored
+          if ((k === 'i' || k === 'I') && !repeat) this.controller.ui.card = false;
+          else if (k === 'Escape') this.controller.ui.card = false;
+          else if (k === 'Tab' || k === 'Shift+Tab' || (k >= '1' && k <= '4' && k.length === 1)) this.controller.key(k);
           return true;
         }
         if (k === 'i' || k === 'I') {
-          this.openCard();
+          if (!repeat) this.openCard();
           return true;
         }
         if (k === 'z' || k === 'Z') {

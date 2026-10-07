@@ -135,7 +135,8 @@ export function drawPanel(
   const foe = u && (ui.mode === 'snap' || ui.mode === 'aimed') && ui.hover
     ? state.units.find((x) => x.alive && x.side !== u.side && x.pos.x === ui.hover!.x && x.pos.y === ui.hover!.y && canSee(state, u, x.pos))
     : undefined;
-  const odds = u && foe ? shotLine(shotPreview(state, u, foe, ui.mode as 'snap' | 'aimed')) : '';
+  const aimed = !!ui.pendingTile && !!ui.hover && ui.pendingTile.x === ui.hover.x && ui.pendingTile.y === ui.hover.y;
+  const odds = u && foe ? shotLine(shotPreview(state, u, foe, ui.mode as 'snap' | 'aimed')) + (aimed ? '  TAP AGAIN' : '') : '';
 
   // the status line: a message, the preview cost, the mode, or whose move it is
   let line = '';

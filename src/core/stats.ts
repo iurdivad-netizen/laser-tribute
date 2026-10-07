@@ -90,6 +90,7 @@ export function soldierCard(u: Unit): CardSection[] {
     {
       heading: 'SOLDIER',
       rows: [
+        ['NAME', u.name.toUpperCase()],
         ['RANK', (u.rank || 'ENEMY').toUpperCase()],
         ['HP', `${u.hp}/${u.maxHp}`],
         ['AP', `${u.ap}/${u.maxAp}`],
