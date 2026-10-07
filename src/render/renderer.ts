@@ -1,7 +1,7 @@
 import { Atlas } from '../art/atlas';
-import { RISE, unitFigure } from '../art/figure';
-import { ARMOUR_PIP, floorVariant, pipPositions, rankPips } from '../art/sprite';
-import type { SpriteName } from '../art/sprites';
+import { RISE, unitFigure, type Figure } from '../art/figure';
+import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
+import { corpseImage, itemImage, themeFor, tileImage } from '../art/theme';
 import { CONFIG } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
@@ -24,11 +24,10 @@ const COLORS = {
   armour: '#4da6ff',
 };
 
-function tileSprite(state: GameState, x: number, y: number): SpriteName {
+function tileFigure(state: GameState, x: number, y: number): Figure {
   const tile = state.tiles[y][x];
-  if (tile.kind === 'wall') return 'wall';
-  if (tile.kind === 'door') return state.doorMemory[y][x] ? 'door_open' : 'door_closed'; // as the player last saw it
-  return `floor_${floorVariant(x, y)}` as SpriteName;
+  // a door as the player last saw it
+  return tileImage(themeFor(state), tile.kind, tile.kind === 'door' && state.doorMemory[y][x], x, y);
 }
 
 /** Where the map and the panel are on the screen, and which part of the map is shown. */
@@ -71,7 +70,7 @@ export function drawGame(
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (!state.explored[y][x]) continue;
-      art.draw(ctx, tileSprite(state, x, y), x * T, y * T);
+      art.drawImage(ctx, tileFigure(state, x, y), x * T, y * T);
       if (!visible[y][x]) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(x * T, y * T, T, T);
@@ -81,13 +80,13 @@ export function drawGame(
 
   for (const item of state.items) {
     if (!visible[item.pos.y][item.pos.x]) continue;
-    art.draw(ctx, `item_${item.kind}` as SpriteName, item.pos.x * T, item.pos.y * T);
+    art.drawImage(ctx, itemImage(item.kind), item.pos.x * T, item.pos.y * T);
   }
 
   // Corpses first, in their own pass, so a living unit standing on (or sliding past) a corpse is drawn on top of it.
   for (const u of state.units) {
     if (u.alive || !visible[u.pos.y][u.pos.x]) continue;
-    art.draw(ctx, u.side === 'player' ? 'corpse_player' : 'corpse_enemy', u.pos.x * T, u.pos.y * T);
+    art.drawImage(ctx, corpseImage(u.side), u.pos.x * T, u.pos.y * T);
   }
 
   // Living units in order of tile row, the lowest row last, so a figure in front covers the one behind it (and the wall
@@ -101,7 +100,7 @@ export function drawGame(
     const x0 = Math.round(u.pos.x * T + off.x); // the top-left of the tile the feet stand on
     const y0 = Math.round(u.pos.y * T + off.y + effects.unitBob(u.id, now));
     const { figure, flip } = unitFigure(u.side, u.facing, u.weapon);
-    art.drawFigure(ctx, figure, x0, y0 - RISE, { flip });
+    art.drawImage(ctx, figure, x0, y0 - RISE, { flip });
     const cx = x0 + T / 2;
 
     // The status stack (pips, bar, alert mark) floats above the head; for a unit on the first walkable row there is no

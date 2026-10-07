@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Atlas, type CanvasLike } from '../src/art/atlas';
-import type { SpriteName } from '../src/art/sprites';
 import { applyCommand } from '../src/core/apply';
 import { findPath } from '../src/core/path';
 import { updateExplored } from '../src/core/vision';
@@ -60,12 +59,12 @@ class FakeCanvas implements CanvasLike {
 
 describe('drawing a remembered door', () => {
   it('shows the door as last seen, not as it really is', () => {
-    const drawn: { name: SpriteName; x: number; y: number }[] = [];
+    const drawn: { name: string; x: number; y: number }[] = [];
     const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
-    const real = atlas.draw.bind(atlas);
-    atlas.draw = (ctx, name, x, y, opts = {}) => {
-      drawn.push({ name, x, y });
-      return real(ctx, name, x, y, opts);
+    const real = atlas.drawImage.bind(atlas);
+    atlas.drawImage = (ctx, fig, x, y, opts = {}) => {
+      drawn.push({ name: fig.name, x, y });
+      return real(ctx, fig, x, y, opts);
     };
     const ctx = new Proxy({}, { get: () => () => ({ width: 0 }), set: () => true }) as unknown as CanvasRenderingContext2D;
     const state = enemyOpensDoor(behindTheSquad());

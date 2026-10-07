@@ -21,8 +21,8 @@ function spyAtlas() {
     drawn.push({ name, x, y, flip: !!opts.flip });
     return real(ctx, name, x, y, opts);
   };
-  const realFigure = atlas.drawFigure.bind(atlas);
-  atlas.drawFigure = (ctx, fig, x, y, opts = {}) => {
+  const realFigure = atlas.drawImage.bind(atlas);
+  atlas.drawImage = (ctx, fig, x, y, opts = {}) => {
     drawn.push({ name: fig.name, x, y, flip: !!opts.flip });
     return realFigure(ctx, fig, x, y, opts);
   };
@@ -169,6 +169,26 @@ describe('drawGame with sprites', () => {
     expect(seen.drawn.some((d) => d.name.startsWith('enemy_'))).toBe(true);
   });
 
+  it('draws tiles, items and corpses as images, not as letter sprites', () => {
+    const state = createMission(MISSIONS[0], 1, roster);
+    const soldier = state.units.find((u) => u.side === 'player')!;
+    const enemy = state.units.find((u) => u.side === 'enemy')!;
+    enemy.alive = false;
+    enemy.pos = { x: soldier.pos.x + 1, y: soldier.pos.y };
+    state.items.push({ id: 'i55', pos: { x: soldier.pos.x, y: soldier.pos.y }, kind: 'pistol' });
+    const letterSprites: string[] = [];
+    const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
+    const realDraw = atlas.draw.bind(atlas);
+    atlas.draw = (c, name, x, y, opts = {}) => { letterSprites.push(name); return realDraw(c, name, x, y, opts); };
+    const images: string[] = [];
+    const realImage = atlas.drawImage.bind(atlas);
+    atlas.drawImage = (c, fig, x, y, opts = {}) => { images.push(fig.name); return realImage(c, fig, x, y, opts); };
+    drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
+    expect(images).toEqual(expect.arrayContaining(['wall', 'item_pistol', 'corpse_enemy']));
+    expect(images.some((n) => n.startsWith('floor_'))).toBe(true);
+    expect(letterSprites.filter((n) => /^(floor|wall|door|item|corpse)/.test(n))).toEqual([]);
+  });
+
   it('completes with an atlas that has no canvas (nothing is drawn)', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const empty = new Atlas(() => null);
@@ -279,8 +299,8 @@ describe('gadget markers', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const log: string[] = [];
     const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
-    const realFigure = atlas.drawFigure.bind(atlas);
-    atlas.drawFigure = (c, fig, x, y, opts = {}) => {
+    const realFigure = atlas.drawImage.bind(atlas);
+    atlas.drawImage = (c, fig, x, y, opts = {}) => {
       log.push('figure');
       return realFigure(c, fig, x, y, opts);
     };

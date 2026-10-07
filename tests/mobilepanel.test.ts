@@ -111,8 +111,8 @@ describe('the world is drawn through the camera', () => {
       drawn.push({ name, x, y });
       return real(c, name, x, y, opts);
     };
-    const realFigure = atlas.drawFigure.bind(atlas);
-    atlas.drawFigure = (c, fig, x, y, opts = {}) => {
+    const realFigure = atlas.drawImage.bind(atlas);
+    atlas.drawImage = (c, fig, x, y, opts = {}) => {
       drawn.push({ name: fig.name, x, y });
       return realFigure(c, fig, x, y, opts);
     };

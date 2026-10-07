@@ -64,8 +64,8 @@ export class Atlas {
     return true;
   }
 
-  /** A figure (a soldier or an enemy), baked once per mirror and stamped 1:1 with its top-left at (x, y). */
-  drawFigure(ctx: CanvasRenderingContext2D, fig: Figure, x: number, y: number, opts: { flip?: boolean } = {}): boolean {
+  /** An image (a soldier, an enemy, a tile, an item), baked once per mirror and stamped 1:1 with its top-left at (x, y). */
+  drawImage(ctx: CanvasRenderingContext2D, fig: Figure, x: number, y: number, opts: { flip?: boolean } = {}): boolean {
     const flip = opts.flip ?? false;
     const key = flip ? `${fig.name}:flip` : fig.name;
     if (!this.figures.has(key)) {
