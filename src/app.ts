@@ -20,6 +20,7 @@ import {
 } from './render/camera';
 import { VIEW } from './render/layout';
 import { cancelHit, panelButtonAt, soundHit, squadAt } from './render/panel';
+import { unitAtScreen } from './render/hit';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
 import {
@@ -441,6 +442,11 @@ export class App {
           else c.pressButton(button);
           return;
         }
+        const hit = unitAtScreen(c.state, this.camera, L, p.x, p.y);
+        if (hit) {
+          c.clickTile(hit.pos, pointer === 'touch'); // a figure counts as his feet tile
+          return;
+        }
         const t = screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y);
         if (t) c.clickTile(t, pointer === 'touch');
         return;
@@ -460,7 +466,8 @@ export class App {
       this.hover = equipmentHit(mp.x, mp.y);
     } else if (this.screen === 'mission' && this.controller) {
       const c = this.controller;
-      c.hover(screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
+      const hit = unitAtScreen(c.state, this.camera, this.layout, p.x, p.y);
+      c.hover(hit ? hit.pos : screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
     }
   }
 
