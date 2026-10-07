@@ -1,3 +1,4 @@
+import { TUTORIAL_LEVEL } from './config';
 import type { Loadout } from './loadout';
 import { addStash, capStash, lootFrom } from './loot';
 import { emptyStash, nextStash, type Stash } from './stash';
@@ -30,6 +31,11 @@ export interface Campaign {
   status: 'active' | 'won' | 'lost';
   /** Found gear that is free on the next equipment screens. */
   stash: Stash;
+}
+
+/** The unlock level: the tutorial is fixed at 1, a campaign mission is its mission number. */
+export function levelOf(c: Campaign): number {
+  return c.mode === 'campaign' ? c.missionIndex + 1 : TUTORIAL_LEVEL;
 }
 
 export function soldierName(index: number): string {

@@ -1,5 +1,5 @@
-import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, WEAPONS, WEAPON_IDS } from './config';
-import { coverage, emptyStash, type Stash } from './stash';
+import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, TUTORIAL_LEVEL, WEAPONS, WEAPON_IDS, unlockedThrowables, unlockedWeapons } from './config';
+import { coverage, emptyStash, throwableKey, type Stash } from './stash';
 import type { AttachmentId, GadgetId, GameState, ThrowableId, WeaponId } from './types';
 
 export const LOADOUT = {
@@ -74,12 +74,17 @@ export function cheapLoadout(): Loadout {
 }
 
 export function validateLoadout(
-  l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
 ): string | null {
   if (l.length !== SQUAD_SIZE) return `A loadout needs exactly ${SQUAD_SIZE} soldiers`;
   for (const [i, s] of l.entries()) {
     if (!WEAPON_IDS.includes(s.weapon)) return `Soldier ${i + 1} needs a weapon`;
     if (s.throwable !== undefined && !THROWABLE_IDS.includes(s.throwable)) return `Soldier ${i + 1} has an unknown throwable`;
+    if (!unlockedWeapons(level).includes(s.weapon) && stash[s.weapon] < 1) return `Soldier ${i + 1}: the ${WEAPONS[s.weapon].name} is locked`;
+    const kind = s.throwable ?? 'frag';
+    if (s.grenades > 0 && !unlockedThrowables(level).includes(kind) && stash[throwableKey(kind)] < 1) {
+      return `Soldier ${i + 1}: ${THROWABLES[kind].name} is locked`;
+    }
     if (!Number.isInteger(s.grenades) || s.grenades < 0 || s.grenades > LOADOUT.maxGrenades) {
       return `Soldier ${i + 1} must carry 0 to ${LOADOUT.maxGrenades} grenades`;
     }
@@ -96,20 +101,28 @@ export function validateLoadout(
   return null;
 }
 
-/** The previous kit if it still fits the budget, else the same kit with one spare clip each, else the cheap fallback kit. */
-export function fitLoadout(previous: Loadout, budget: number, stash: Stash = emptyStash()): Loadout {
-  if (validateLoadout(previous, budget, stash) === null) return previous;
+/** The previous kit if it still fits the budget and the level, else the same kit with one spare clip each, else the kit without gadgets (locked items swapped for a pistol and frags), else the cheap fallback kit. */
+export function fitLoadout(
+  previous: Loadout, budget: number, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+): Loadout {
+  if (validateLoadout(previous, budget, stash, level) === null) return previous;
   // Trim the extra spare clips before giving up the weapons and grenades.
   const trimmed = previous.map((s) => ({ ...s, clips: 1 }));
-  if (validateLoadout(trimmed, budget, stash) === null) return trimmed;
+  if (validateLoadout(trimmed, budget, stash, level) === null) return trimmed;
   const bare = trimmed.map(({ gadget: _gadget, attachment: _attachment, ...rest }) => rest);
-  return validateLoadout(bare, budget, stash) === null ? bare : cheapLoadout();
+  if (validateLoadout(bare, budget, stash, level) === null) return bare;
+  const safe = bare.map((s) => ({
+    weapon: unlockedWeapons(level).includes(s.weapon) || stash[s.weapon] > 0 ? s.weapon : ('pistol' as const),
+    grenades: s.grenades,
+    clips: 1,
+  }));
+  return validateLoadout(safe, budget, stash, level) === null ? safe : cheapLoadout();
 }
 
 export function applyLoadout(
-  state: GameState, l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  state: GameState, l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
 ): GameState {
-  const error = validateLoadout(l, budget, stash);
+  const error = validateLoadout(l, budget, stash, level);
   if (error) throw new Error(error);
   const soldiers = state.units.filter((u) => u.side === 'player');
   if (soldiers.length !== l.length) throw new Error('Loadout does not match the squad size');
