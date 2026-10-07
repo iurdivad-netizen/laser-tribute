@@ -5,6 +5,15 @@
 const build = (fn) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => fn(x, y)).join(''));
 const blank = () => '................';
 
+/** Moves a 16-row piece down (dy > 0) or up (dy < 0); the rows that fall off the tile must be empty. */
+function shiftRows(rows, dy) {
+  const empty = blank();
+  const out = dy >= 0 ? [...Array(dy).fill(empty), ...rows.slice(0, 16 - dy)] : [...rows.slice(-dy), ...Array(-dy).fill(empty)];
+  const lost = dy >= 0 ? rows.slice(16 - dy) : rows.slice(0, -dy);
+  if (lost.some((r) => r !== empty)) throw new Error('shiftRows would cut off drawn pixels');
+  return out;
+}
+
 // floor: dark neutral panels with a seam along the bottom and right edge and a few light and dark specks
 const FLOOR_LIGHT = [[3, 2], [11, 1], [7, 5], [13, 8], [2, 10], [9, 12], [5, 13], [12, 4]];
 const FLOOR_DARK = [[6, 3], [1, 7], [10, 9], [14, 12], [4, 11], [8, 14], [0, 13]];
@@ -30,7 +39,8 @@ const DOOR_OPEN = build((x, y) => {
   return (x + y * 3) % 11 === 0 ? 'r' : 'q';
 });
 
-const ITEM_PISTOL = [
+// items lie in the upper part of the tile and a corpse in the lower part, so a pickup under a body still shows
+const ITEM_PISTOL_BASE = [
   ...Array(6).fill(blank()),
   '....kkkkkkkk....',
   '...kaaaaaaaak...',
@@ -40,7 +50,7 @@ const ITEM_PISTOL = [
   '......kkkk......',
   ...Array(4).fill(blank()),
 ];
-const ITEM_RIFLE = [
+const ITEM_RIFLE_BASE = [
   ...Array(6).fill(blank()),
   '.kkkkkkkkkkkkkk.',
   '.kOOOOaaaaaaaak.',
@@ -49,7 +59,7 @@ const ITEM_RIFLE = [
   '....kkkk........',
   ...Array(5).fill(blank()),
 ];
-const ITEM_GRENADE = [
+const ITEM_GRENADE_BASE = [
   ...Array(4).fill(blank()),
   '......kk........',
   '.....kyyk.......',
@@ -62,8 +72,12 @@ const ITEM_GRENADE = [
   ...Array(4).fill(blank()),
 ];
 
+const ITEM_PISTOL = shiftRows(ITEM_PISTOL_BASE, -4);
+const ITEM_RIFLE = shiftRows(ITEM_RIFLE_BASE, -4);
+const ITEM_GRENADE = shiftRows(ITEM_GRENADE_BASE, -4);
+
 // a fallen soldier seen from above: helmet at the left, torso, legs to the right, a pool of blood below
-const CORPSE = [
+const CORPSE_BASE = [
   ...Array(5).fill(blank()),
   '..kHHHkkkkkkkk..',
   '.kHhHHkTTTTTTTk.',
@@ -73,10 +87,11 @@ const CORPSE = [
   '.kkHHkkTtTTTLLkk',
   '..kkkkkkkkkkkkk.',
   '....uuuuuuuu....',
-  '......uuuu......',
+  blank(),
   blank(),
   blank(),
 ];
+const CORPSE = shiftRows(CORPSE_BASE, 2);
 
 export const HAND_IMAGES = {
   floor_a: { palette: { a: '#34353a', b: '#2a2b2f', c: '#3f4046', d: '#24252a' }, rows: FLOOR_A },

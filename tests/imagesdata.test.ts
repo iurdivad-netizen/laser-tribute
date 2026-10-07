@@ -53,6 +53,22 @@ describe('the generated image data', () => {
     }
   });
 
+  it('an item stays mostly visible under every corpse (a pickup under a body must still show)', () => {
+    const cells = (n: Name) => {
+      const out = new Set<string>();
+      rowsOf(n).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') out.add(`${x},${y}`); }));
+      return out;
+    };
+    for (const item of ['item_rifle', 'item_pistol', 'item_grenade'] as const) {
+      for (const corpse of ['corpse_player', 'corpse_enemy'] as const) {
+        const body = cells(corpse);
+        const cells_ = [...cells(item)];
+        const shown = cells_.filter((c) => !body.has(c)).length;
+        expect(shown / cells_.length, `${item} under ${corpse}`).toBeGreaterThanOrEqual(0.7);
+      }
+    }
+  });
+
   it('the three floors differ and the doors differ', () => {
     expect(rowsOf('floor_b')).not.toEqual(rowsOf('floor_a'));
     expect(rowsOf('floor_c')).not.toEqual(rowsOf('floor_a'));
