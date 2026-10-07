@@ -11,7 +11,9 @@ import { addStash, capStash, lootFrom } from './core/loot';
 import { promotions, rankFor } from './core/ranks';
 import { describeStash, nextStash } from './core/stash';
 import { summarize, type MissionResult } from './core/result';
-import type { GameState, Pos } from './core/types';
+import { unitAt } from './core/geometry';
+import type { GameState, Pos, Unit } from './core/types';
+import { visibleToSide } from './core/vision';
 import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
@@ -20,6 +22,7 @@ import {
 } from './render/camera';
 import { VIEW } from './render/layout';
 import { cancelHit, panelButtonAt, soundHit, squadAt } from './render/panel';
+import { unitAtScreen } from './render/hit';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
 import {
@@ -441,6 +444,11 @@ export class App {
           else c.pressButton(button);
           return;
         }
+        const hit = this.figureAt(c, p);
+        if (hit) {
+          c.clickTile(hit.pos, pointer === 'touch'); // a figure counts as his feet tile
+          return;
+        }
         const t = screenToTile(this.camera, L, c.state.width, c.state.height, p.x, p.y);
         if (t) c.clickTile(t, pointer === 'touch');
         return;
@@ -454,13 +462,30 @@ export class App {
     }
   }
 
+  /**
+   * The unit a click or hover on a figure stands for, or null when it means the tile under the pointer. A figure reaches
+   * up over the tile north of his feet, so this must not steal that tile's clicks: door, throw and turn always mean
+   * the tile; a unit standing on the tile under the pointer wins over a figure reaching up from the row below; a shot
+   * or a blow looks only for enemy figures, a heal or a move only for soldiers.
+   */
+  private figureAt(c: Controller, p: Pos): Unit | null {
+    const mode = c.ui.mode;
+    if (mode === 'door' || mode === 'throw' || mode === 'turn') return null;
+    const tile = screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y);
+    const standing = tile ? unitAt(c.state, tile) : undefined;
+    if (standing && (standing.side === 'player' || visibleToSide(c.state, 'player', standing.pos))) return null;
+    const accept = (u: Unit): boolean => (mode === 'snap' || mode === 'aimed' || mode === 'stab' ? u.side === 'enemy' : u.side === 'player');
+    return unitAtScreen(c.state, this.camera, this.layout, p.x, p.y, accept);
+  }
+
   move(p: Pos): void {
     if (this.screen === 'equipment') {
       const mp = this.toMenu(p);
       this.hover = equipmentHit(mp.x, mp.y);
     } else if (this.screen === 'mission' && this.controller) {
       const c = this.controller;
-      c.hover(screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
+      const hit = this.figureAt(c, p);
+      c.hover(hit ? hit.pos : screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y));
     }
   }
 

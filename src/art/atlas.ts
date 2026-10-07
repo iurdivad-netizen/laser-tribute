@@ -1,3 +1,4 @@
+import { flipFigure, type Figure } from './figure';
 import { PALETTE } from './palette';
 import { flipHorizontal, parseSprite } from './sprite';
 import { SPRITE_ROWS, type SpriteName } from './sprites';
@@ -26,6 +27,7 @@ export function defaultCanvas(width: number, height: number): CanvasLike | null 
 /** Bakes each sprite once into a small canvas, then stamps it with drawImage. Draws nothing without a canvas. */
 export class Atlas {
   private cache = new Map<string, CanvasLike | null>();
+  private figures = new Map<string, CanvasLike | null>();
 
   constructor(private readonly createCanvas: (w: number, h: number) => CanvasLike | null = defaultCanvas) {}
 
@@ -59,6 +61,29 @@ export class Atlas {
     if (!canvas) return false;
     const scale = opts.scale ?? 1;
     ctx.drawImage(canvas as unknown as CanvasImageSource, Math.round(x), Math.round(y), canvas.width * scale, canvas.height * scale);
+    return true;
+  }
+
+  /** A figure (a soldier or an enemy), baked once per mirror and stamped 1:1 with its top-left at (x, y). */
+  drawFigure(ctx: CanvasRenderingContext2D, fig: Figure, x: number, y: number, opts: { flip?: boolean } = {}): boolean {
+    const flip = opts.flip ?? false;
+    const key = flip ? `${fig.name}:flip` : fig.name;
+    if (!this.figures.has(key)) {
+      const source = flip ? flipFigure(fig) : fig;
+      const canvas = this.createCanvas(source.width, source.height);
+      const c = canvas?.getContext('2d') ?? null;
+      if (canvas && c) {
+        source.pixels.forEach((colour, i) => {
+          if (colour === null) return;
+          c.fillStyle = colour;
+          c.fillRect(i % source.width, Math.floor(i / source.width), 1, 1);
+        });
+      }
+      this.figures.set(key, canvas && c ? canvas : null);
+    }
+    const baked = this.figures.get(key) ?? null;
+    if (!baked) return false;
+    ctx.drawImage(baked as unknown as CanvasImageSource, Math.round(x), Math.round(y), baked.width, baked.height);
     return true;
   }
 }

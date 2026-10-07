@@ -1,0 +1,156 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { inflateSync } from 'node:zlib';
+
+export const SIDES = ['squad', 'enemy'];
+export const VIEWS = ['n', 'ne', 'e', 'se', 's'];
+const EXPECTED_WIDTH = 16;
+const DIGITS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** Decodes an 8-bit, non-interlaced PNG (colour type 6, 2 or 3) to RGBA. */
+export function decodePng(bytes) {
+  const b = Buffer.from(bytes);
+  let p = 8;
+  let width = 0;
+  let height = 0;
+  let ct = 0;
+  const idat = [];
+  let plte = null;
+  let trns = null;
+  while (p < b.length) {
+    const len = b.readUInt32BE(p);
+    const type = b.toString('latin1', p + 4, p + 8);
+    const d = b.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') {
+      width = d.readUInt32BE(0);
+      height = d.readUInt32BE(4);
+      ct = d[9];
+      if (d[8] !== 8 || d[12] !== 0) throw new Error('unsupported PNG: need 8-bit and not interlaced');
+    } else if (type === 'IDAT') idat.push(d);
+    else if (type === 'PLTE') plte = d;
+    else if (type === 'tRNS') trns = d;
+    p += 12 + len;
+  }
+  const bpp = ct === 6 ? 4 : ct === 2 ? 3 : ct === 3 ? 1 : 0;
+  if (!bpp) throw new Error(`unsupported PNG colour type ${ct}`);
+  if (ct === 3 && !plte) throw new Error('palette PNG without PLTE');
+  const raw = inflateSync(Buffer.concat(idat));
+  const rgba = new Uint8Array(width * height * 4);
+  let prev = Buffer.alloc(width * bpp);
+  for (let y = 0; y < height; y++) {
+    const f = raw[y * (width * bpp + 1)];
+    const line = Buffer.from(raw.subarray(y * (width * bpp + 1) + 1, (y + 1) * (width * bpp + 1)));
+    for (let x = 0; x < width * bpp; x++) {
+      const a = x >= bpp ? line[x - bpp] : 0;
+      const u = prev[x];
+      const c = x >= bpp ? prev[x - bpp] : 0;
+      let v = line[x];
+      if (f === 1) v += a;
+      else if (f === 2) v += u;
+      else if (f === 3) v += (a + u) >> 1;
+      else if (f === 4) {
+        const pp = a + u - c;
+        const pa = Math.abs(pp - a);
+        const pb = Math.abs(pp - u);
+        const pc = Math.abs(pp - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? u : c;
+      }
+      line[x] = v & 255;
+    }
+    for (let x = 0; x < width; x++) {
+      const o = (y * width + x) * 4;
+      if (ct === 3) {
+        const i = line[x];
+        rgba[o] = plte[i * 3];
+        rgba[o + 1] = plte[i * 3 + 1];
+        rgba[o + 2] = plte[i * 3 + 2];
+        rgba[o + 3] = trns && i < trns.length ? trns[i] : 255;
+      } else {
+        rgba[o] = line[x * bpp];
+        rgba[o + 1] = line[x * bpp + 1];
+        rgba[o + 2] = line[x * bpp + 2];
+        rgba[o + 3] = bpp === 4 ? line[x * bpp + 3] : 255;
+      }
+    }
+    prev = line;
+  }
+  return { width, height, rgba };
+}
+
+const hex2 = (n) => n.toString(16).padStart(2, '0');
+
+/** The five views of both sides, cropped to one width and with every view's feet on the bottom row. */
+export function buildFigureData(dir) {
+  const images = {};
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let tallest = 0;
+  for (const side of SIDES) {
+    images[side] = {};
+    for (const view of VIEWS) {
+      const img = decodePng(readFileSync(join(dir, side, `${view}.png`)));
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (let y = 0; y < img.height; y++) {
+        for (let x = 0; x < img.width; x++) {
+          if (img.rgba[(y * img.width + x) * 4 + 3] < 128) continue;
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          top = Math.min(top, y);
+          bottom = Math.max(bottom, y);
+        }
+      }
+      if (bottom < 0) throw new Error(`${side}/${view}.png has no opaque pixel`);
+      tallest = Math.max(tallest, bottom - top + 1);
+      images[side][view] = { img, bottom };
+    }
+  }
+  const width = x1 - x0 + 1;
+  if (width !== EXPECTED_WIDTH) throw new Error(`the figures are ${width} px wide, expected ${EXPECTED_WIDTH}`);
+  const sides = {};
+  for (const side of SIDES) {
+    const palette = [];
+    const views = {};
+    for (const view of VIEWS) {
+      const { img, bottom } = images[side][view];
+      const rows = [];
+      for (let r = 0; r < tallest; r++) {
+        const y = bottom - (tallest - 1 - r);
+        let row = '';
+        for (let x = x0; x <= x1; x++) {
+          const o = (y * img.width + x) * 4;
+          if (y < 0 || img.rgba[o + 3] < 128) {
+            row += '.';
+            continue;
+          }
+          const hex = `#${hex2(img.rgba[o])}${hex2(img.rgba[o + 1])}${hex2(img.rgba[o + 2])}`;
+          let i = palette.indexOf(hex);
+          if (i < 0) {
+            palette.push(hex);
+            i = palette.length - 1;
+          }
+          if (i >= DIGITS.length) throw new Error(`${side} uses more than ${DIGITS.length} colours`);
+          row += DIGITS[i];
+        }
+        rows.push(row);
+      }
+      views[view] = rows;
+    }
+    sides[side] = { palette, views };
+  }
+  return { width, height: tallest, sides };
+}
+
+/** The text of src/art/figures.generated.ts. */
+export function renderModule(data) {
+  return [
+    '// Generated by scripts/build-figures.mjs from art-src/pixellab. Do not edit by hand: run `node scripts/build-figures.mjs`.',
+    '',
+    `export const FIGURE_WIDTH = ${data.width};`,
+    `export const FIGURE_HEIGHT = ${data.height};`,
+    '',
+    "export const FIGURE_DATA: Record<'squad' | 'enemy', { palette: string[]; views: Record<'n' | 'ne' | 'e' | 'se' | 's', string[]> }> =",
+    `${JSON.stringify(data.sides, null, 2)};`,
+    '',
+  ].join('\n');
+}

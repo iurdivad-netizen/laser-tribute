@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTE, TRANSPARENT } from '../src/art/palette';
+import { RISE } from '../src/art/figure';
 import {
   ARMOUR_PIP, SPRITE_SIZE, directionTo, flipHorizontal, floorVariant, frameFor, parseSprite, pipPositions,
-  rankPips, recolorRows, rotateRows, unitSprite,
+  rankPips, recolorRows, rotateRows,
 } from '../src/art/sprite';
-import { SPRITE_NAMES, SPRITE_ROWS } from '../src/art/sprites';
-import type { Facing, WeaponId } from '../src/core/types';
 
 const row = (ch: string) => ch.repeat(SPRITE_SIZE);
 const blank = () => Array.from({ length: SPRITE_SIZE }, () => row('.'));
@@ -88,21 +87,6 @@ describe('rotateRows and recolorRows', () => {
   });
 });
 
-describe('unitSprite', () => {
-  it('maps facings 0 to 4 to the five base sprites and 5, 6, 7 to the mirrors of 3, 2, 1, per weapon', () => {
-    const expected: [Facing, string, boolean][] = [
-      [0, 'n', false], [1, 'ne', false], [2, 'e', false], [3, 'se', false], [4, 's', false],
-      [5, 'se', true], [6, 'e', true], [7, 'ne', true],
-    ];
-    for (const weapon of ['rifle', 'pistol'] as WeaponId[]) {
-      for (const [facing, suffix, flip] of expected) {
-        expect(unitSprite('player', facing, weapon)).toEqual({ name: `soldier_${weapon}_${suffix}`, flip });
-        expect(unitSprite('enemy', facing, weapon)).toEqual({ name: `enemy_${weapon}_${suffix}`, flip });
-      }
-    }
-  });
-});
-
 describe('floorVariant', () => {
   it('is deterministic and uses all three variants over a 30x20 map', () => {
     const seen = new Set<number>();
@@ -129,28 +113,28 @@ describe('rankPips and pipPositions', () => {
     expect(['Rookie', 'Private', 'Sergeant', 'Captain', '', 'Nonsense'].map(rankPips)).toEqual([0, 1, 2, 3, 0, 0]);
   });
 
-  it('places the pips in a row at the top-left, clear of the tile edge (selection box) and of the health bar above', () => {
+  it('places the pips in a row in the status row above the health bar, left to right', () => {
     expect(pipPositions(0)).toEqual([]);
-    expect(pipPositions(3)).toEqual([{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }]);
-    for (const p of pipPositions(3)) {
-      expect(p.x).toBeGreaterThanOrEqual(1); // column 0 is the selection and hover outline
-      expect(p.y).toBeGreaterThanOrEqual(1); // row 0 is the edge row; the health bar sits above the tile
-    }
+    expect(pipPositions(3)).toEqual([{ x: 2, y: -RISE - 9 }, { x: 4, y: -RISE - 9 }, { x: 6, y: -RISE - 9 }]);
   });
 });
 
-describe('rank pips and the armour pip stay clear of every soldier sprite', () => {
-  it('overlap no opaque pixel of any soldier or enemy sprite, mirrored or not', () => {
-    const marks: { x: number; y: number }[] = [];
-    for (const p of pipPositions(3)) marks.push({ x: p.x, y: p.y }, { x: p.x, y: p.y + 1 });
-    for (let dy = 0; dy < ARMOUR_PIP.h; dy++) for (let dx = 0; dx < ARMOUR_PIP.w; dx++) marks.push({ x: ARMOUR_PIP.x + dx, y: ARMOUR_PIP.y + dy });
-    for (const name of SPRITE_NAMES.filter((n) => n.startsWith('soldier_') || n.startsWith('enemy_'))) {
-      for (const flip of [false, true]) {
-        for (const m of marks) {
-          const ch = SPRITE_ROWS[name][m.y][flip ? SPRITE_SIZE - 1 - m.x : m.x];
-          expect(ch, `${name} flip=${flip} at ${m.x},${m.y}`).toBe('.');
-        }
-      }
+describe('rank pips and the armour pip sit above every figure', () => {
+  it('lie wholly above the figure and its health bar, and apart from each other', () => {
+    // figure space: row 0 is the top of the figure, which stands RISE px above the feet tile; the bar is 4 px over it
+    const barTop = -RISE - 6;
+    const marks = [...pipPositions(3).map((p) => ({ x: p.x, y: p.y, w: 1, h: 2 })), { ...ARMOUR_PIP }];
+    for (const m of marks) {
+      expect(m.y + m.h, `mark at ${m.x},${m.y}`).toBeLessThanOrEqual(barTop);
+      expect(m.y + RISE + m.h, `mark at ${m.x},${m.y} touches the figure`).toBeLessThanOrEqual(-4);
+      expect(m.x).toBeGreaterThanOrEqual(0);
+      expect(m.x + m.w).toBeLessThanOrEqual(16);
+    }
+    for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) {
+      const p = marks[i];
+      const q = marks[j];
+      const overlap = p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+      expect(overlap, `marks ${i} and ${j} overlap`).toBe(false);
     }
   });
 });

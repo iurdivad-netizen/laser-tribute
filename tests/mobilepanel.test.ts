@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Atlas, type CanvasLike } from '../src/art/atlas';
+import { RISE } from '../src/art/figure';
 import type { SpriteName } from '../src/art/sprites';
 import { createMission, MISSIONS } from '../src/core/missions';
 import { createUiState } from '../src/input/uiState';
@@ -103,12 +104,17 @@ describe('the world is drawn through the camera', () => {
       get: (_t, k) => (typeof k === 'string' ? (...args: number[]) => { calls.push({ name: k, args }); return { width: 0 }; } : undefined),
       set: () => true,
     }) as unknown as CanvasRenderingContext2D;
-    const drawn: { name: SpriteName; x: number; y: number }[] = [];
+    const drawn: { name: SpriteName | string; x: number; y: number }[] = [];
     const atlas = new Atlas((a, b) => new FakeCanvas(a, b));
     const real = atlas.draw.bind(atlas);
     atlas.draw = (c, name, x, y, opts = {}) => {
       drawn.push({ name, x, y });
       return real(c, name, x, y, opts);
+    };
+    const realFigure = atlas.drawFigure.bind(atlas);
+    atlas.drawFigure = (c, fig, x, y, opts = {}) => {
+      drawn.push({ name: fig.name, x, y });
+      return realFigure(c, fig, x, y, opts);
     };
     const state = createMission(MISSIONS[0], 1);
     const p1 = state.units.find((u) => u.id === 'p1')!;
@@ -124,7 +130,7 @@ describe('the world is drawn through the camera', () => {
     expect(scale.args[0]).toBeCloseTo(o.tile / 16, 6);
     expect(rect.args).toEqual([layout.map.x, layout.map.y, layout.map.w, layout.map.h]);
     expect(calls.some((c) => c.name === 'clip')).toBe(true);
-    expect(drawn.some((d) => d.name.startsWith('soldier_') && d.x === p1.pos.x * 16 && d.y === p1.pos.y * 16)).toBe(true);
+    expect(drawn.some((d) => d.name.startsWith('squad_') && d.x === p1.pos.x * 16 && d.y === p1.pos.y * 16 - RISE)).toBe(true);
     // the panel is drawn after the world is restored
     const restore = calls.findIndex((c) => c.name === 'restore');
     const firstPanelFill = calls.findIndex((c, i) => i > restore && c.name === 'fillRect');
