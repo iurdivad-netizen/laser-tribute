@@ -13,6 +13,7 @@ import { drawText } from '../ui/text';
 import { type Camera, createCamera, originOf } from './camera';
 import type { Effects } from './effects';
 import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
+import { drawCard } from './card';
 import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
 
 const T = CONFIG.tileSize;
@@ -202,4 +203,5 @@ export function drawGame(
   ctx.restore();
 
   drawPanel(ctx, state, ui, now, layout, extras ?? { zoom: camera.zoom, soundOn: true });
+  drawCard(ctx, state, ui, layout);
 }

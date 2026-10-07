@@ -22,7 +22,7 @@ import {
   createCamera, followTile, panBy, screenToTile, setZoom, tileToScreen, type Camera,
 } from './render/camera';
 import { VIEW } from './render/layout';
-import { cancelHit, panelButtonAt, soundHit, squadAt } from './render/panel';
+import { cancelHit, detailHit, detailLineFor, panelButtonAt, soundHit, squadAt } from './render/panel';
 import { unitAtScreen } from './render/hit';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
@@ -398,6 +398,12 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /** Opens the soldier card for the selected soldier; nothing without one. */
+  private openCard(): void {
+    const c = this.controller;
+    if (c && c.state.units.some((u) => u.id === c.ui.selectedId && u.alive)) c.ui.card = true;
+  }
+
   click(p: Pos, pointer: 'mouse' | 'touch' = 'mouse'): void {
     this.sound.unlock();
     if (this.locked()) return;
@@ -426,6 +432,15 @@ export class App {
         const c = this.controller;
         if (!c) return;
         const L = this.layout;
+        if (c.ui.card) {
+          c.ui.card = false; // any click closes the soldier card
+          return;
+        }
+        const picked = c.state.units.find((u) => u.id === c.ui.selectedId && u.alive);
+        if (detailHit(L, p.x, p.y, picked ? detailLineFor(picked, L) : '')) {
+          this.openCard();
+          return;
+        }
         if (c.ui.mode !== 'move' && cancelHit(L, p.x, p.y)) {
           c.cancel();
           return;
@@ -517,6 +532,15 @@ export class App {
         }
         return false;
       case 'mission':
+        if (this.controller?.ui.card) {
+          // the soldier card is modal: I or Escape close it, every other game key is ignored
+          if (k === 'i' || k === 'I' || k === 'Escape') this.controller.ui.card = false;
+          return true;
+        }
+        if (k === 'i' || k === 'I') {
+          this.openCard();
+          return true;
+        }
         if (k === 'z' || k === 'Z') {
           this.toggleZoom();
           return true;

@@ -1,6 +1,8 @@
 import { CONFIG, GADGETS, THROWABLES, WEAPONS } from '../core/config';
 import { rankShort } from '../core/ranks';
+import { shotLine, shotPreview, weaponLine } from '../core/stats';
 import type { GameState, ThrowableId, Unit } from '../core/types';
+import { canSee } from '../core/vision';
 import type { UiState } from '../input/uiState';
 import { textWidth } from '../ui/font';
 import { UI, drawFrame, type ButtonState } from '../ui/frame';
@@ -76,6 +78,33 @@ export function squadAt(layout: Layout, px: number, py: number): number | null {
   return i < 0 ? null : i;
 }
 
+/** The text of the detail line: the soldier line, with the weapon numbers when the whole line still fits. */
+export function detailLineFor(u: Unit, layout: Layout): string {
+  const weapon = WEAPONS[u.weapon];
+  const tag = rankShort(u.rank);
+  const parts = [
+    `${tag ? `${tag} ` : ''}${u.name}`,
+    `AP ${u.ap}/${u.maxAp}`,
+    `${weapon.name.toUpperCase()} ${u.ammo}/${weapon.magazine} +${u.clips}`,
+    `${THROW_SHORT[u.throwable]} ${u.grenades}`,
+  ];
+  if (u.gadget) parts.push(GADGETS[u.gadget].name.toUpperCase());
+  if (u.attachment) parts.push('SCOPE');
+  if (u.alert) parts.push('ALERT');
+  // the weapon numbers join the line only when the whole line still fits; the soldier card always has them
+  const withNumbers = [...parts.slice(0, 3), weaponLine(u), ...parts.slice(3)].join('  ');
+  return textWidth(withNumbers) * layout.text <= layout.detail.w - 4 ? withNumbers : parts.join('  ');
+}
+
+/**
+ * True for a position over the detail line, which opens the soldier card. In a landscape overlay layout the strip lies over
+ * the live map, so only the width of the drawn text counts and a tap on the rest still reaches the tile under it.
+ */
+export function detailHit(layout: Layout, px: number, py: number, line?: string): boolean {
+  if (!inRect(layout.detail, px, py)) return false;
+  if (!layout.overlay || line === undefined) return true;
+  return px < layout.detail.x + 2 + textWidth(line) * layout.text;
+}
 export const cancelHit = (layout: Layout, px: number, py: number): boolean => inRect(layout.cancel, px, py);
 export const soundHit = (layout: Layout, px: number, py: number): boolean => inRect(layout.sound, px, py);
 
@@ -102,12 +131,18 @@ export function drawPanel(
   }
 
   const u = state.units.find((x) => x.id === ui.selectedId && x.alive);
+  // the enemy under the pointer while aiming a shot: the status line then shows the real odds against him
+  const foe = u && (ui.mode === 'snap' || ui.mode === 'aimed') && ui.hover
+    ? state.units.find((x) => x.alive && x.side !== u.side && x.pos.x === ui.hover!.x && x.pos.y === ui.hover!.y && canSee(state, u, x.pos))
+    : undefined;
+  const odds = u && foe ? shotLine(shotPreview(state, u, foe, ui.mode as 'snap' | 'aimed')) : '';
 
   // the status line: a message, the preview cost, the mode, or whose move it is
   let line = '';
   let colour: string = state.status === 'playing' ? UI.accent : UI.green;
   if (state.status === 'won') line = 'MISSION COMPLETE';
   else if (state.status === 'lost') line = 'MISSION FAILED';
+  else if (odds && (now >= ui.messageUntil || ui.messageIsHint)) line = odds;
   else if (now < ui.messageUntil) line = ui.message;
   else if (ui.previewCost !== null) line = `Move: ${ui.previewCost} AP`;
   else if (u && MODE_NAMES[ui.mode]) {
@@ -132,18 +167,8 @@ export function drawPanel(
 
   // the detail line for the selected soldier
   if (u) {
-    const weapon = WEAPONS[u.weapon];
-    const tag = rankShort(u.rank);
-    const parts = [
-      `${tag ? `${tag} ` : ''}${u.name}`,
-      `AP ${u.ap}/${u.maxAp}`,
-      `${weapon.name.toUpperCase()} ${u.ammo}/${weapon.magazine} +${u.clips}`,
-      `${THROW_SHORT[u.throwable]} ${u.grenades}`,
-    ];
-    if (u.gadget) parts.push(GADGETS[u.gadget].name.toUpperCase());
-    if (u.attachment) parts.push('SCOPE');
-    if (u.alert) parts.push('ALERT');
-    text(clipText(parts.join('  '), (layout.detail.w - 4) / scale), layout.detail.x + 2, midY(layout.detail), UI.text);
+    const line = detailLineFor(u, layout);
+    text(clipText(line, (layout.detail.w - 4) / scale), layout.detail.x + 2, midY(layout.detail), UI.text);
   } else {
     text('NO SOLDIER SELECTED', layout.detail.x + 2, midY(layout.detail), UI.dim);
   }

@@ -100,7 +100,7 @@ describe('drawText and the text listener', () => {
     drawText(ctx, 'Need 24 AP', 5, 6, '#abc', 'right');
     stop();
     drawText(ctx, 'after', 0, 0, '#fff');
-    expect(runs).toEqual([{ text: 'Need 24 AP', x: 5, y: 6, colour: '#abc', align: 'right', width: textWidth('Need 24 AP') }]);
+    expect(runs).toEqual([{ text: 'Need 24 AP', x: 5, y: 6, colour: '#abc', align: 'right', width: textWidth('Need 24 AP'), scale: 1 }]);
   });
 });
 

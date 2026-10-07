@@ -10,6 +10,8 @@ export interface TextRun {
   colour: string;
   align: Align;
   width: number;
+  /** The scale it was drawn at (1 when not given). */
+  scale?: number;
 }
 
 const listeners = new Set<(run: TextRun) => void>();
@@ -78,7 +80,7 @@ export function drawText(
   atlas: FontAtlas = defaultFont,
   scale = 1,
 ): void {
-  for (const listener of listeners) listener({ text, x, y, colour, align, width: textWidth(text) * scale });
+  for (const listener of listeners) listener({ text, x, y, colour, align, width: textWidth(text) * scale, scale });
   atlas.draw(ctx, text, x, y, colour, align, scale);
 }
 
