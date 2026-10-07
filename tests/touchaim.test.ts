@@ -158,7 +158,7 @@ describe('review fixes', () => {
     c.clickTile(e1.pos, true);
     expect(c.ui.pendingTile).toBeNull();
     expect(c.ui.message).toMatch(/visible/i);
-    const far = makeState(['#################', '#P.............E#', '#################']);
+    const far = makeState(['############', '#P........E#', '############']);
     const shooter = unit(far, 'p1');
     shooter.weapon = 'pistol';
     shooter.facing = 2;
