@@ -13,6 +13,10 @@ export interface UiState {
   message: string;
   messageUntil: number;
   busy: boolean;
+  /** The soldier card is open over the map. */
+  card: boolean;
+  /** The message is only the hint for the mode just entered, so a hover preview may replace it. */
+  messageIsHint: boolean;
 }
 
 export function createUiState(selectedId: string | null): UiState {
@@ -26,5 +30,7 @@ export function createUiState(selectedId: string | null): UiState {
     message: '',
     messageUntil: 0,
     busy: false,
+    card: false,
+    messageIsHint: false,
   };
 }

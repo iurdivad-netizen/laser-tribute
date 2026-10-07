@@ -61,6 +61,7 @@ export class Controller {
 
   private say(text: string, ms = 2000): void {
     this.ui.message = text;
+    this.ui.messageIsHint = false;
     this.ui.messageUntil = performance.now() + ms;
   }
 
@@ -312,6 +313,7 @@ export class Controller {
       turn: 'Turn, 1 AP per 45 degrees: click where to face',
     };
     this.say(hint[mode], 4000);
+    this.ui.messageIsHint = true; // only the hint for the mode: a hover on an enemy may replace it with the odds
     this.updatePreview();
   }
 
