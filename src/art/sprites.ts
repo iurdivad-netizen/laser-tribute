@@ -1,6 +1,7 @@
 export const SPRITE_NAMES = [
   'flash_0', 'flash_1', 'spark', 'slash_0', 'slash_1', 'splash',
   'boom_0', 'boom_1', 'boom_2', 'boom_3',
+  'smoke', 'fire_0', 'fire_1', 'bang',
 ] as const;
 
 export type SpriteName = (typeof SPRITE_NAMES)[number];
@@ -97,6 +98,39 @@ function boomRows(frame: number): string[] {
   return frame === 3 ? g.map((r) => r.join('')) : outlined(g);
 }
 
+/** A puff of smoke: grey blobs, light on top. */
+function smokeRows(): string[] {
+  const g = blank();
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+    const t = Math.hypot(x - C, y - C) + Math.sin(x * 1.7 + y * 0.9) * 1.6;
+    if (t < 7.2) g[y][x] = t < 4 && (x + y) % 3 === 0 ? 'W' : t < 5.5 ? 'w' : 'v';
+  }
+  return g.map((r) => r.join(''));
+}
+
+/** Flames: a yellow core, orange body and red tips; the second frame leans the other way. */
+function fireRows(frame: number): string[] {
+  const g = blank();
+  for (let x = 2; x < 14; x++) {
+    const top = 5 + Math.round(3 * Math.abs(Math.sin(x * 0.9 + frame * 1.6)));
+    for (let y = top; y < 15; y++) g[y][x] = y < top + 2 ? 'R' : y < top + 5 ? 'o' : 'y';
+  }
+  return g.map((r) => r.join(''));
+}
+
+/** A flashbang burst: a white star with a pale blue ring. */
+function bangRows(): string[] {
+  const g = blank();
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+    const dx = Math.abs(x - C), dy = Math.abs(y - C), r = Math.hypot(dx, dy);
+    const ray = (dx <= 0.8 || dy <= 0.8) && r <= 7.5;
+    if (r <= 2.5) g[y][x] = 'f';
+    else if (ray) g[y][x] = 'f';
+    else if (r <= 5) g[y][x] = 'C';
+  }
+  return outlined(g);
+}
+
 export const SPRITE_ROWS: Record<SpriteName, string[]> = {
   flash_0: flashRows(true),
   flash_1: flashRows(false),
@@ -108,4 +142,8 @@ export const SPRITE_ROWS: Record<SpriteName, string[]> = {
   boom_1: boomRows(1),
   boom_2: boomRows(2),
   boom_3: boomRows(3),
+  smoke: smokeRows(),
+  fire_0: fireRows(0),
+  fire_1: fireRows(1),
+  bang: bangRows(),
 };

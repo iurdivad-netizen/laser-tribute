@@ -55,7 +55,17 @@ export class Effects {
       } else if (e.type === 'died') {
         this.sprite(['splash'], tilePx(e.at), now, 450, { fade: true });
       } else if (e.type === 'grenade') {
-        this.sprite(['boom_0', 'boom_1', 'boom_2', 'boom_3'], { x: (e.at.x - 1) * T, y: (e.at.y - 1) * T }, now, 450, { scale: 3 });
+        const centre = { x: (e.at.x - 1) * T, y: (e.at.y - 1) * T };
+        if (e.kind === 'flash') {
+          this.sprite(['bang'], centre, now, 350, { scale: 3, fade: true });
+          this.list.push({ kind: 'flash', at: e.at, color: '255,255,255', start: now, dur: 250 });
+        } else if (e.kind === 'smoke') {
+          this.sprite(['smoke'], centre, now, 500, { scale: 3, fade: true });
+        } else {
+          this.sprite(['boom_0', 'boom_1', 'boom_2', 'boom_3'], centre, now, 450, { scale: 3 });
+        }
+      } else if (e.type === 'burned') {
+        this.sprite(['spark'], { x: e.at.x * T, y: e.at.y * T - AIM_RAISE }, now, 220, { fade: true });
       } else if (e.type === 'healed') {
         this.list.push({ kind: 'flash', at: e.at, color: '100,255,140', start: now, dur: 300 });
       } else if (e.type === 'reloaded') {

@@ -6,8 +6,8 @@ const opaque = (name: (typeof SPRITE_NAMES)[number]) => SPRITE_ROWS[name].join('
 const OUTLINED = ['flash_0', 'flash_1', 'spark', 'slash_0', 'slash_1', 'splash', 'boom_0', 'boom_1', 'boom_2'] as const;
 
 describe('the effect sprites', () => {
-  it('are exactly the ten effects, each 16x16 with palette letters only', () => {
-    expect([...SPRITE_NAMES]).toEqual(['flash_0', 'flash_1', 'spark', 'slash_0', 'slash_1', 'splash', 'boom_0', 'boom_1', 'boom_2', 'boom_3']);
+  it('are exactly the fourteen sprites, each 16x16 with palette letters only', () => {
+    expect([...SPRITE_NAMES]).toEqual(['flash_0', 'flash_1', 'spark', 'slash_0', 'slash_1', 'splash', 'boom_0', 'boom_1', 'boom_2', 'boom_3', 'smoke', 'fire_0', 'fire_1', 'bang']);
     expect(Object.keys(SPRITE_ROWS).sort()).toEqual([...SPRITE_NAMES].sort());
     for (const name of SPRITE_NAMES) {
       const s = parseSprite(name, SPRITE_ROWS[name]);

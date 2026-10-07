@@ -3,8 +3,8 @@ import { flipHorizontal, parseSprite } from '../src/art/sprite';
 import { SPRITE_NAMES, SPRITE_ROWS } from '../src/art/sprites';
 
 describe('the sprite data', () => {
-  it('has exactly the 10 named effect sprites (tiles, doors, items and corpses are images now)', () => {
-    expect(SPRITE_NAMES).toHaveLength(10);
+  it('has exactly the 14 named effect sprites (tiles, doors, items and corpses are images now)', () => {
+    expect(SPRITE_NAMES).toHaveLength(14);
     expect(Object.keys(SPRITE_ROWS).sort()).toEqual([...SPRITE_NAMES].sort());
     expect(SPRITE_NAMES.some((n) => /^(soldier|enemy|floor|wall|door|item|corpse)/.test(n))).toBe(false);
   });
