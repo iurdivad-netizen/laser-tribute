@@ -4,10 +4,10 @@ import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
 import { CONFIG, GADGETS, THROWABLES, WEAPONS } from './core/config';
 import { rangeTiles } from './render/ranges';
-import { posEq } from './core/geometry';
+import { distance, posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
 import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
-import { visibleToSide } from './core/vision';
+import { canSee, visibleToSide } from './core/vision';
 import type { Mode, UiState } from './input/uiState';
 import type { Effects } from './render/effects';
 import type { ButtonId } from './render/panel';
@@ -242,6 +242,12 @@ export class Controller {
         } else if (!clicked || clicked.side !== 'enemy') {
           this.refuse('Click an enemy');
           return;
+        } else if (!canSee(this.state, sel, clicked.pos)) {
+          this.refuse('Target is not visible');
+          return;
+        } else if (distance(sel.pos, clicked.pos) > WEAPONS[sel.weapon].range) {
+          this.refuse('Target is out of range');
+          return;
         }
         this.ui.hover = { ...t };
         this.ui.pendingTile = { ...t };
@@ -444,8 +450,9 @@ export class Controller {
   /** Selects the next (1) or previous (-1) living soldier, wrapping around. */
   cycle(dir: 1 | -1): void {
     const squad = this.squad();
-    const i = squad.findIndex((u) => u.id === this.ui.selectedId);
+    const found = squad.findIndex((u) => u.id === this.ui.selectedId);
     if (squad.length === 0 || !this.canAct()) return;
+    const i = found < 0 ? (dir === 1 ? -1 : 0) : found; // nobody selected: forward starts at the first, back at the last
     this.ui.selectedId = squad[(i + dir + squad.length) % squad.length].id;
     this.clearPending();
     if (this.ui.mode === 'heal') this.ui.mode = 'move';

@@ -4,6 +4,7 @@ import { WEAPONS } from '../src/core/config';
 import { createUiState } from '../src/input/uiState';
 import { Effects } from '../src/render/effects';
 import { DEFAULT_LAYOUT, drawPanel } from '../src/render/panel';
+import { computeLayout } from '../src/ui/layout';
 import { onText } from '../src/ui/text';
 import { makeState, unit } from './helpers';
 
@@ -132,5 +133,46 @@ describe('the other modes stay one tap', () => {
     c.pressButton('door');
     c.clickTile({ x: 2, y: 1 }, true);
     expect(c.state.tiles[1][2].open).toBe(true);
+  });
+});
+
+describe('review fixes', () => {
+  it('puts TAP AGAIN first so it survives the clipping on a portrait phone', () => {
+    const { c, e1 } = setup();
+    c.pressButton('snap');
+    c.clickTile(e1.pos, true);
+    const texts: string[] = [];
+    const stop = onText((r) => texts.push(r.text));
+    const ctx = new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as CanvasRenderingContext2D;
+    drawPanel(ctx, c.state, c.ui, performance.now(), computeLayout(390, 844, 3));
+    stop();
+    const status = texts.find((t) => t.includes('HIT') || t.includes('TAP'))!;
+    expect(status.startsWith('TAP AGAIN')).toBe(true);
+  });
+
+  it('refuses a first tap on an enemy the shooter cannot see, or cannot reach', () => {
+    const { c, p, e1 } = setup();
+    p.facing = 6; // looking away, while his neighbour p2 still sees the enemy
+    unit(c.state, 'p2').facing = 2;
+    c.pressButton('snap');
+    c.clickTile(e1.pos, true);
+    expect(c.ui.pendingTile).toBeNull();
+    expect(c.ui.message).toMatch(/visible/i);
+    const far = makeState(['#################', '#P.............E#', '#################']);
+    const shooter = unit(far, 'p1');
+    shooter.weapon = 'pistol';
+    shooter.facing = 2;
+    const c2 = new Controller(far, createUiState('p1'), new Effects());
+    c2.pressButton('snap');
+    c2.clickTile(unit(far, 'e1').pos, true);
+    expect(c2.ui.pendingTile).toBeNull();
+    expect(c2.ui.message).toMatch(/range/i);
+  });
+
+  it('Shift+Tab with nobody selected selects the last living soldier', () => {
+    const { c } = setup();
+    c.ui.selectedId = null;
+    c.cycle(-1);
+    expect(c.ui.selectedId).toBe('p2');
   });
 });
