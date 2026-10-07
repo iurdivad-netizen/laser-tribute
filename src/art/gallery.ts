@@ -34,7 +34,7 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
         ctx.save();
         ctx.translate(x, y);
         ctx.scale(2, 2);
-        art.drawFigure(ctx, armedFigure(side, view, weapon), 0, 0);
+        art.drawImage(ctx, armedFigure(side, view, weapon), 0, 0);
         ctx.restore();
       });
     });

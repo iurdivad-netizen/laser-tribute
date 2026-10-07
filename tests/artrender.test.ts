@@ -21,8 +21,8 @@ function spyAtlas() {
     drawn.push({ name, x, y, flip: !!opts.flip });
     return real(ctx, name, x, y, opts);
   };
-  const realFigure = atlas.drawFigure.bind(atlas);
-  atlas.drawFigure = (ctx, fig, x, y, opts = {}) => {
+  const realFigure = atlas.drawImage.bind(atlas);
+  atlas.drawImage = (ctx, fig, x, y, opts = {}) => {
     drawn.push({ name: fig.name, x, y, flip: !!opts.flip });
     return realFigure(ctx, fig, x, y, opts);
   };
@@ -279,8 +279,8 @@ describe('gadget markers', () => {
     const state = createMission(MISSIONS[0], 1, roster);
     const log: string[] = [];
     const atlas = new Atlas((w, h) => new FakeCanvas(w, h));
-    const realFigure = atlas.drawFigure.bind(atlas);
-    atlas.drawFigure = (c, fig, x, y, opts = {}) => {
+    const realFigure = atlas.drawImage.bind(atlas);
+    atlas.drawImage = (c, fig, x, y, opts = {}) => {
       log.push('figure');
       return realFigure(c, fig, x, y, opts);
     };

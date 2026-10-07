@@ -101,7 +101,7 @@ export function drawGame(
     const x0 = Math.round(u.pos.x * T + off.x); // the top-left of the tile the feet stand on
     const y0 = Math.round(u.pos.y * T + off.y + effects.unitBob(u.id, now));
     const { figure, flip } = unitFigure(u.side, u.facing, u.weapon);
-    art.drawFigure(ctx, figure, x0, y0 - RISE, { flip });
+    art.drawImage(ctx, figure, x0, y0 - RISE, { flip });
     const cx = x0 + T / 2;
 
     // The status stack (pips, bar, alert mark) floats above the head; for a unit on the first walkable row there is no

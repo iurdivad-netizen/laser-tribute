@@ -98,8 +98,8 @@ describe('Atlas figures', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx, calls } = fakeCtx();
     const f = armedFigure('squad', 's', 'rifle');
-    expect(atlas.drawFigure(ctx, f, 32.4, 47.6)).toBe(true);
-    expect(atlas.drawFigure(ctx, f, 0, 0)).toBe(true);
+    expect(atlas.drawImage(ctx, f, 32.4, 47.6)).toBe(true);
+    expect(atlas.drawImage(ctx, f, 0, 0)).toBe(true);
     expect(canvases).toHaveLength(1);
     expect(canvases[0].width).toBe(FIGURE_W);
     expect(canvases[0].height).toBe(FIGURE_H);
@@ -114,9 +114,9 @@ describe('Atlas figures', () => {
     const { atlas, canvases } = makeAtlas();
     const { ctx } = fakeCtx();
     const f = armedFigure('squad', 'ne', 'rifle');
-    atlas.drawFigure(ctx, f, 0, 0);
-    atlas.drawFigure(ctx, f, 0, 0, { flip: true });
-    atlas.drawFigure(ctx, f, 0, 0, { flip: true });
+    atlas.drawImage(ctx, f, 0, 0);
+    atlas.drawImage(ctx, f, 0, 0, { flip: true });
+    atlas.drawImage(ctx, f, 0, 0, { flip: true });
     expect(canvases).toHaveLength(2);
     const key = (o: Op) => `${o.x},${o.y},${o.colour}`;
     const plain = new Set(canvases[0].ops.map(key));
@@ -127,7 +127,7 @@ describe('Atlas figures', () => {
   it('draws nothing and does not throw when there is no canvas', () => {
     const atlas = new Atlas(() => null);
     const { ctx, calls } = fakeCtx();
-    expect(atlas.drawFigure(ctx, armedFigure('enemy', 'e', 'pistol'), 0, 0, { flip: true })).toBe(false);
+    expect(atlas.drawImage(ctx, armedFigure('enemy', 'e', 'pistol'), 0, 0, { flip: true })).toBe(false);
     expect(calls).toHaveLength(0);
   });
 });

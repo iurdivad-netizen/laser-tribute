@@ -11,7 +11,7 @@ describe('drawGallery', () => {
         drawn.push({ name, x, y, scale: opts?.scale ?? 1 });
         return true;
       },
-      drawFigure: (_ctx: unknown, fig: { name: string }, _x: number, _y: number, opts?: { flip?: boolean }) => {
+      drawImage: (_ctx: unknown, fig: { name: string }, _x: number, _y: number, opts?: { flip?: boolean }) => {
         figures.push({ name: fig.name, flip: !!opts?.flip });
         return true;
       },
