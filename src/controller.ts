@@ -3,10 +3,11 @@ import type { SoundPlayer } from './audio/sound';
 import { aiNextCommand } from './core/ai';
 import { applyCommand } from './core/apply';
 import { CONFIG, GADGETS, THROWABLES, WEAPONS } from './core/config';
-import { posEq } from './core/geometry';
+import { rangeTiles } from './render/ranges';
+import { distance, posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
 import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
-import { visibleToSide } from './core/vision';
+import { canSee, visibleToSide } from './core/vision';
 import type { Mode, UiState } from './input/uiState';
 import type { Effects } from './render/effects';
 import type { ButtonId } from './render/panel';
@@ -229,6 +230,34 @@ export class Controller {
       this.refuse('Select a soldier first');
       return;
     }
+    if (touch && (this.ui.mode === 'snap' || this.ui.mode === 'aimed' || this.ui.mode === 'throw')) {
+      // no pointer on a touchscreen: the first tap aims (the status line shows the odds, the map the blast), the second fires
+      const pending = this.ui.pendingTile;
+      if (!pending || !posEq(pending, t)) {
+        if (this.ui.mode === 'throw') {
+          if (!rangeTiles('throw', this.state, sel).some((p) => posEq(p, t))) {
+            this.refuse('Out of reach');
+            return;
+          }
+        } else if (!clicked || clicked.side !== 'enemy') {
+          this.refuse('Click an enemy');
+          return;
+        } else if (!canSee(this.state, sel, clicked.pos)) {
+          this.refuse('Target is not visible');
+          return;
+        } else if (distance(sel.pos, clicked.pos) > WEAPONS[sel.weapon].range) {
+          this.refuse('Target is out of range');
+          return;
+        }
+        this.ui.hover = { ...t };
+        this.ui.pendingTile = { ...t };
+        this.say(this.ui.mode === 'throw' ? `Tap again to throw: ${THROWABLES[sel.throwable].apCost} AP` : 'Tap again to fire', 4000);
+        this.ui.messageIsHint = true; // the odds line may replace it
+        return;
+      }
+      this.ui.pendingTile = null;
+      this.ui.hover = null;
+    }
     const mode = this.ui.mode;
     this.ui.mode = 'move';
     if (mode === 'snap' || mode === 'aimed') {
@@ -418,6 +447,18 @@ export class Controller {
     }
   }
 
+  /** Selects the next (1) or previous (-1) living soldier, wrapping around. */
+  cycle(dir: 1 | -1): void {
+    const squad = this.squad();
+    const found = squad.findIndex((u) => u.id === this.ui.selectedId);
+    if (squad.length === 0 || !this.canAct()) return;
+    const i = found < 0 ? (dir === 1 ? -1 : 0) : found; // nobody selected: forward starts at the first, back at the last
+    this.ui.selectedId = squad[(i + dir + squad.length) % squad.length].id;
+    this.clearPending();
+    if (this.ui.mode === 'heal') this.ui.mode = 'move';
+    this.updatePreview();
+  }
+
   key(k: string): boolean {
     const lower = k.length === 1 ? k.toLowerCase() : k;
     if (lower >= '1' && lower <= '4' && lower.length === 1) {
@@ -453,16 +494,8 @@ export class Controller {
         }
         return true;
       }
-      case 'Tab': {
-        const squad = this.squad();
-        const i = squad.findIndex((u) => u.id === this.ui.selectedId);
-        if (squad.length > 0 && this.canAct()) {
-          this.ui.selectedId = squad[(i + 1) % squad.length].id;
-          this.clearPending();
-          if (this.ui.mode === 'heal') this.ui.mode = 'move';
-        }
-        return true;
-      }
+      case 'Tab': this.cycle(1); return true;
+      case 'Shift+Tab': this.cycle(-1); return true;
       default:
         return false;
     }
