@@ -1,6 +1,7 @@
 import type { RosterSoldier } from './campaign';
 import { TUTORIAL_LEVEL } from './config';
 import { assignEnemyWeapons } from './enemyArms';
+import { themeOfMap } from './themes';
 import { LOADOUT, applyLoadout, type Loadout } from './loadout';
 import type { Stash } from './stash';
 import { parseMap } from './mission';
@@ -141,6 +142,7 @@ export function createMission(
   level: number = TUTORIAL_LEVEL,
 ): GameState {
   let s = parseMap(def.rows, seed);
+  s.theme = themeOfMap(def.id);
   for (const u of s.units) {
     const patrol = def.patrols[u.id];
     if (patrol) u.patrol = patrol.map((p) => ({ ...p }));

@@ -61,8 +61,8 @@ export const THEMES: Record<ThemeId, Theme> = {
 };
 
 /** The theme of the mission being drawn: the one the mission was created with. */
-export function themeFor(_state: GameState): ThemeId {
-  return 'base';
+export function themeFor(state: GameState): ThemeId {
+  return state.theme;
 }
 
 const recoloured = new Map<string, Figure>();

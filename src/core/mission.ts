@@ -85,5 +85,6 @@ export function parseMap(rows: string[], seed = 1): GameState {
     hazards: [],
     reacted: [],
     status: 'playing',
+    theme: 'base',
   };
 }

@@ -1,3 +1,5 @@
+import type { ThemeId } from './themes';
+
 export type Side = 'player' | 'enemy';
 
 export interface Pos {
@@ -99,6 +101,8 @@ export interface GameState {
   /** Reaction shots already taken this turn, as 'shooterId>targetId'. Cleared when a turn ends. */
   reacted: string[];
   status: GameStatus;
+  /** The look of the map's tiles; set from the map type when the mission is created. */
+  theme: ThemeId;
 }
 
 export type Command =
