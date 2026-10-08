@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { Figure } from '../src/art/figure';
-import { imageOf } from '../src/art/image';
 import { luminance } from '../src/art/recolour';
 import { THEMES, tileImage } from '../src/art/theme';
 import { THEME_IDS } from '../src/core/themes';
@@ -40,8 +39,9 @@ describe('every theme keeps the map readable', () => {
   for (const id of THEME_IDS) {
     describe(THEMES[id].name, () => {
       it('keeps soldiers and enemies readable against its floors (at least 80% of the base contrast)', () => {
-        expect(worst(id, SQUAD)).toBeGreaterThanOrEqual(baseSquad * 0.8);
-        expect(worst(id, ENEMY)).toBeGreaterThanOrEqual(baseEnemy * 0.8);
+        // compare the margin over 1 (no contrast): 80% of the base margin, not 80% of the ratio
+        expect(worst(id, SQUAD) - 1).toBeGreaterThanOrEqual((baseSquad - 1) * 0.8);
+        expect(worst(id, ENEMY) - 1).toBeGreaterThanOrEqual((baseEnemy - 1) * 0.8);
       });
 
       it('keeps the item icons and the blood pool visible on its floors', () => {
@@ -67,6 +67,29 @@ describe('every theme keeps the map readable', () => {
     expect(baseSquad).toBeGreaterThan(1);
     expect(baseEnemy).toBeGreaterThan(1);
     expect(worst('base', BLOOD)).toBeGreaterThanOrEqual(1.8);
-    void imageOf;
   });
+});
+
+describe('review fixes', () => {
+  for (const id of THEME_IDS) {
+    it(`${THEMES[id].name}: the open door reads as a passage and differs from the closed one`, () => {
+      const open = meanLum(tileImage(id, 'door', true, 0, 0));
+      const closed = meanLum(tileImage(id, 'door', false, 0, 0));
+      const floor = meanLum(tileImage(id, 'floor', false, 0, 0));
+      expect(closed - open, 'closed against open').toBeGreaterThanOrEqual(0.03);
+      expect(open - floor, 'open door against floor').toBeLessThanOrEqual(0.07);
+    });
+
+    it(`${THEMES[id].name}: the three floors have the same mean brightness (an even floor pattern)`, () => {
+      const m = [0, 1, 2].map((v) => meanLum(tileImage(id, 'floor', false, v, 0)));
+      expect(Math.max(...m) - Math.min(...m)).toBeLessThan(0.003);
+    });
+
+    it(`${THEMES[id].name}: every ramp gets lighter from shadow to mid to light`, () => {
+      for (const ramp of Object.values(THEMES[id].ramps ?? {})) {
+        expect(luminance(ramp.mid)).toBeGreaterThan(luminance(ramp.shadow));
+        expect(luminance(ramp.light)).toBeGreaterThan(luminance(ramp.mid));
+      }
+    });
+  }
 });

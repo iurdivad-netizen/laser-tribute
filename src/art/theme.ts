@@ -2,7 +2,7 @@ import { THEME_IDS, type ThemeId } from '../core/themes';
 import type { GameState, ItemKind, Side, TileKind } from '../core/types';
 import type { Figure } from './figure';
 import { imageOf, type ImageName } from './image';
-import { recolour, type Ramp } from './recolour';
+import { luminanceRange, recolour, type Ramp } from './recolour';
 import { floorVariant } from './sprite';
 
 export type { ThemeId };
@@ -29,7 +29,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   timber: {
     name: 'Timber', ...BASE_PIECES,
     ramps: {
-      floor: { shadow: '#2a1c12', mid: '#4a3322', light: '#6b4e33' },
+      floor: { shadow: '#24180f', mid: '#41301f', light: '#5e452e' },
       wall: { shadow: '#4a3a28', mid: '#8a6a44', light: '#c7a066' },
       door: { shadow: '#4a2a14', mid: '#d8913e', light: '#fff0c0' },
     },
@@ -37,7 +37,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   steel: {
     name: 'Steel', ...BASE_PIECES,
     ramps: {
-      floor: { shadow: '#1c2430', mid: '#2e3a4a', light: '#46566a' },
+      floor: { shadow: '#18202a', mid: '#283340', light: '#3c4a5c' },
       wall: { shadow: '#33424f', mid: '#6a7f94', light: '#aebdcb' },
       door: { shadow: '#4a260f', mid: '#e08a30', light: '#ffd9a0' },
     },
@@ -53,7 +53,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   stone: {
     name: 'Stone', ...BASE_PIECES,
     ramps: {
-      floor: { shadow: '#2a2825', mid: '#3b3935', light: '#4d4a45' },
+      floor: { shadow: '#23211e', mid: '#33312d', light: '#44413c' },
       wall: { shadow: '#5a5e66', mid: '#9a9ea6', light: '#d4d6da' },
       door: { shadow: '#3a281a', mid: '#b88a4c', light: '#f2d9a8' },
     },
@@ -72,10 +72,12 @@ function piece(id: ThemeId, group: 'floor' | 'wall' | 'door', image: ImageName, 
   if (override) return imageOf(override);
   const ramp = THEMES[id].ramps?.[group];
   if (!ramp) return imageOf(image);
-  const key = `${id}:${image}`;
+  const key = `${id}:${group}:${image}`;
   let fig = recoloured.get(key);
   if (!fig) {
-    fig = recolour(imageOf(image), ramp, `${image}@${id}`);
+    // the closed and open door share one brightness range, so the leaf has the same colour in both and the open doorway stays dark
+    const range = group === 'door' ? luminanceRange([imageOf(THEMES[id].doorClosed), imageOf(THEMES[id].doorOpen)]) : undefined;
+    fig = recolour(imageOf(image), ramp, `${image}@${id}`, range);
     recoloured.set(key, fig);
   }
   return fig;

@@ -26,14 +26,15 @@ const mix = (a: number[], b: number[], t: number): number[] => a.map((v, i) => v
  * A gradient map: every opaque pixel is placed by its brightness within the image (darkest 0, lightest 1) and takes the
  * colour of the ramp there, blending shadow to mid over the lower half and mid to light over the upper half. The texture
  * of the image (its specks, seams and outlines) stays, the colours change. Transparent pixels stay transparent; a flat
- * image maps to `mid`.
+ * image maps to `mid`. Pieces that belong together (the closed and open door) pass one shared `range`, so the same
+ * source colour gets the same result in both.
  */
-export function recolour(fig: Figure, ramp: Ramp, name: string): Figure {
+export function recolour(fig: Figure, ramp: Ramp, name: string, range?: { lo: number; hi: number }): Figure {
   const lums = fig.pixels.map((p) => (p === null ? null : luminance(p)));
   const seen = lums.filter((l): l is number => l !== null);
   if (seen.length === 0) return { name, width: fig.width, height: fig.height, pixels: [...fig.pixels] };
-  const lo = Math.min(...seen);
-  const hi = Math.max(...seen);
+  const lo = range ? range.lo : Math.min(...seen);
+  const hi = range ? range.hi : Math.max(...seen);
   const [shadow, mid, light] = [ramp.shadow, ramp.mid, ramp.light].map(channels);
   const pixels = lums.map((l) => {
     if (l === null) return null;
@@ -41,4 +42,10 @@ export function recolour(fig: Figure, ramp: Ramp, name: string): Figure {
     return toHex(t <= 0.5 ? mix(shadow, mid, t * 2) : mix(mid, light, (t - 0.5) * 2));
   });
   return { name, width: fig.width, height: fig.height, pixels };
+}
+
+/** The least and greatest luminance over the opaque pixels of several images (the shared range of a set of pieces). */
+export function luminanceRange(figs: Figure[]): { lo: number; hi: number } {
+  const all = figs.flatMap((f) => f.pixels.filter((p): p is string => p !== null).map(luminance));
+  return { lo: Math.min(...all), hi: Math.max(...all) };
 }
