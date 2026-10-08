@@ -31,7 +31,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     ramps: {
       floor: { shadow: '#2a1c12', mid: '#4a3322', light: '#6b4e33' },
       wall: { shadow: '#4a3a28', mid: '#8a6a44', light: '#c7a066' },
-      door: { shadow: '#2e1410', mid: '#6a2a1c', light: '#a8482c' },
+      door: { shadow: '#4a2a14', mid: '#d8913e', light: '#fff0c0' },
     },
   },
   steel: {
@@ -39,23 +39,23 @@ export const THEMES: Record<ThemeId, Theme> = {
     ramps: {
       floor: { shadow: '#1c2430', mid: '#2e3a4a', light: '#46566a' },
       wall: { shadow: '#33424f', mid: '#6a7f94', light: '#aebdcb' },
-      door: { shadow: '#40220f', mid: '#a65a1c', light: '#e08a30' },
+      door: { shadow: '#4a260f', mid: '#e08a30', light: '#ffd9a0' },
     },
   },
   cave: {
     name: 'Cave', ...BASE_PIECES,
     ramps: {
       floor: { shadow: '#201a14', mid: '#33291f', light: '#4a3c2c' },
-      wall: { shadow: '#2e261e', mid: '#5a4a38', light: '#8c7656' },
-      door: { shadow: '#2a1a0f', mid: '#5c3a1c', light: '#8c5c2c' },
+      wall: { shadow: '#2e261e', mid: '#7a6446', light: '#c0a878' },
+      door: { shadow: '#4a3016', mid: '#c8903f', light: '#f0d090' },
     },
   },
   stone: {
     name: 'Stone', ...BASE_PIECES,
     ramps: {
-      floor: { shadow: '#33363c', mid: '#4c5058', light: '#6a6f78' },
+      floor: { shadow: '#2a2825', mid: '#3b3935', light: '#4d4a45' },
       wall: { shadow: '#5a5e66', mid: '#9a9ea6', light: '#d4d6da' },
-      door: { shadow: '#2c1e16', mid: '#6a4a2a', light: '#a87c44' },
+      door: { shadow: '#3a281a', mid: '#b88a4c', light: '#f2d9a8' },
     },
   },
 };

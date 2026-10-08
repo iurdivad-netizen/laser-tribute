@@ -3,7 +3,10 @@ import { drawText } from '../ui/text';
 import type { Atlas } from './atlas';
 import { FIGURE_H, armedFigure } from './figure';
 import { imageOf, type ImageName } from './image';
+import { floorVariant } from './sprite';
 import { SPRITE_NAMES } from './sprites';
+import { THEMES, tileImage } from './theme';
+import { THEME_IDS } from '../core/themes';
 
 const SCALE = 3;
 const IMAGE_LIST: ImageName[] = [
@@ -55,6 +58,23 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
       });
     });
   }
+  // one strip per theme at 1x: its three floors, wall, closed door and open door, then its name
+  const spot = (v: number): { x: number; y: number } => {
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) if (floorVariant(x, y) === v) return { x, y };
+    return { x: 0, y: 0 };
+  };
+  THEME_IDS.forEach((id, i) => {
+    const x0 = 4 + (i % 3) * 160;
+    const y0 = 298 + Math.floor(i / 3) * 26;
+    const pieces = [
+      ...[0, 1, 2].map((v) => tileImage(id, 'floor', false, spot(v).x, spot(v).y)),
+      tileImage(id, 'wall', false, 0, 0),
+      tileImage(id, 'door', false, 0, 0),
+      tileImage(id, 'door', true, 0, 0),
+    ];
+    pieces.forEach((fig, k) => art.drawImage(ctx, fig, x0 + k * 17, y0));
+    drawText(ctx, THEMES[id].name.toUpperCase(), x0 + 6 * 17 + 4, y0 + 5, '#8a8fa8');
+  });
   drawText(ctx, 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG', 4, 352, '#e8e8f0');
   drawText(ctx, "0123456789 .,:;!?'\"-+=/()[]<>%*#_&@$~|", 4, 364, '#ffe14d');
 }
