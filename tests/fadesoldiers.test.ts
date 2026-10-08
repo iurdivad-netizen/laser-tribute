@@ -81,3 +81,10 @@ describe('the other soldiers fade while you move or open doors', () => {
     expect(bars.map((b) => b.alpha).sort()).toEqual([0.5, 1]); // p1 solid (selected), p2 (hurt) faded
   });
 });
+
+describe('review fixes', () => {
+  it('draws everyone solid once the mission is over', () => {
+    const { seen } = opacities('move', (s) => { s.status = 'won'; });
+    for (const id of ['p1', 'p2', 'p3', 'p4']) expect(seen.get(id)).toBe(1);
+  });
+});

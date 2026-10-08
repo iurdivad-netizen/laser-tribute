@@ -484,13 +484,20 @@ export class App {
   /**
    * The unit a click or hover on a figure stands for, or null when it means the tile under the pointer. A figure reaches
    * up over the tile north of his feet, so this must not steal that tile's clicks: door, throw and turn always mean
-   * the tile, and so does a move (the soldiers are drawn see-through then, and one is picked by his own tile, the squad
-   * strip or the keys); a unit standing on the tile under the pointer wins over a figure reaching up from the row below;
+   * the tile; so does a move onto a tile that can be walked to (the soldiers are drawn see-through then, and one is picked
+   * by his own tile, the squad strip or the keys); a unit standing on the tile under the pointer wins over a figure reaching up from the row below;
    * a shot or a blow looks only for enemy figures, a heal only for soldiers.
    */
   private figureAt(c: Controller, p: Pos): Unit | null {
     const mode = c.ui.mode;
-    if (mode === 'move' || mode === 'door' || mode === 'throw' || mode === 'turn') return null;
+    if (mode === 'door' || mode === 'throw' || mode === 'turn') return null;
+    if (mode === 'move') {
+      // a click means the tile under the pointer, so a comrade's head never blocks a move; but where that tile gives no move
+      // (a wall, or unexplored) the figure picks the soldier instead of ending in 'No path there', and with nobody selected too
+      const sel = c.state.units.find((u) => u.id === c.ui.selectedId && u.alive && u.side === 'player');
+      const under = screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y);
+      if (sel && under && c.state.explored[under.y][under.x] && c.state.tiles[under.y][under.x].kind !== 'wall') return null;
+    }
     const tile = screenToTile(this.camera, this.layout, c.state.width, c.state.height, p.x, p.y);
     const standing = tile ? unitAt(c.state, tile) : undefined;
     if (standing && (standing.side === 'player' || visibleToSide(c.state, 'player', standing.pos))) return null;

@@ -134,8 +134,8 @@ export function drawGame(
     .filter((u) => u.alive && !(u.side === 'enemy' && !visible[u.pos.y][u.pos.x]))
     .sort((p, q) => p.pos.y - q.pos.y);
   let selectedAt: { x: number; y: number } | null = null;
-  // while a soldier moves or opens doors his comrades are see-through, so the map behind them shows (and clicks pass through)
-  const fadeOthers = !!selected && state.turn === 'player' && (ui.mode === 'move' || ui.mode === 'door');
+  // while a soldier moves or opens doors his comrades are see-through, so the map behind them shows (their heads also stop catching clicks, see App.figureAt)
+  const fadeOthers = !!selected && state.status === 'playing' && state.turn === 'player' && (ui.mode === 'move' || ui.mode === 'door');
   for (const u of living) {
     ctx.globalAlpha = fadeOthers && u.side === 'player' && u.id !== selected!.id ? 0.5 : 1;
     const off = effects.unitOffset(u.id, now);
@@ -193,7 +193,6 @@ export function drawGame(
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
   }
 
-  ctx.globalAlpha = 1;
   if (selected && blastAt) {
     // who a throw at the hovered tile would hit: foes in red, friends (the thrower too) in cyan; above the hover outline
     for (const v of blastVictims(state, selected, blastAt)) {

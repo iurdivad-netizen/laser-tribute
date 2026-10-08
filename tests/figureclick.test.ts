@@ -202,3 +202,37 @@ describe('touch taps and the hover', () => {
     expect(c.ui.hover).toBeNull();
   });
 });
+
+describe('move mode: a soldier body still picks him where the tile above gives no move', () => {
+  it('a click on the body of a soldier with a wall above his head selects him', () => {
+    const { app, c, unit, place, wait } = scene();
+    place('p2', 10, 17);
+    c.state.tiles[16][10] = { kind: 'wall', open: false };
+    wait();
+    app.click(headPoint(app, unit('p2')));
+    expect(c.ui.selectedId).toBe('p2');
+  });
+
+  it('a click on the body of a soldier with open floor above sends the selected soldier there', () => {
+    const { app, c, unit, place, wait } = scene();
+    place('p2', 10, 17);
+    c.state.tiles[16][10] = { kind: 'floor', open: false };
+    c.state.explored[16][10] = true;
+    wait();
+    const before = unit('p1').pos;
+    app.click(headPoint(app, unit('p2')));
+    expect(c.ui.selectedId).toBe('p1');
+    expect(c.ui.busy || unit('p1').ap < 60 || unit('p1').pos.x !== before.x || unit('p1').pos.y !== before.y).toBe(true);
+  });
+
+  it('with nobody selected a click on a soldier body picks him', () => {
+    const { app, c, unit, place, wait } = scene();
+    place('p2', 10, 17);
+    c.state.tiles[16][10] = { kind: 'floor', open: false };
+    c.state.explored[16][10] = true;
+    c.ui.selectedId = null;
+    wait();
+    app.click(headPoint(app, unit('p2')));
+    expect(c.ui.selectedId).toBe('p2');
+  });
+});
