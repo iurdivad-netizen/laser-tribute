@@ -6,14 +6,14 @@ import { SPRITE_NAMES } from '../src/art/sprites';
 describe('drawGallery', () => {
   it('draws every sprite once, enlarged three times, then the fourteen images and the twenty soldiers, inside the canvas', () => {
     const drawn: { name: string; x: number; y: number; scale: number }[] = [];
-    const figures: { name: string; flip: boolean }[] = [];
+    const figures: { name: string; flip: boolean; x?: number; y?: number }[] = [];
     const art = {
       draw: (_ctx: unknown, name: string, x: number, y: number, opts?: { scale?: number }) => {
         drawn.push({ name, x, y, scale: opts?.scale ?? 1 });
         return true;
       },
-      drawImage: (_ctx: unknown, fig: { name: string }, _x: number, _y: number, opts?: { flip?: boolean }) => {
-        figures.push({ name: fig.name, flip: !!opts?.flip });
+      drawImage: (_ctx: unknown, fig: { name: string }, x: number, y: number, opts?: { flip?: boolean }) => {
+        figures.push({ name: fig.name, flip: !!opts?.flip, x, y });
         return true;
       },
     };
@@ -31,10 +31,15 @@ describe('drawGallery', () => {
       expect(d.x + 48).toBeLessThanOrEqual(480);
       expect(d.y + 48).toBeLessThanOrEqual(360);
     }
-    expect(figures).toHaveLength(34); // 14 images, then 5 views x 2 sides x 2 weapons
-    expect(new Set(figures.map((f) => f.name)).size).toBe(34);
+    expect(figures).toHaveLength(64); // 14 images, 20 soldiers, then 5 themes x 6 tile pieces
+    expect(new Set(figures.map((f) => f.name)).size).toBe(58); // the base strip repeats the six base tile images
     expect(figures.slice(0, 14).map((f) => f.name)).toEqual([...IMAGE_NAMES]);
-    expect(translates).toHaveLength(34);
+    for (const f of figures.slice(34)) { // the theme strips, drawn at 1x without translate: inside the canvas, above the sample text
+      expect(f.x!).toBeGreaterThanOrEqual(0);
+      expect(f.x! + 16).toBeLessThanOrEqual(480);
+      expect(f.y! + 16).toBeLessThanOrEqual(352);
+    }
+    expect(translates).toHaveLength(34); // the strips use no translate
     for (const t of translates) {
       expect(t.x).toBeGreaterThanOrEqual(0);
       expect(t.x + 32).toBeLessThanOrEqual(480);
