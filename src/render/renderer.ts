@@ -134,7 +134,10 @@ export function drawGame(
     .filter((u) => u.alive && !(u.side === 'enemy' && !visible[u.pos.y][u.pos.x]))
     .sort((p, q) => p.pos.y - q.pos.y);
   let selectedAt: { x: number; y: number } | null = null;
+  // while a soldier moves or opens doors his comrades are see-through, so the map behind them shows (their heads also stop catching clicks, see App.figureAt)
+  const fadeOthers = !!selected && state.status === 'playing' && state.turn === 'player' && (ui.mode === 'move' || ui.mode === 'door');
   for (const u of living) {
+    ctx.globalAlpha = fadeOthers && u.side === 'player' && u.id !== selected!.id ? 0.5 : 1;
     const off = effects.unitOffset(u.id, now);
     const x0 = Math.round(u.pos.x * T + off.x); // the top-left of the tile the feet stand on
     const y0 = Math.round(u.pos.y * T + off.y + effects.unitBob(u.id, now));
