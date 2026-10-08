@@ -45,8 +45,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   cave: {
     name: 'Cave', ...BASE_PIECES,
     ramps: {
-      floor: { shadow: '#201a14', mid: '#33291f', light: '#4a3c2c' },
-      wall: { shadow: '#2e261e', mid: '#7a6446', light: '#c0a878' },
+      floor: { shadow: '#161c19', mid: '#222b26', light: '#33403a' },
+      wall: { shadow: '#2a342d', mid: '#5f6e60', light: '#a7b6a4' },
       door: { shadow: '#4a3016', mid: '#c8903f', light: '#f0d090' },
     },
   },
