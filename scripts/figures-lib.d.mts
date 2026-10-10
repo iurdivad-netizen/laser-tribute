@@ -8,6 +8,7 @@ export function renderModule(data: FigureData): string;
 export const IMAGE_NAMES: readonly [
   'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
   'item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy',
+  'prop_supply_crate', 'prop_oil_drum', 'prop_wood_crate', 'prop_barrel', 'prop_machine', 'prop_tank', 'prop_boulder', 'prop_rocks', 'prop_pillar', 'prop_urn',
 ];
 export interface ImageEntry { palette: string[]; rows: string[] }
 export interface ImageData { width: 16; height: 16; images: Record<(typeof IMAGE_NAMES)[number], ImageEntry> }

@@ -20,15 +20,18 @@ export interface Theme {
   ramps?: { floor?: Ramp; wall?: Ramp; door?: Ramp };
   /** Replaces one role with a named image (no recolouring): the place for a hand-drawn piece. */
   overrides?: Partial<Record<Role, ImageName>>;
+  /** The two props (low walls) of the theme: crates, barrels, machines, rocks or pillars, drawn by hand. */
+  props: readonly [ImageName, ImageName];
 }
 
 const BASE_PIECES = { floors: ['floor_a', 'floor_b', 'floor_c'], wall: 'wall', doorClosed: 'door_closed', doorOpen: 'door_open' } as const;
 
 /** The look of a map's tiles: the base pieces, recoloured by a ramp per group. Ramps are tuned by eye in the dev gallery. */
 export const THEMES: Record<ThemeId, Theme> = {
-  base: { name: 'Concrete', ...BASE_PIECES },
+  base: { name: 'Concrete', ...BASE_PIECES, props: ['prop_supply_crate', 'prop_oil_drum'] },
   timber: {
     name: 'Timber', ...BASE_PIECES,
+    props: ['prop_wood_crate', 'prop_barrel'],
     ramps: {
       floor: { shadow: '#24180f', mid: '#41301f', light: '#5e452e' },
       wall: { shadow: '#4a3a28', mid: '#8a6a44', light: '#c7a066' },
@@ -37,6 +40,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   steel: {
     name: 'Steel', ...BASE_PIECES,
+    props: ['prop_machine', 'prop_tank'],
     ramps: {
       floor: { shadow: '#18202a', mid: '#283340', light: '#3c4a5c' },
       wall: { shadow: '#33424f', mid: '#6a7f94', light: '#aebdcb' },
@@ -45,6 +49,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   cave: {
     name: 'Cave', ...BASE_PIECES,
+    props: ['prop_boulder', 'prop_rocks'],
     ramps: {
       floor: { shadow: '#161c19', mid: '#222b26', light: '#33403a' },
       wall: { shadow: '#2a342d', mid: '#5f6e60', light: '#a7b6a4' },
@@ -53,6 +58,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   stone: {
     name: 'Stone', ...BASE_PIECES,
+    props: ['prop_pillar', 'prop_urn'],
     ramps: {
       floor: { shadow: '#23211e', mid: '#33312d', light: '#44413c' },
       wall: { shadow: '#5a5e66', mid: '#9a9ea6', light: '#d4d6da' },
@@ -96,6 +102,12 @@ export function tileImage(theme: string, kind: TileKind, open: boolean, x: numbe
   }
   const v = floorVariant(x, y);
   return piece(id, 'floor', t.floors[v], t.overrides?.[FLOOR_ROLES[v]]);
+}
+
+/** The prop image of a theme: variant 0 or 1. An unknown or inherited theme id gives the base theme's. */
+export function propImage(theme: string, variant: 0 | 1): Figure {
+  const id: ThemeId = (THEME_IDS as readonly string[]).includes(theme) ? (theme as ThemeId) : 'base';
+  return imageOf(THEMES[id].props[variant]);
 }
 
 const wallVariants = new Map<string, Figure>();

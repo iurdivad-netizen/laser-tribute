@@ -22,8 +22,8 @@ function redness(n: Name): number {
 }
 
 describe('the generated image data', () => {
-  it('has the fourteen images, each 16x16 with a valid hex palette and valid indexes', () => {
-    expect(IMAGE_NAMES).toHaveLength(14);
+  it('has the twenty-four images, each 16x16 with a valid hex palette and valid indexes', () => {
+    expect(IMAGE_NAMES).toHaveLength(24);
     expect(Object.keys(IMAGE_DATA).sort()).toEqual([...IMAGE_NAMES].sort());
     for (const name of IMAGE_NAMES) {
       const { palette, rows } = IMAGE_DATA[name];
