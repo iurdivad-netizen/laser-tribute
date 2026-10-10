@@ -41,7 +41,7 @@ describe('drawGame with sprites', () => {
     const { atlas, drawn } = spyAtlas();
     expect(() => drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas)).not.toThrow();
     const names = new Set(drawn.map((d) => d.name));
-    expect(names.has('wall')).toBe(true);
+    expect([...names].some((n) => /^wall(#\d+)?$/.test(n))).toBe(true);
     expect([...names].some((n) => n.startsWith('floor_'))).toBe(true);
     expect([...names].some((n) => n.startsWith('squad_'))).toBe(true);
   });
@@ -184,7 +184,8 @@ describe('drawGame with sprites', () => {
     const realImage = atlas.drawImage.bind(atlas);
     atlas.drawImage = (c, fig, x, y, opts = {}) => { images.push(fig.name); return realImage(c, fig, x, y, opts); };
     drawGame(ctx, state, createUiState('p1'), new Effects(), 0, atlas);
-    expect(images).toEqual(expect.arrayContaining(['wall', 'item_pistol']));
+    expect(images).toEqual(expect.arrayContaining(['item_pistol']));
+    expect(images.some((n) => /^wall(#\d+)?$/.test(n))).toBe(true);
     expect(images.some((n) => n.startsWith('corpse_enemy'))).toBe(true);
     expect(images.some((n) => n.startsWith('floor_'))).toBe(true);
     expect(letterSprites.filter((n) => /^(floor|wall|door|item|corpse)/.test(n))).toEqual([]);

@@ -31,13 +31,18 @@ describe('drawGallery', () => {
       expect(d.x + 48).toBeLessThanOrEqual(480);
       expect(d.y + 48).toBeLessThanOrEqual(360);
     }
-    expect(figures).toHaveLength(64); // 14 images, 20 soldiers, then 5 themes x 6 tile pieces
-    expect(new Set(figures.map((f) => f.name)).size).toBe(58); // the base strip repeats the six base tile images
+    expect(figures).toHaveLength(89); // 14 images, 20 soldiers, 5 themes x 6 tile pieces, then 5 themes x 5 wall variants
+    expect(new Set(figures.map((f) => f.name)).size).toBe(83); // the base strip repeats the six base tile images
     expect(figures.slice(0, 14).map((f) => f.name)).toEqual([...IMAGE_NAMES]);
-    for (const f of figures.slice(34)) { // the theme strips, drawn at 1x without translate: inside the canvas, above the sample text
+    for (const f of figures.slice(34, 64)) { // the theme strips, drawn at 1x without translate: inside the canvas, above the sample text
       expect(f.x!).toBeGreaterThanOrEqual(0);
       expect(f.x! + 16).toBeLessThanOrEqual(480);
       expect(f.y! + 16).toBeLessThanOrEqual(352);
+    }
+    for (const f of figures.slice(64)) { // the wall variants: one row at y 376, inside the 400-pixel canvas
+      expect(f.y).toBe(376);
+      expect(f.x! + 16).toBeLessThanOrEqual(480);
+      expect(f.y! + 16).toBeLessThanOrEqual(400);
     }
     expect(translates).toHaveLength(34); // the strips use no translate
     for (const t of translates) {

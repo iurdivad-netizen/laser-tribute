@@ -57,12 +57,12 @@ describe('drawing a themed mission', () => {
 
   it('draws the theme tile images, and the soldiers, items and corpses as before', () => {
     const steel = drawn('steel');
-    expect(steel.some((n) => n === 'wall@steel')).toBe(true);
+    expect(steel.some((n) => /^wall@steel(#\d+)?$/.test(n))).toBe(true);
     expect(steel.some((n) => /^floor_[abc]@steel$/.test(n))).toBe(true);
     expect(steel.some((n) => n.startsWith('squad_'))).toBe(true);
-    expect(steel).not.toContain('wall');
+    expect(steel.filter((n) => /^wall(#\d+)?$/.test(n))).toEqual([]);
     const base = drawn('base');
-    expect(base).toContain('wall');
+    expect(base.some((n) => /^wall(#\d+)?$/.test(n))).toBe(true);
     expect(base.filter((n) => n.includes('@'))).toEqual([]);
     expect(THEMES.steel.ramps).toBeDefined();
     expect(tileImage('steel', 'wall', false, 0, 0)).not.toBe(imageOf('wall'));
