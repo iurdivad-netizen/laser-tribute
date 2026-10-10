@@ -2,7 +2,7 @@ import { chebyshev } from '../geometry';
 import { parseMap } from '../mission';
 import type { MissionDef } from '../missions';
 import { hasLineOfSight } from '../vision';
-import { distances, toGrid, type Grid } from './grid';
+import { distances, isSolid, toGrid, type Grid } from './grid';
 import type { Recipe } from './recipes';
 
 export interface Expect {
@@ -17,11 +17,11 @@ export function expectFor(r: Recipe, enemies: number = r.enemies): Expect {
 }
 
 /** Floor for the door rule: anything walkable that is not a door (units and pickups stand on floor). */
-const isFloor = (c: string | undefined): boolean => c !== undefined && c !== '#' && c !== '+';
+const isFloor = (c: string | undefined): boolean => c !== undefined && !isSolid(c) && c !== '+';
 
 function doorFits(g: Grid, x: number, y: number): boolean {
   const n = g[y - 1]?.[x], s = g[y + 1]?.[x], w = g[y][x - 1], e = g[y][x + 1];
-  return (n === '#' && s === '#' && isFloor(w) && isFloor(e)) || (w === '#' && e === '#' && isFloor(n) && isFloor(s));
+  return (isSolid(n) && isSolid(s) && isFloor(w) && isFloor(e)) || (isSolid(w) && isSolid(e) && isFloor(n) && isFloor(s));
 }
 
 /** What is wrong with a generated map; an empty list means it is playable. */
@@ -58,9 +58,9 @@ export function checkMission(def: MissionDef, want: Expect): string[] {
 
   let reach: number[][] | null = null;
   if (squad.length > 0) {
-    reach = distances(grid, squad[0], (c) => c !== '#');
+    reach = distances(grid, squad[0], (c) => !isSolid(c));
     let cut = false;
-    rows.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '#' && reach![y][x] < 0) cut = true; }));
+    rows.forEach((row, y) => [...row].forEach((ch, x) => { if (!isSolid(ch) && reach![y][x] < 0) cut = true; }));
     if (cut) problems.push('some floor cannot be reached from the squad');
   }
 
@@ -81,10 +81,10 @@ export function checkMission(def: MissionDef, want: Expect): string[] {
       continue;
     }
     // enemies patrol with every door closed (only a hunting enemy opens doors), so each point must be reachable without one
-    const onFoot = distances(grid, foe.pos, (c) => c !== '#' && c !== '+');
+    const onFoot = distances(grid, foe.pos, (c) => !isSolid(c) && c !== '+');
     for (const p of route) {
       const inside = p.x >= 0 && p.y >= 0 && p.x < want.width && p.y < want.height;
-      if (!inside || grid[p.y][p.x] === '#' || (reach && reach[p.y][p.x] < 0)) {
+      if (!inside || isSolid(grid[p.y][p.x]) || (reach && reach[p.y][p.x] < 0)) {
         problems.push(`patrol ${foe.id} has a point at ${p.x},${p.y} that cannot be walked to`);
       } else if (onFoot[p.y][p.x] < 0) {
         problems.push(`patrol ${foe.id} has a point at ${p.x},${p.y} behind a closed door`);

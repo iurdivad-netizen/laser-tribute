@@ -85,7 +85,13 @@ function tidyDoors(g: Grid): void {
   }
 }
 
-/** One-tile cover blocks, only where all eight neighbours are floor, so they never cut the map in two. */
+/** The three kinds of cover block: a tall pillar and the two props, picked by position so no random draw changes. */
+const COVER_CHARS = ['#', 'x', 'y'] as const;
+
+/**
+ * One-tile cover blocks, only where all eight neighbours are floor, so they never cut the map in two. About two thirds are
+ * props (low walls: they block movement but not sight), the rest tall pillars.
+ */
 function scatterCover(g: Grid, rnd: Rnd, per100: number): void {
   if (per100 <= 0) return;
   const w = g[0].length;
@@ -99,7 +105,7 @@ function scatterCover(g: Grid, rnd: Rnd, per100: number): void {
     let clear = true;
     for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1; dx++) if (g[y + dy][x + dx] !== '.') clear = false;
     if (!clear) continue;
-    g[y][x] = '#';
+    g[y][x] = COVER_CHARS[(x * 7 + y * 13) % 3];
     left--;
   }
 }
