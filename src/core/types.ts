@@ -15,6 +15,10 @@ export type TileKind = 'floor' | 'wall' | 'door';
 export interface Tile {
   kind: TileKind;
   open: boolean; // only meaningful when kind === 'door'
+  /** A low wall (a prop): it blocks movement like a wall but not sight. Only set on wall tiles. */
+  low?: boolean;
+  /** Which of the theme's two props a low wall shows. */
+  prop?: 0 | 1;
 }
 
 export type WeaponId = 'pistol' | 'rifle' | 'shotgun' | 'smg' | 'sniper';
