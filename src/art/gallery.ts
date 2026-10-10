@@ -5,7 +5,8 @@ import { FIGURE_H, armedFigure } from './figure';
 import { imageOf, type ImageName } from './image';
 import { floorVariant } from './sprite';
 import { SPRITE_NAMES } from './sprites';
-import { THEMES, tileImage } from './theme';
+import { THEMES, tileImage, wallImage } from './theme';
+import { E, N, NE, S, W } from '../render/wallmask';
 import { THEME_IDS } from '../core/themes';
 
 const SCALE = 3;
@@ -74,6 +75,11 @@ export function drawGallery(ctx: CanvasRenderingContext2D, art: Atlas): void {
     ];
     pieces.forEach((fig, k) => art.drawImage(ctx, fig, x0 + k * 17, y0));
     drawText(ctx, THEMES[id].name.toUpperCase(), x0 + 6 * 17 + 4, y0 + 5, '#8a8fa8');
+  });
+  // the main wall variants of each theme at 1x: a straight edge, an outer corner, a wall end, a pillar and an inner corner
+  const variants = [N, N | E, N | E | W, N | E | S | W, NE];
+  THEME_IDS.forEach((id, t) => {
+    variants.forEach((mask, k) => art.drawImage(ctx, wallImage(id, mask), 4 + t * 85 + k * 17, 376));
   });
   drawText(ctx, 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG', 4, 352, '#e8e8f0');
   drawText(ctx, "0123456789 .,:;!?'\"-+=/()[]<>%*#_&@$~|", 4, 364, '#ffe14d');
