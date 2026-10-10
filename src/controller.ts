@@ -1,12 +1,12 @@
 import { soundsFor } from './audio/mapping';
 import type { SoundPlayer } from './audio/sound';
-import { aiNextCommand } from './core/ai';
+import { aiNextStep } from './core/ai';
 import { applyCommand } from './core/apply';
 import { CONFIG, GADGETS, THROWABLES, WEAPONS } from './core/config';
 import { rangeTiles } from './render/ranges';
 import { distance, posEq } from './core/geometry';
 import { findPath, pathCost } from './core/path';
-import type { Command, Facing, GameEvent, GameState, Pos, Unit } from './core/types';
+import type { Command, Facing, GameEvent, GameState, Pos, Unit, Result } from './core/types';
 import { canSee, visibleToSide } from './core/vision';
 import type { Mode, UiState } from './input/uiState';
 import type { Effects } from './render/effects';
@@ -100,8 +100,9 @@ export class Controller {
     this.ui.selectedId = this.squad()[0]?.id ?? null;
   }
 
-  run(cmd: Command): boolean {
-    const r = applyCommand(this.state, cmd);
+  /** Applies a command (or takes a result the caller already has for it) and plays its events. */
+  run(cmd: Command, done?: Result): boolean {
+    const r = done ?? applyCommand(this.state, cmd);
     if (!r.ok) {
       this.say(r.reason);
       if (this.state.turn === 'player') this.sound?.play(r.reason === 'Out of ammo' ? 'empty' : 'error', 0.9);
@@ -422,7 +423,8 @@ export class Controller {
         this.ui.busy = false;
         return;
       }
-      this.run(aiNextCommand(this.state));
+      const step = aiNextStep(this.state);
+      this.run(step.cmd, step.result);
       if (this.lastVisible) break;
       if (performance.now() - started > ENEMY_BATCH_MS) {
         setTimeout(this.enemyStep, 0);
