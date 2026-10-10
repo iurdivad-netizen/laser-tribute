@@ -4,6 +4,7 @@ import type { Figure } from './figure';
 import { imageOf, type ImageName } from './image';
 import { luminanceRange, recolour, type Ramp } from './recolour';
 import { floorVariant } from './sprite';
+import { wallVariant } from './wallvariant';
 
 export type { ThemeId };
 
@@ -95,6 +96,22 @@ export function tileImage(theme: string, kind: TileKind, open: boolean, x: numbe
   }
   const v = floorVariant(x, y);
   return piece(id, 'floor', t.floors[v], t.overrides?.[FLOOR_ROLES[v]]);
+}
+
+const wallVariants = new Map<string, Figure>();
+
+/** The wall of a theme with the edges of `mask` (see `wallMask`); mask 0 is the plain wall. Cached per theme and mask. */
+export function wallImage(theme: string, mask: number): Figure {
+  const id: ThemeId = (THEME_IDS as readonly string[]).includes(theme) ? (theme as ThemeId) : 'base';
+  const base = tileImage(id, 'wall', false, 0, 0);
+  if (mask === 0) return base;
+  const key = `${id}:${mask}`;
+  let fig = wallVariants.get(key);
+  if (!fig) {
+    fig = wallVariant(base, mask, `${base.name}#${mask}`);
+    wallVariants.set(key, fig);
+  }
+  return fig;
 }
 
 const ITEM_IMAGES: Record<ItemKind, ImageName> = { rifle: 'item_rifle', pistol: 'item_pistol', grenade: 'item_grenade', shotgun: 'item_shotgun', smg: 'item_smg', sniper: 'item_sniper' };
