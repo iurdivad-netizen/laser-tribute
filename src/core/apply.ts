@@ -16,8 +16,15 @@ type UnitCommand = Exclude<Command, { type: 'EndTurn' }>;
 
 const fail = (reason: string): Result => ({ ok: false, reason });
 
+/** Counts applications and explored-map recomputations; lets tests check that the AI does neither more often than it must. */
+export const applyStats = { calls: 0, explored: 0 };
+
+/** Enemy actions that cannot show the squad anything new: no tile, door or hazard changes and the squad does not move. */
+const NO_NEW_SIGHT = new Set<Command['type']>(['Move', 'Turn', 'SnapShot', 'AimedShot', 'Stab', 'Reload', 'Alert']);
+
 export function applyCommand(state: GameState, cmd: Command): Result {
   if (state.status !== 'playing') return fail('The mission is over');
+  applyStats.calls += 1;
   const s = structuredClone(state);
   const events: GameEvent[] = [];
   let error: string | null;
@@ -36,7 +43,10 @@ export function applyCommand(state: GameState, cmd: Command): Result {
 
   if (error) return fail(error);
   checkGameOver(s, events);
-  updateExplored(s);
+  if (!(state.turn === 'enemy' && NO_NEW_SIGHT.has(cmd.type))) {
+    applyStats.explored += 1;
+    updateExplored(s);
+  }
   updateEnemyMemory(s);
   return { ok: true, state: s, events };
 }

@@ -2,7 +2,7 @@ import { applyCommand } from './apply';
 import { CONFIG, WEAPONS } from './config';
 import { distance, facingFromDelta, posEq, tileAt } from './geometry';
 import { findPath } from './path';
-import type { Command, GameEvent, GameState, Pos, Unit } from './types';
+import type { Command, GameEvent, GameState, Pos, Result, Unit } from './types';
 import { canSee, visibleToSide } from './vision';
 
 const MAX_COMMANDS_PER_TURN = 500;
@@ -77,22 +77,28 @@ function candidates(s: GameState, unit: Unit): Command[] {
   return out;
 }
 
-export function aiNextCommand(state: GameState): Command {
+/** The next enemy command with the result of applying it, so a caller does not apply it a second time. */
+export function aiNextStep(state: GameState): { cmd: Command; result: Result } {
   for (const unit of state.units) {
     if (unit.side !== 'enemy' || !unit.alive) continue;
     for (const cmd of candidates(state, unit)) {
-      if (applyCommand(state, cmd).ok) return cmd;
+      const result = applyCommand(state, cmd);
+      if (result.ok) return { cmd, result };
     }
   }
-  return { type: 'EndTurn' };
+  const cmd: Command = { type: 'EndTurn' };
+  return { cmd, result: applyCommand(state, cmd) };
+}
+
+export function aiNextCommand(state: GameState): Command {
+  return aiNextStep(state).cmd;
 }
 
 export function runEnemyTurn(state: GameState): { state: GameState; events: GameEvent[] } {
   let s = state;
   const events: GameEvent[] = [];
   for (let i = 0; i < MAX_COMMANDS_PER_TURN; i++) {
-    const cmd = aiNextCommand(s);
-    const r = applyCommand(s, cmd);
+    const { cmd, result: r } = aiNextStep(s);
     if (!r.ok) break;
     s = r.state;
     events.push(...r.events);
