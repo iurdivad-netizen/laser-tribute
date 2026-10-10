@@ -3,7 +3,7 @@ import { Atlas } from '../art/atlas';
 import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
 import { corpseHalves, corpseLook } from '../art/corpse';
-import { itemImage, themeFor, tileImage } from '../art/theme';
+import { itemImage, themeFor, tileImage, wallImage } from '../art/theme';
 import { CONFIG, THROWABLES } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
@@ -14,6 +14,7 @@ import { type Camera, createCamera, originOf } from './camera';
 import type { Effects } from './effects';
 import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
 import { drawCard } from './card';
+import { wallMask } from './wallmask';
 import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
 
 const T = CONFIG.tileSize;
@@ -30,6 +31,7 @@ const COLORS = {
 
 function tileFigure(state: GameState, x: number, y: number): Figure {
   const tile = state.tiles[y][x];
+  if (tile.kind === 'wall') return wallImage(themeFor(state), wallMask(state, x, y));
   // a door as the player last saw it
   return tileImage(themeFor(state), tile.kind, tile.kind === 'door' && state.doorMemory[y][x], x, y);
 }
