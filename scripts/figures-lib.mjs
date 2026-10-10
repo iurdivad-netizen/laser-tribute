@@ -159,12 +159,23 @@ export function renderModule(data) {
 export const IMAGE_NAMES = [
   'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
   'item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy',
+  'prop_supply_crate', 'prop_oil_drum', 'prop_wood_crate', 'prop_barrel', 'prop_machine', 'prop_tank', 'prop_boulder', 'prop_rocks', 'prop_pillar', 'prop_urn',
 ];
 const IMAGE_SOURCES = {
   floor_a: 'tiles/floor', wall: 'tiles/wall', door_closed: 'tiles/door_closed', door_open: 'tiles/door_open',
   item_rifle: 'items/rifle', item_pistol: 'items/pistol', item_grenade: 'items/grenade',
   item_shotgun: 'items/shotgun', item_smg: 'items/smg', item_sniper: 'items/sniper',
   corpse_player: 'corpses/squad', corpse_enemy: 'corpses/enemy',
+  prop_supply_crate: 'props/supply_crate',
+  prop_oil_drum: 'props/oil_drum',
+  prop_wood_crate: 'props/wood_crate',
+  prop_barrel: 'props/barrel',
+  prop_machine: 'props/machine',
+  prop_tank: 'props/tank',
+  prop_boulder: 'props/boulder',
+  prop_rocks: 'props/rocks',
+  prop_pillar: 'props/pillar',
+  prop_urn: 'props/urn',
 };
 const SIZE = 16;
 

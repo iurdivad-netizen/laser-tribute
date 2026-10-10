@@ -54,3 +54,6 @@ export function distances(g: Grid, from: Pos, passable: (ch: string) => boolean)
   }
   return d;
 }
+
+/** A wall or a prop: neither can be walked through. (Sight sees over a prop but not over a wall; that is the game's rule, not the map generator's.) */
+export const isSolid = (c: string | undefined): boolean => c === '#' || c === 'x' || c === 'y';

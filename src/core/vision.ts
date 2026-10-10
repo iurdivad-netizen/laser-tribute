@@ -52,7 +52,8 @@ export const fireAt = (s: GameState, p: Pos): boolean => hazardIndex(s).fire.has
 export function hasLineOfSight(s: GameState, from: Pos, to: Pos, ignoreSmoke = false): boolean {
   const tiles = lineTiles(from, to);
   for (let i = 1; i < tiles.length - 1; i++) {
-    if (isBlocking(tileAt(s, tiles[i]))) return false;
+    const t = tileAt(s, tiles[i]);
+    if (isBlocking(t) && !(t.kind === 'wall' && t.low)) return false; // a low wall (a prop) can be seen over
     if (!ignoreSmoke && smokeAt(s, tiles[i])) return false;
   }
   return true;

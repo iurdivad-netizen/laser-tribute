@@ -3,7 +3,7 @@ import { Atlas } from '../art/atlas';
 import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
 import { corpseHalves, corpseLook } from '../art/corpse';
-import { itemImage, themeFor, tileImage, wallImage } from '../art/theme';
+import { itemImage, propImage, themeFor, tileImage, wallImage } from '../art/theme';
 import { CONFIG, THROWABLES } from '../core/config';
 import type { GameState } from '../core/types';
 import { computeVisible } from '../core/vision';
@@ -76,7 +76,14 @@ export function drawGame(
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       if (!state.explored[y][x]) continue;
-      art.drawImage(ctx, tileFigure(state, x, y), x * T, y * T);
+      const tile = state.tiles[y][x];
+      if (tile.kind === 'wall' && tile.low) {
+        // a prop: the floor under it, then the prop of the theme
+        art.drawImage(ctx, tileImage(themeFor(state), 'floor', false, x, y), x * T, y * T);
+        art.drawImage(ctx, propImage(themeFor(state), tile.prop ?? 0), x * T, y * T);
+      } else {
+        art.drawImage(ctx, tileFigure(state, x, y), x * T, y * T);
+      }
       if (!visible[y][x]) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(x * T, y * T, T, T);

@@ -2,6 +2,7 @@
  * Pieces PixelLab could not make well at 16 px, drawn by hand: a one-character palette and 16 rows of 16 characters
  * (`.` is transparent). A PNG for the same name under art-src/pixellab wins over an entry here.
  */
+import { PROP_IMAGES } from './prop-art.mjs';
 const build = (fn) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => fn(x, y)).join(''));
 const blank = () => '................';
 
@@ -154,4 +155,5 @@ export const HAND_IMAGES = {
     palette: { k: '#0a0202', H: '#852131', h: '#dc5262', T: '#922634', t: '#b66d57', S: '#e4b1a8', L: '#272e35', u: '#b3262c' },
     rows: CORPSE,
   },
+  ...PROP_IMAGES,
 };

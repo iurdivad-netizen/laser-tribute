@@ -27,6 +27,6 @@ describe('the fifty maps are pinned', () => {
 
   // Changing the generator or a recipe changes this on purpose: update it in the same commit and say so in the commit message.
   it('matches the pinned fingerprint', () => {
-    expect(fnv(hashes.join(','))).toBe('76c314ad');
+    expect(fnv(hashes.join(','))).toBe('dc51921c');
   });
 });

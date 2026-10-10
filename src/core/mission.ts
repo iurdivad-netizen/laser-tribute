@@ -50,6 +50,10 @@ export function parseMap(rows: string[], seed = 1): GameState {
     }
     const line: Tile[] = [];
     [...row].forEach((ch, x) => {
+      if (ch === 'x' || ch === 'y') {
+        line.push({ kind: 'wall', open: false, low: true, prop: ch === 'x' ? 0 : 1 });
+        return;
+      }
       if (ch === '#') {
         line.push({ kind: 'wall', open: false });
         return;

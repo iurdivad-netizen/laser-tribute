@@ -19,31 +19,31 @@ function turn(type: number, hunting: boolean): string {
   return fingerprint(JSON.stringify({ events: r.events, state: r.state }));
 }
 
-// recorded from the code before the performance work: every change since must reproduce them exactly
+// recorded from the code before the performance work and re-recorded when the maps got props (milestone 26): every change since must reproduce them exactly
 const GOLDEN: Record<string, string> = {
-  '0h': 'a08d107d',
-  '1h': 'df6a06cf',
-  '2h': 'df0cbf1e',
-  '3h': '21ce4875',
-  '4h': '7441643d',
-  '5h': 'e6225237',
-  '6h': '9c735d4f',
-  '7h': '8d721ff3',
-  '8h': '97d2e17f',
-  '9h': '817b39f6',
-  '0p': '515f48ff',
-  '1p': 'c0f99dd5',
-  '2p': 'bdd66881',
-  '3p': '4a139b0c',
-  '4p': 'a20c7781',
-  '5p': 'bde9502a',
-  '6p': 'e1fec8f8',
-  '7p': '56f10524',
-  '8p': '452520c0',
-  '9p': '8b3da79b',
+  '0h': '4e66aa67',
+  '1h': 'd38580a4',
+  '2h': '13036eca',
+  '3h': 'c7fbc57d',
+  '4h': '4e866bd8',
+  '5h': 'e4039f5e',
+  '6h': '7dc34d63',
+  '7h': '4293aa0a',
+  '8h': '520c5329',
+  '9h': '2511ad91',
+  '0p': '2f171475',
+  '1p': '0364b836',
+  '2p': 'eb5070f3',
+  '3p': '7d23acf1',
+  '4p': '7e71d250',
+  '5p': '0a7fe615',
+  '6p': '638784bb',
+  '7p': '23945d5a',
+  '8p': 'e5bf0e9a',
+  '9p': '8b9655c0',
 };
 
-describe('enemy turns are exactly as they were before the performance work', () => {
+describe('enemy turns are exactly as recorded (re-record only when the maps change on purpose)', () => {
   for (const hunting of [true, false]) {
     for (let type = 0; type < 10; type++) {
       const key = `${type}${hunting ? 'h' : 'p'}`;
