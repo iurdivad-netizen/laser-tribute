@@ -12,7 +12,7 @@ export const NW = 128;
 /**
  * Which neighbours of the wall at (x, y) are open ground the player has seen: bits for the four sides, and for an inner
  * corner (the diagonal is open while both sides that touch it are solid). A neighbour is open when it is on the map, is a
- * floor or a door, and is explored; walls, the map edge and unexplored tiles are solid, so a wall never shows what lies
+ * floor, a door or a prop (a low wall), and is explored; walls, the map edge and unexplored tiles are solid, so a wall never shows what lies
  * behind it before the player has seen it.
  */
 export function wallMask(s: GameState, x: number, y: number): number {
@@ -20,8 +20,8 @@ export function wallMask(s: GameState, x: number, y: number): number {
     const nx = x + dx;
     const ny = y + dy;
     if (nx < 0 || ny < 0 || nx >= s.width || ny >= s.height) return false;
-    const kind = s.tiles[ny][nx].kind;
-    return (kind === 'floor' || kind === 'door') && s.explored[ny][nx];
+    const tile = s.tiles[ny][nx];
+    return (tile.kind === 'floor' || tile.kind === 'door' || (tile.kind === 'wall' && !!tile.low)) && s.explored[ny][nx];
   };
   const n = open(0, -1);
   const e = open(1, 0);

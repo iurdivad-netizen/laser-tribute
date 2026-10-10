@@ -62,6 +62,14 @@ describe('wallMask', () => {
     expect(wallMask(corner, 1, 1)).toBe(0);
   });
 
+  it('counts a prop as open ground for the wall beside it', () => {
+    expect(wallMask(seen(['#x#', '###', '###']), 1, 1)).toBe(N);
+    const edge = seen(['###', '#x#', '###']);
+    expect(wallMask(edge, 0, 1)).toBe(E);
+    edge.explored[1][1] = false;
+    expect(wallMask(edge, 0, 1)).toBe(0);
+  });
+
   it('gives a one-tile wall both its edges', () => {
     expect(wallMask(seen(['.#.', '.#.', '.#.']), 1, 1)).toBe(E | W);
     expect(wallMask(seen(['...', '###', '...']), 1, 1)).toBe(N | S);
