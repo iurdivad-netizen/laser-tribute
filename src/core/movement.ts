@@ -10,8 +10,6 @@ export function stepBlockedReason(
   ignoreUnits: boolean | ((u: Unit) => boolean) = false,
   /** Route planning only: pretend closed doors can be opened on the way. Real moves never set this. */
   doorsOpen = false,
-  /** Who stands on a tile; a route search passes its own lookup so it does not scan every unit for every step. */
-  occupantAt: (p: Pos) => Unit | undefined = (p) => unitAt(s, p),
 ): string | null {
   if (!inBounds(s, to)) return 'That tile is off the map';
   const tile = tileAt(s, to);
@@ -24,7 +22,7 @@ export function stepBlockedReason(
     const sideB = tileAt(s, { x: from.x, y: to.y });
     if (isBlocking(sideA) || isBlocking(sideB)) return 'Cannot cut a corner';
   }
-  const occupant = occupantAt(to);
+  const occupant = unitAt(s, to);
   if (occupant) {
     const ignored = typeof ignoreUnits === 'function' ? ignoreUnits(occupant) : ignoreUnits;
     if (!ignored) return 'That tile is occupied';

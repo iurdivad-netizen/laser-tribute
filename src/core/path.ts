@@ -84,7 +84,8 @@ const OPEN_DOOR = 3;
 /**
  * The cheapest route for a unit to `goal`, as the tiles after its own, or null. This is Dijkstra's search on flat arrays
  * (a kind grid, an occupancy grid, a fire grid) with the same rules as `stepBlockedReason`, `stepCost` and the options
- * below; ties between equal costs go to the tile found first, so the route is always the same one.
+ * below (the rules are repeated here for speed: a change to them must be made in both places, and tests/pathheap.test.ts
+ * compares the two); ties between equal costs go to the tile found first, so the route is always the same one.
  */
 export function findPath(
   s: GameState,

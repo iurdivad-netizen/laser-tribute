@@ -19,7 +19,11 @@ const fail = (reason: string): Result => ({ ok: false, reason });
 /** Counts applications and explored-map recomputations; lets tests check that the AI does neither more often than it must. */
 export const applyStats = { calls: 0, explored: 0 };
 
-/** Enemy actions that cannot show the squad anything new: no tile, door or hazard changes and the squad does not move. */
+/**
+ * Enemy actions that cannot show the squad anything new: no tile, door or hazard changes and the squad does not move.
+ * Skipping the explored-map update for them assumes it is up to date when the enemy turn starts, which it is: the player's
+ * EndTurn and a new mission both recompute it. Code that edits tiles, doors or hazards between turns must call updateExplored.
+ */
 const NO_NEW_SIGHT = new Set<Command['type']>(['Move', 'Turn', 'SnapShot', 'AimedShot', 'Stab', 'Reload', 'Alert']);
 
 export function applyCommand(state: GameState, cmd: Command): Result {

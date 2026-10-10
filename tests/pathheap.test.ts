@@ -52,7 +52,7 @@ describe('the route search gives exactly the routes of the old search', () => {
     expect(compared).toBeGreaterThan(1000);
   }, 120000);
 
-  ;  it('finds long routes on the biggest map clearly faster than the old search', () => {
+  it('finds long routes on the biggest map clearly faster than the old search', () => {
     const s = createMission(generateMission(9, 0), 10);
     const enemy = s.units.find((u) => u.side === 'enemy')!;
     const goals = goalsFor(s, 100, 3).filter((g) => g.x !== enemy.pos.x || g.y !== enemy.pos.y).slice(0, 60);
