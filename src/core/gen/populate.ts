@@ -6,6 +6,32 @@ import { hasLineOfSight } from '../vision';
 import { distances, isSolid, shuffled, toRows, type Grid, type Rnd } from './grid';
 import type { Recipe } from './recipes';
 
+/** Props per 100 open floor tiles. */
+const PROPS_PER_100 = 3;
+
+/**
+ * Fills the rooms with props (low walls) once everything else is placed: on open floor only, never on or beside a unit, an
+ * item or a wall, never touching another prop, and never on a patrol point, so no prop can shut a route. The places come from
+ * a fixed ordering of the tiles by position, not from the random stream, so layouts, enemies and patrols are as they were.
+ */
+function scatterProps(g: Grid, keep: Pos[]): void {
+  const tiles: Pos[] = [];
+  g.forEach((row, y) => row.forEach((ch, x) => { if (ch !== '#' && ch !== '+') tiles.push({ x, y }); }));
+  let left = Math.floor((tiles.length * PROPS_PER_100) / 100);
+  const order = tiles
+    .filter((p) => g[p.y][p.x] === '.')
+    .sort((a, b) => ((a.x * 73856093) ^ (a.y * 19349663)) - ((b.x * 73856093) ^ (b.y * 19349663)) || a.y - b.y || a.x - b.x);
+  for (const p of order) {
+    if (left <= 0) break;
+    if (keep.some((k) => k.x === p.x && k.y === p.y)) continue;
+    let clear = true;
+    for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1; dx++) if (g[p.y + dy]?.[p.x + dx] !== '.') clear = false;
+    if (!clear) continue;
+    g[p.y][p.x] = (p.x * 7 + p.y * 13) % 2 === 0 ? 'x' : 'y';
+    left--;
+  }
+}
+
 /**
  * Puts the squad in the bottom-left corner area, then enemies out of sight and out of range of it, the pickups,
  * and a two-point patrol for every enemy. Returns null when the layout cannot host all of that.
@@ -59,5 +85,6 @@ export function populate(g: Grid, rnd: Rnd, r: Recipe, enemies: number): Mission
     patrols[`e${i + 1}`] = [spots[Math.floor(rnd() * spots.length)], { x: start.x, y: start.y }];
   }
 
+  scatterProps(g, Object.values(patrols).flat());
   return { id: r.id, name: r.name, rows: toRows(g), patrols };
 }

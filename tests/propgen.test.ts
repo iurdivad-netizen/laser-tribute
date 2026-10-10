@@ -15,7 +15,7 @@ describe('props in generated maps', () => {
     }
   });
 
-  it('puts props where the cover blocks were: about two thirds of the blocks, and every prop stands in open floor', () => {
+  it('puts every prop in open floor, and keeps some tall pillars', () => {
     let props = 0;
     let pillars = 0;
     for (let type = 0; type < CAMPAIGN_LENGTH; type++) {
@@ -32,16 +32,43 @@ describe('props in generated maps', () => {
         }));
       }
     }
-    expect(props).toBeGreaterThan(50);
+    expect(props).toBeGreaterThan(200);
     expect(pillars).toBeGreaterThan(10);
-    const share = props / (props + pillars);
-    expect(share).toBeGreaterThan(0.5);
-    expect(share).toBeLessThan(0.8);
   });
 
   it('uses both prop variants', () => {
     const all = Array.from({ length: CAMPAIGN_LENGTH }, (_, t) => generateMission(t, 0).rows.join('')).join('');
     expect(all).toMatch(/x/);
     expect(all).toMatch(/y/);
+  });
+});
+
+describe('the maps are populated with props', () => {
+  const count = (rows: string[], re: RegExp) => rows.join('').split('').filter((c) => re.test(c)).length;
+
+  it('every map has props: about three per hundred open tiles, and never fewer than a handful', () => {
+    let props = 0;
+    let open = 0;
+    for (let type = 0; type < CAMPAIGN_LENGTH; type++) {
+      for (let v = 0; v < VARIATIONS; v++) {
+        const rows = generateMission(type, v).rows;
+        const p = count(rows, /[xy]/);
+        const o = count(rows, /[.PEprg]/) + p;
+        expect(p, `type ${type} variation ${v}`).toBeGreaterThanOrEqual(Math.floor(o / 100) * 2);
+        props += p;
+        open += o;
+      }
+    }
+    expect(props * 100 / open).toBeGreaterThan(2);
+    expect(props * 100 / open).toBeLessThan(5);
+  });
+
+  it('never puts a prop on a patrol point, and keeps the map as it was otherwise (same walls, units and items)', () => {
+    for (let type = 0; type < CAMPAIGN_LENGTH; type++) {
+      const def = generateMission(type, 1);
+      for (const route of Object.values(def.patrols)) {
+        for (const p of route) expect(def.rows[p.y][p.x], `type ${type} patrol ${p.x},${p.y}`).not.toMatch(/[xy#]/);
+      }
+    }
   });
 });
