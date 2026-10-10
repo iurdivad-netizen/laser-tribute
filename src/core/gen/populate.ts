@@ -6,8 +6,19 @@ import { hasLineOfSight } from '../vision';
 import { distances, isSolid, shuffled, toRows, type Grid, type Rnd } from './grid';
 import type { Recipe } from './recipes';
 
-/** Props per 100 open floor tiles. */
+/** Props per 100 tiles that are not a wall or a door (the cover blocks already on the map count in this). */
 const PROPS_PER_100 = 3;
+
+/** A well-mixed 32-bit hash of a position (no random draws), so the order of tiles has no pattern of rows or columns. */
+function tileHash(x: number, y: number): number {
+  let h = Math.imul(x + 1, 0x9e3779b1) ^ Math.imul(y + 1, 0x85ebca6b);
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x7feb352d);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x846ca68b);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
 
 /**
  * Fills the rooms with props (low walls) once everything else is placed: on open floor only, never on or beside a unit, an
@@ -20,21 +31,21 @@ function scatterProps(g: Grid, keep: Pos[]): void {
   let left = Math.floor((tiles.length * PROPS_PER_100) / 100);
   const order = tiles
     .filter((p) => g[p.y][p.x] === '.')
-    .sort((a, b) => ((a.x * 73856093) ^ (a.y * 19349663)) - ((b.x * 73856093) ^ (b.y * 19349663)) || a.y - b.y || a.x - b.x);
+    .sort((a, b) => tileHash(a.x, a.y) - tileHash(b.x, b.y) || a.y - b.y || a.x - b.x);
   for (const p of order) {
     if (left <= 0) break;
     if (keep.some((k) => k.x === p.x && k.y === p.y)) continue;
     let clear = true;
     for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1; dx++) if (g[p.y + dy]?.[p.x + dx] !== '.') clear = false;
     if (!clear) continue;
-    g[p.y][p.x] = (p.x * 7 + p.y * 13) % 2 === 0 ? 'x' : 'y';
+    g[p.y][p.x] = (tileHash(p.x, p.y) >>> 20) % 2 === 0 ? 'x' : 'y'; // the picture from another part of the hash
     left--;
   }
 }
 
 /**
  * Puts the squad in the bottom-left corner area, then enemies out of sight and out of range of it, the pickups,
- * and a two-point patrol for every enemy. Returns null when the layout cannot host all of that.
+ * and a two-point patrol for every enemy, and last the props (`scatterProps`). Returns null when the layout cannot host all of that.
  */
 export function populate(g: Grid, rnd: Rnd, r: Recipe, enemies: number): MissionDef | null {
   const h = g.length;

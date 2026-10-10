@@ -72,3 +72,54 @@ describe('the maps are populated with props', () => {
     }
   });
 });
+
+describe('props are spread over the whole map', () => {
+  it('every third of the map width holds a fair share of all props, over all fifty maps', () => {
+    const thirds = [0, 0, 0];
+    for (let type = 0; type < CAMPAIGN_LENGTH; type++) {
+      for (let v = 0; v < VARIATIONS; v++) {
+        const rows = generateMission(type, v).rows;
+        const w = rows[0].length;
+        rows.forEach((row) => [...row].forEach((ch, x) => { if (ch === 'x' || ch === 'y') thirds[Math.min(2, Math.floor((x * 3) / w))]++; }));
+      }
+    }
+    const total = thirds[0] + thirds[1] + thirds[2];
+    for (const t of thirds) {
+      expect(t / total).toBeGreaterThan(0.25);
+      expect(t / total).toBeLessThan(0.42);
+    }
+  });
+
+  it('puts props in the middle and far side of a medium map too, not just near the squad', () => {
+    for (const type of [0, 1, 2, 3]) {
+      const rows = generateMission(type, 0).rows;
+      const w = rows[0].length;
+      const right = rows.join('').length > 0 && rows.map((r) => [...r].filter((c, x) => (c === 'x' || c === 'y') && x >= (w * 2) / 3).length).reduce((a, b) => a + b, 0);
+      expect(right, `type ${type}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('uses both prop pictures about evenly, and not as one picture per row', () => {
+    let x = 0;
+    let y = 0;
+    let mixedRows = 0;
+    let rowsWithProps = 0;
+    for (let type = 0; type < CAMPAIGN_LENGTH; type++) {
+      for (let v = 0; v < VARIATIONS; v++) {
+        for (const row of generateMission(type, v).rows) {
+          const xs = [...row].filter((c) => c === 'x').length;
+          const ys = [...row].filter((c) => c === 'y').length;
+          x += xs;
+          y += ys;
+          if (xs + ys >= 2) {
+            rowsWithProps++;
+            if (xs > 0 && ys > 0) mixedRows++;
+          }
+        }
+      }
+    }
+    expect(x / (x + y)).toBeGreaterThan(0.4);
+    expect(x / (x + y)).toBeLessThan(0.6);
+    expect(mixedRows / rowsWithProps).toBeGreaterThan(0.3);
+  });
+});

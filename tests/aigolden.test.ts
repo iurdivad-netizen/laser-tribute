@@ -21,29 +21,29 @@ function turn(type: number, hunting: boolean): string {
 
 // recorded from the code before the performance work and re-recorded when the maps got props (milestone 26): every change since must reproduce them exactly
 const GOLDEN: Record<string, string> = {
-  '0h': '840bb1c5',
-  '1h': '57629478',
-  '2h': 'e5f7c65b',
-  '3h': '36f0bdd6',
-  '4h': '7d895657',
-  '5h': 'f3629c76',
-  '6h': '57c6549c',
-  '7h': '0011f270',
-  '8h': 'feaa6949',
-  '9h': '85766395',
-  '0p': '70fdb6c7',
-  '1p': 'afbd1e52',
-  '2p': 'ac8c9a55',
-  '3p': '6bd6d0a2',
-  '4p': '71953975',
-  '5p': '025d6a8d',
-  '6p': '0fbbb89b',
-  '7p': '9604aee2',
-  '8p': '4efc3aba',
-  '9p': 'f0b1cdb4',
+  '0h': '4e66aa67',
+  '1h': 'd38580a4',
+  '2h': '13036eca',
+  '3h': 'c7fbc57d',
+  '4h': '4e866bd8',
+  '5h': 'e4039f5e',
+  '6h': '7dc34d63',
+  '7h': '4293aa0a',
+  '8h': '520c5329',
+  '9h': '2511ad91',
+  '0p': '2f171475',
+  '1p': '0364b836',
+  '2p': 'eb5070f3',
+  '3p': '7d23acf1',
+  '4p': '7e71d250',
+  '5p': '0a7fe615',
+  '6p': '638784bb',
+  '7p': '23945d5a',
+  '8p': 'e5bf0e9a',
+  '9p': '8b9655c0',
 };
 
-describe('enemy turns are exactly as they were before the performance work', () => {
+describe('enemy turns are exactly as recorded (re-record only when the maps change on purpose)', () => {
   for (const hunting of [true, false]) {
     for (let type = 0; type < 10; type++) {
       const key = `${type}${hunting ? 'h' : 'p'}`;
