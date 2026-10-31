@@ -1,4 +1,5 @@
 import { applyCommand } from './apply';
+import { canShoot, coverStep, isHurt, pickTarget, retreatStep } from './aiscore';
 import { CONFIG, WEAPONS } from './config';
 import { distance, facingFromDelta, posEq, tileAt } from './geometry';
 import { findPath } from './path';
@@ -38,10 +39,14 @@ function candidates(s: GameState, unit: Unit): Command[] {
   );
 
   if (targets.length > 0) {
-    const target = targets.reduce((a, b) =>
-      distance(unit.pos, a.pos) <= distance(unit.pos, b.pos) ? a : b,
-    );
+    const target = pickTarget(s, unit, targets)!;
     const w = WEAPONS[unit.weapon];
+    // A badly hurt soldier that cannot finish its target this turn gets out of the squad's sight and stays there.
+    const falling = isHurt(unit) && !(canShoot(s, unit, target) && w.damage * (w.burst ?? 1) >= target.hp);
+    if (falling) {
+      const away = retreatStep(s, unit);
+      if (away) out.push(away);
+    }
     const d = distance(unit.pos, target.pos);
     const sees = canSee(s, unit, target.pos);
     if (sees && d <= w.range) {
@@ -57,11 +62,12 @@ function candidates(s: GameState, unit: Unit): Command[] {
         facing: facingFromDelta(target.pos.x - unit.pos.x, target.pos.y - unit.pos.y),
       });
     }
-    const step = unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
-    if (step) out.push(step);
+    const step = !falling && unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
+    if (step) out.push((step.type === 'Move' && coverStep(s, unit, target.pos, step.to)) || step);
     return out;
   }
 
+  if (isHurt(unit)) return out; // a badly hurt soldier stays where it is: no hunting, no patrol
   const patrolGoal = unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null;
   const goals: [Pos | null, boolean][] = [[s.enemyMemory, true], [patrolGoal, false]];
   for (const [goal, hunting] of goals) {

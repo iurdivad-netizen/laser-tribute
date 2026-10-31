@@ -1,4 +1,4 @@
-import { EFFECTS, type Segment, type SoundName, effectDuration } from './effects';
+import { BUSES, BUS_GAIN, BUS_OF, EFFECTS, PITCH_SPREAD_CENTS, type Bus, type Segment, type SoundName, effectDuration } from './effects';
 
 export const SETTINGS_KEY = 'laser-tribute-sound';
 export const MAX_VOICES = 12;
@@ -75,14 +75,15 @@ export class Sound implements SoundPlayer {
 
   private ctx: AudioContextLike | null = null;
   private noise: { getChannelData(c: number): Float32Array } | null = null;
-  /** Every sound goes into this master gain, then a compressor, then the speakers, so loud mixes do not clip. */
-  private bus: NodeLike | null = null;
+  /** Each sound goes into its group's gain, then the master gain, then a compressor, then the speakers, so loud mixes do not clip. */
+  private buses: Record<Bus, NodeLike> | null = null;
   /** End times (audio clock) of the sounds still playing. */
   private ends: number[] = [];
 
   constructor(
     private readonly createContext: () => AudioContextLike | null = browserContext,
     private readonly storage: StorageLike | null = browserStorage(),
+    private readonly random: () => number = Math.random,
   ) {
     this.load();
   }
@@ -90,7 +91,7 @@ export class Sound implements SoundPlayer {
   unlock(): void {
     if (!this.ctx) {
       this.ctx = this.createContext();
-      if (this.ctx) this.bus = this.makeBus(this.ctx);
+      if (this.ctx) this.buses = this.makeBuses(this.ctx);
     }
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume?.()?.catch?.(() => undefined);
   }
@@ -116,10 +117,13 @@ export class Sound implements SoundPlayer {
     this.ends = this.ends.filter((e) => e > now);
     if (this.ends.length >= MAX_VOICES) return;
     this.ends.push(now + effectDuration(name));
-    for (const seg of EFFECTS[name]) this.segment(ctx, seg, now, level);
+    const spread = PITCH_SPREAD_CENTS[name] ?? 0;
+    const detune = 2 ** (((this.random() * 2 - 1) * spread) / 1200); // one factor per play: the sound stays in tune with itself
+    const bus = this.buses?.[BUS_OF[name]];
+    for (const seg of EFFECTS[name]) this.segment(ctx, seg, now, level, detune, bus);
   }
 
-  private makeBus(ctx: AudioContextLike): NodeLike {
+  private makeBuses(ctx: AudioContextLike): Record<Bus, NodeLike> {
     const master = ctx.createGain();
     if (ctx.createDynamicsCompressor) {
       const compressor = ctx.createDynamicsCompressor();
@@ -128,16 +132,23 @@ export class Sound implements SoundPlayer {
     } else {
       master.connect(ctx.destination);
     }
-    return master;
+    const out = {} as Record<Bus, NodeLike>;
+    for (const b of BUSES) {
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(BUS_GAIN[b], ctx.currentTime);
+      g.connect(master);
+      out[b] = g;
+    }
+    return out;
   }
 
-  private segment(ctx: AudioContextLike, seg: Segment, now: number, level: number): void {
+  private segment(ctx: AudioContextLike, seg: Segment, now: number, level: number, detune: number, bus: NodeLike | undefined): void {
     const t0 = now + seg.start;
     const t1 = t0 + seg.dur;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(seg.gain * level, t0);
     gain.gain.exponentialRampToValueAtTime(0.0001, t1);
-    gain.connect(this.bus ?? ctx.destination);
+    gain.connect(bus ?? ctx.destination);
     if (seg.wave === 'noise') {
       const src = ctx.createBufferSource();
       src.buffer = this.noiseBuffer(ctx);
@@ -148,8 +159,8 @@ export class Sound implements SoundPlayer {
     } else {
       const osc = ctx.createOscillator();
       osc.type = seg.wave;
-      osc.frequency.setValueAtTime(seg.from, t0);
-      if (seg.to !== seg.from) osc.frequency.exponentialRampToValueAtTime(seg.to, t1);
+      osc.frequency.setValueAtTime(seg.from * detune, t0);
+      if (seg.to !== seg.from) osc.frequency.exponentialRampToValueAtTime(seg.to * detune, t1);
       osc.connect(gain);
       osc.start(t0);
       osc.stop(t1);
