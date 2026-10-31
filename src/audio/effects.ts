@@ -55,6 +55,25 @@ export const EFFECTS: Record<SoundName, Segment[]> = {
   ],
 };
 
+/** The mix group of a sound: game effects, or interface and jingles. Each group has its own gain on the master. */
+export type Bus = 'sfx' | 'ui';
+export const BUSES: readonly Bus[] = ['sfx', 'ui'];
+export const BUS_OF: Record<SoundName, Bus> = {
+  pistol: 'sfx', rifle: 'sfx', hit: 'sfx', ricochet: 'sfx', stab: 'sfx', explosion: 'sfx', deathSoldier: 'sfx',
+  deathEnemy: 'sfx', reload: 'sfx', empty: 'sfx', door: 'sfx', step: 'sfx', crit: 'sfx',
+  pickup: 'ui', alert: 'ui', click: 'ui', error: 'ui', heal: 'ui', scan: 'ui', win: 'ui', lose: 'ui',
+};
+export const BUS_GAIN: Record<Bus, number> = { sfx: 1, ui: 0.8 };
+
+/**
+ * How far (plus or minus, in cents; 100 cents is a semitone) each play of a sound may be detuned, so the sounds the
+ * player hears over and over are never twice the same. Cues and jingles stay out: they must always sound alike.
+ */
+export const PITCH_SPREAD_CENTS: Partial<Record<SoundName, number>> = {
+  pistol: 60, rifle: 60, hit: 100, ricochet: 150, stab: 80, explosion: 80, deathSoldier: 100, deathEnemy: 100,
+  door: 60, step: 150,
+};
+
 export function effectDuration(name: SoundName): number {
   return Math.max(...EFFECTS[name].map((s) => s.start + s.dur));
 }

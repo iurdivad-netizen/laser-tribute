@@ -207,8 +207,10 @@ describe('master bus', () => {
     const comp = made.comp[0];
     expect(master.target).toBe(comp);
     expect(comp.target).toBe(ctx.destination);
+    expect(made.gain[1].target).toBe(master); // the sfx group
+    expect(made.gain[2].target).toBe(master); // the ui group
     sound.play('click');
-    expect(made.gain[1].target).toBe(master);
+    expect(made.gain[3].target).toBe(made.gain[2]); // a click is an interface sound
   });
 
   it('falls back to the speakers directly when the browser has no compressor', () => {
