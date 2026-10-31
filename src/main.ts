@@ -34,7 +34,7 @@ if (import.meta.env.DEV) {
 
 function frame(now: number): void {
   app.update(now);
-  app.draw(ctx, now);
+  if (app.needsFrame(now)) app.draw(ctx, now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

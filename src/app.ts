@@ -40,6 +40,8 @@ import { drawText } from './ui/text';
 export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end';
 
 const RESULT_DELAY_MS = 1000;
+/** A still screen is redrawn at least this often, so text on a timer still changes on time. */
+const IDLE_BEAT_MS = 250;
 /** After any screen switch, clicks and Enter are ignored briefly so a double-click or held key cannot act on the next screen. */
 const INPUT_LOCK_MS = 300;
 /** NEW CAMPAIGN on the title screen needs a second press within this time. */
@@ -112,6 +114,7 @@ export class App {
   constructor(opts: AppOptions = {}) {
     this.clock = opts.clock ?? (() => performance.now());
     this.sound = opts.sound ?? new Sound();
+    this.reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.newSeed = opts.newSeed ?? (() => Math.floor(Math.random() * 2 ** 31));
     this.missions = opts.missions ?? MISSIONS;
     this.createMission =
@@ -132,6 +135,37 @@ export class App {
     this.screen = this.continueMode() === null && opts.skipTitle ? 'equipment' : 'title';
   }
 
+  private readonly reducedMotion: boolean;
+
+  private newEffects(): Effects {
+    const fx = new Effects();
+    fx.reducedMotion = this.reducedMotion;
+    return fx;
+  }
+
+  private awakeUntil = 0;
+  private lastDrawn = -Infinity;
+
+  /** Something happened (input, a resize): draw every frame for a moment so its effect shows. */
+  wake(ms = 600): void {
+    this.awakeUntil = Math.max(this.awakeUntil, this.clock() + ms);
+  }
+
+  /**
+   * Whether this frame needs drawing (and, when it does, counts it as drawn). A still screen is drawn only on a slow beat (timers that run out change text),
+   * so a window left open does almost no work.
+   */
+  needsFrame(now: number): boolean {
+    const yes =
+      now < this.awakeUntil ||
+      now - this.lastDrawn >= IDLE_BEAT_MS ||
+      this.clock() < this.noticeUntil ||
+      this.clock() < this.newArmedUntil ||
+      (this.screen === 'mission' && !!this.controller?.animating(now));
+    if (yes) this.lastDrawn = now; // the caller draws now, which restarts the beat
+    return yes;
+  }
+
   private notice(text: string): void {
     this.noticeText = text;
     this.noticeUntil = this.clock() + 1500;
@@ -148,6 +182,7 @@ export class App {
 
   /** The window changed size (or turned): new layout, the camera back on the selected soldier, no half-made action. */
   resize(width: number, height: number, dpr: number): void {
+    this.wake();
     if (width < 120 || height < 120) return; // a hidden or not yet laid-out canvas
     this.width = width;
     this.height = height;
@@ -174,6 +209,7 @@ export class App {
 
   /** A finger dragged the map by (dx, dy) pixels. */
   pan(dx: number, dy: number): void {
+    this.wake();
     const c = this.controller;
     if (this.screen !== 'mission' || !c) return;
     this.camera = panBy(this.camera, dx, dy, this.layout, c.state.width, c.state.height);
@@ -181,6 +217,7 @@ export class App {
 
   /** A long press on the map leaves the current mode (the touch version of right-click). */
   longPress(p: Pos): void {
+    this.wake();
     const c = this.controller;
     if (this.screen === 'mission' && c) {
       const L = this.layout;
@@ -274,7 +311,7 @@ export class App {
       def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign),
     );
     this.usedLoadout = this.loadout;
-    this.controller = new Controller(state, createUiState('p1'), new Effects(), this.sound);
+    this.controller = new Controller(state, createUiState('p1'), this.newEffects(), this.sound);
     this.camera = createCamera(this.layout, state.width, state.height);
     this.followSelected();
     this.playedName = `${def.name}, MISSION ${this.campaign.missionIndex + 1} OF ${this.missionCount()}`.toUpperCase();
@@ -405,6 +442,7 @@ export class App {
   }
 
   click(p: Pos, pointer: 'mouse' | 'touch' = 'mouse'): void {
+    this.wake();
     this.sound.unlock();
     if (this.locked()) return;
     const mp = this.toMenu(p);
@@ -506,6 +544,7 @@ export class App {
   }
 
   move(p: Pos): void {
+    this.wake();
     if (this.screen === 'equipment') {
       const mp = this.toMenu(p);
       this.hover = equipmentHit(mp.x, mp.y);
@@ -517,11 +556,13 @@ export class App {
   }
 
   leave(): void {
+    this.wake();
     this.hover = null;
     if (this.screen === 'mission') this.controller?.hover(null);
   }
 
   key(k: string, repeat = false): boolean {
+    this.wake();
     this.sound.unlock();
     if (repeat && k === 'Enter') return true; // a held key must not chain screens
     if (this.soundKey(k)) return true;
@@ -575,6 +616,7 @@ export class App {
   }
 
   cancel(): void {
+    this.wake();
     if (this.screen === 'mission') this.controller?.cancel();
   }
 
@@ -582,7 +624,9 @@ export class App {
   update(now: number): void {
     const c = this.controller;
     if (this.screen !== 'mission' || !c) return;
+    const cameraBefore = this.camera;
     this.trackCamera(c);
+    if (this.camera !== cameraBefore) this.wake();
     if (c.state.status === 'playing') {
       this.endedAt = null;
       return;
@@ -608,6 +652,7 @@ export class App {
       this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
       this.fallenNow = this.campaign.fallen.slice(fallenBefore).map((f) => f.name);
       this.screen = 'result';
+      this.wake();
       this.endedAt = null;
       this.lock();
     }

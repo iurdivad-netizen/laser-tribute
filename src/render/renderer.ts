@@ -6,7 +6,7 @@ import { corpseHalves, corpseLook } from '../art/corpse';
 import { itemImage, propImage, themeFor, tileImage, wallImage } from '../art/theme';
 import { CONFIG, THROWABLES } from '../core/config';
 import type { GameState } from '../core/types';
-import { computeVisible } from '../core/vision';
+import { visibleGrid } from '../core/vision';
 import type { UiState } from '../input/uiState';
 import type { Layout } from '../ui/layout';
 import { drawText } from '../ui/text';
@@ -68,10 +68,11 @@ export function drawGame(
   ctx.beginPath();
   ctx.rect(layout.map.x, layout.map.y, layout.map.w, layout.map.h);
   ctx.clip();
-  ctx.translate(origin.x, origin.y);
+  const shake = effects.shakeOffset(now); // the view shakes; the game state and the clip do not
+  ctx.translate(origin.x + shake.x, origin.y + shake.y);
   ctx.scale(origin.tile / T, origin.tile / T);
 
-  const visible = computeVisible(state, 'player');
+  const visible = visibleGrid(state, 'player');
 
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {

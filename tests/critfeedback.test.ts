@@ -18,6 +18,7 @@ const shot = (crit: boolean, hit = true): GameEvent => ({
 describe('crit effects and sound', () => {
   it('a critical hit draws a double-size spark and a yellow flash on the target tile', () => {
     const fx = new Effects();
+    fx.reducedMotion = true; // no hit-stop: this test is about where the effects are drawn
     fx.add([shot(true)], 1000);
     const frames = fx.frames(1150);
     expect(frames.some((f) => f.type === 'sprite' && f.name === 'spark' && f.scale === 2)).toBe(true);

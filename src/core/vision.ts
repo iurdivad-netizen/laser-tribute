@@ -89,6 +89,18 @@ export function computeVisible(s: GameState, side: Side): boolean[][] {
   return grid;
 }
 
+const gridCache = new WeakMap<GameState, Partial<Record<Side, boolean[][]>>>();
+
+/**
+ * `computeVisible`, remembered per state object. Every command makes a new state and the rules never change one
+ * afterwards, so the renderer can ask once per frame and pay for the line-of-sight work once per state.
+ */
+export function visibleGrid(s: GameState, side: Side): boolean[][] {
+  let entry = gridCache.get(s);
+  if (!entry) gridCache.set(s, (entry = {}));
+  return (entry[side] ??= computeVisible(s, side));
+}
+
 export function updateExplored(s: GameState): void {
   const vis = computeVisible(s, 'player');
   for (let y = 0; y < s.height; y++) {

@@ -64,6 +64,7 @@ describe('stab, death, grenade and reload effects', () => {
 
   it('a death splashes blood and fades out', () => {
     const fx = new Effects();
+    fx.reducedMotion = true; // no hit-stop: this test is about the splash's own timing
     fx.add([{ type: 'died', unitId: 'e1', at: { x: 4, y: 4 } }], 0);
     const splash = sprites(fx, 100)[0] as { name: string; x: number; y: number; alpha: number };
     expect(splash).toMatchObject({ name: 'splash', x: 4 * T, y: 4 * T });

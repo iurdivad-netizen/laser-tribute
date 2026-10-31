@@ -115,7 +115,10 @@ export class Controller {
     const seenAt = flags.findIndex(Boolean);
     const where = seenAt >= 0 ? eventPos(r.events[seenAt]) : null;
     if (where) this.lastEventAt = { ...where };
-    this.effects.add(r.events, performance.now());
+    this.effects.add(r.events, performance.now(), {
+      seen: flags.map((f, i) => f || this.isOwn(r.events[i], r.state)),
+      sideOf: (id) => r.state.units.find((u) => u.id === id)?.side,
+    });
     if (this.sound) {
       r.events.forEach((ev, i) => {
         for (const hit of soundsFor(ev, r.state, flags[i] || this.isOwn(ev, r.state))) {
@@ -412,6 +415,11 @@ export class Controller {
     this.lastEventAt = null; // the enemy turn starts with no event to follow
     this.ui.busy = true;
     setTimeout(this.enemyStep, ENEMY_STEP_MS);
+  }
+
+  /** True while the screen must keep redrawing: a move or enemy turn in progress, a fading message, a moving effect. */
+  animating(now: number): boolean {
+    return this.ui.busy || (now < this.ui.messageUntil && Number.isFinite(this.ui.messageUntil)) || this.effects.active(now) || this.state.hazards.some((h) => h.kind === 'fire');
   }
 
   private enemyStep = (): void => {
