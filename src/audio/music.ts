@@ -48,6 +48,11 @@ const DRONE = [73.42, 110, 146.83];
 const BASS_A = [73.42, 73.42, 73.42, 73.42, 87.31, 73.42, 65.41, 73.42];
 const BASS_B = [73.42, 73.42, 73.42, 77.78, 73.42, 73.42, 58.27, 65.41];
 const ARP = [293.66, 349.23, 440, 349.23];
+// The lead line: [sixteenth, Hz] pairs over each bar, climbing down the scale and answering itself in the second bar.
+const LEAD: [number, number][][] = [
+  [[0, 587.33], [3, 587.33], [6, 523.25], [8, 466.16], [10, 440], [12, 466.16], [14, 523.25]],
+  [[0, 587.33], [3, 622.25], [6, 587.33], [8, 523.25], [10, 466.16], [12, 440], [14, 392]],
+];
 const STEP = 60 / 138 / 4; // sixteenth notes at 138 bpm
 const STEPS_PER_LOOP = 32;
 
@@ -177,17 +182,32 @@ export class Music {
     return t + 6;
   }
 
-  /** One sixteenth of the action loop: kick, hats, a driving bass and an arpeggio. */
+  /** One sixteenth of the action loop: kick, snare, hats, a driving bass with a sub, power-chord stabs, an arpeggio and a lead line. */
   private actionStep(layer: Layer): number {
     const t = layer.next;
     const s = layer.step % STEPS_PER_LOOP;
     const bar = s < 16 ? 0 : 1;
     const i = s % 16;
-    if (i % 4 === 0 || (bar === 1 && i === 10)) this.blip(layer, 'sine', 130, 42, t, 0.16, 0.5);
-    if (i % 4 === 2) this.hat(layer, t, 0.12, 0.04);
-    else if (i % 2 === 1) this.hat(layer, t, 0.05, 0.025);
-    if (i % 2 === 0) this.blip(layer, 'square', (bar === 0 ? BASS_A : BASS_B)[i / 2], 0, t, 0.11, 0.07);
-    if (i % 2 === 1 && this.random() < 0.8) this.blip(layer, 'square', ARP[(i >> 1) % ARP.length] * (bar === 1 ? 1.122 : 1), 0, t, 0.07, 0.025);
+    if (i % 4 === 0 || (bar === 1 && i === 10)) this.blip(layer, 'sine', 140, 42, t, 0.22, 0.75);
+    if (i === 4 || i === 12) {
+      this.hat(layer, t, 0.16, 0.14);
+      this.blip(layer, 'triangle', 220, 150, t, 0.1, 0.18);
+    }
+    if (i % 4 === 2) this.hat(layer, t, 0.12, 0.07);
+    else if (i % 2 === 1) this.hat(layer, t, 0.05, 0.035);
+    if (i % 2 === 0) {
+      const root = (bar === 0 ? BASS_A : BASS_B)[i / 2];
+      this.blip(layer, 'square', root, 0, t, 0.12, 0.15);
+      this.blip(layer, 'sine', root / 2, 0, t, 0.14, 0.22);
+    }
+    if (i === 0 || i === 6 || i === 10) {
+      const root = (bar === 0 ? BASS_A : BASS_B)[i / 2] * 2;
+      this.blip(layer, 'square', root, 0, t, 0.3, 0.06);
+      this.blip(layer, 'square', root * 1.498, 0, t, 0.3, 0.05); // a fifth above
+    }
+    if (i % 2 === 1 && this.random() < 0.85) this.blip(layer, 'square', ARP[(i >> 1) % ARP.length] * (bar === 1 ? 1.122 : 1), 0, t, 0.07, 0.05);
+    const lead = LEAD[bar].find(([step]) => step === i);
+    if (lead) this.blip(layer, 'sawtooth', lead[1], 0, t, 0.2, 0.06);
     layer.step += 1;
     return t + STEP;
   }

@@ -188,4 +188,21 @@ describe('the app chooses the mood', () => {
     app.update(10);
     expect(moods).toEqual(['action', 'calm']);
   });
+
+  it('the first click or key press on the title screen only unlocks the audio', () => {
+    const calls = { unlocks: 0 };
+    const sound = {
+      muted: false, volume: 0.5, waiting: true, play() {}, toggleMute: () => '', changeVolume: () => '',
+      unlock() { calls.unlocks += 1; this.waiting = false; },
+    } as SoundPlayer & { waiting: boolean };
+    const app = new App({ clock: () => 0, sound });
+    app.click({ x: 240, y: 345 });
+    expect(calls.unlocks).toBe(1);
+    expect(app.screen).toBe('title');
+    sound.waiting = true;
+    expect(app.key('t')).toBe(true);
+    expect(app.screen).toBe('title');
+    app.key('t');
+    expect(app.screen).not.toBe('title');
+  });
 });

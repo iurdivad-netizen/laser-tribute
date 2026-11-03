@@ -13,6 +13,8 @@ export interface SoundPlayer {
   changeVolume(delta: number): string;
   /** Switches the soundtrack between its calm and action moods. */
   setMood?(mood: Mood): void;
+  /** True until a click or key press has unlocked the audio, and only where music can play at all. */
+  readonly waiting?: boolean;
   readonly muted: boolean;
   readonly volume: number;
 }
@@ -85,6 +87,7 @@ export class Sound implements SoundPlayer {
   private master: NodeLike | null = null;
   private music: Music | null = null;
   private mood: Mood = 'calm';
+  private gestured = false;
 
   constructor(
     private readonly createContext: () => AudioContextLike | null = browserContext,
@@ -95,7 +98,12 @@ export class Sound implements SoundPlayer {
     this.load();
   }
 
+  get waiting(): boolean {
+    return !this.gestured && this.schedule !== null;
+  }
+
   unlock(): void {
+    this.gestured = true;
     if (!this.ctx) {
       this.ctx = this.createContext();
       if (this.ctx) this.buses = this.makeBuses(this.ctx);
