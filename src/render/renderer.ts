@@ -14,6 +14,7 @@ import { type Camera, createCamera, originOf } from './camera';
 import type { Effects } from './effects';
 import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
 import { drawCard } from './card';
+import { drawLight, shadeFloor, shadeProp } from './lighting';
 import { wallMask } from './wallmask';
 import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
 
@@ -81,16 +82,17 @@ export function drawGame(
       if (tile.kind === 'wall' && tile.low) {
         // a prop: the floor under it, then the prop of the theme
         art.drawImage(ctx, tileImage(themeFor(state), 'floor', false, x, y), x * T, y * T);
+        shadeFloor(ctx, state, x, y);
+        shadeProp(ctx, x, y);
         art.drawImage(ctx, propImage(themeFor(state), tile.prop ?? 0), x * T, y * T);
       } else {
         art.drawImage(ctx, tileFigure(state, x, y), x * T, y * T);
-      }
-      if (!visible[y][x]) {
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(x * T, y * T, T, T);
+        if (tile.kind === 'floor') shadeFloor(ctx, state, x, y);
       }
     }
   }
+  // the light: bright by the squad, fading with distance, dark where the player has been but cannot see now
+  drawLight(ctx, state, visible);
 
   for (const item of state.items) {
     if (!visible[item.pos.y][item.pos.x]) continue;
