@@ -16,27 +16,48 @@ function shiftRows(rows, dy) {
 }
 
 // floor: dark neutral panels with a seam along the bottom and right edge and a few light and dark specks
-const FLOOR_LIGHT = [[3, 2], [11, 1], [7, 5], [13, 8], [2, 10], [9, 12], [5, 13], [12, 4]];
-const FLOOR_DARK = [[6, 3], [1, 7], [10, 9], [14, 12], [4, 11], [8, 14], [0, 13]];
+// A steel plate: a dark seam along the bottom and right (the converter mirrors and turns it for the other two floors, so
+// nothing here may depend on which way the light falls), a lit edge on the other two sides, four rivets, a grain of
+// light and dark specks and two scratches. Seven tones, so a theme's gradient map has something to work with.
+const FLOOR_RIVETS = [[2, 2], [12, 2], [2, 12], [12, 12]];
+const FLOOR_SCRATCH = [[5, 6], [6, 7], [7, 7], [8, 8], [10, 3], [11, 4], [11, 5]];
+const at = (list, x, y) => list.some(([px, py]) => px === x && py === y);
 const FLOOR_A = build((x, y) => {
   if (x === 15 || y === 15) return 'b';
-  if (FLOOR_LIGHT.some(([px, py]) => px === x && py === y)) return 'c';
-  if (FLOOR_DARK.some(([px, py]) => px === x && py === y)) return 'd';
+  if (at(FLOOR_RIVETS, x, y)) return 'f';
+  if (at(FLOOR_RIVETS, x - 1, y - 1)) return 'g';
+  if (at(FLOOR_SCRATCH, x, y)) return 'h';
+  if (x === 0 || y === 0) return 'e';
+  if ((x * 7 + y * 13) % 11 === 0) return 'c';
+  if ((x * 5 + y * 3) % 13 === 0) return 'd';
   return 'a';
 });
 
-// doors fill the whole tile: planks with iron bands and a brass handle; open: the leaf stands along the left edge
+// doors fill the whole tile. Closed: a dark frame with a lit top and left, three planks of two alternating tones with grain,
+// two riveted iron bands and a brass handle. Open: the same leaf stands along the left edge over a dark passage.
 const DOOR_CLOSED = build((x, y) => {
   if (x === 0 || x === 15 || y === 0 || y === 15) return 'k';
-  if (x === 5 || x === 10) return 'D';
-  if (y === 3 || y === 12) return 'm';
+  if (y === 1 || x === 1) return 'l';
+  if (y === 14 || x === 14) return 'D';
+  if (y === 3 || y === 12) return (x === 3 || x === 8 || x === 12) ? 'R' : 'm';
   if (y === 4 || y === 13) return 'M';
-  if ((x === 12 || x === 13) && (y === 8 || y === 9)) return 'y';
-  return (x + y) % 7 === 0 ? 'd' : 'O';
+  if ((x === 11 || x === 12) && (y === 8 || y === 9)) return x === 11 && y === 8 ? 'Y' : 'y';
+  if (x === 13 && (y === 9 || y === 10)) return 'g';
+  if (x === 5 || x === 10) return 'D';
+  const plank = x < 5 ? 0 : x < 10 ? 1 : 2;
+  if ((x * 3 + y * 5 + plank * 7) % 9 === 0) return 'd';
+  return plank === 1 ? 'P' : 'O';
 });
 const DOOR_OPEN = build((x, y) => {
   if (y === 0 || y === 15 || x === 0) return 'k';
-  if (x <= 3) return x === 3 ? 'D' : y === 3 || y === 12 ? 'm' : 'O';
+  if (x <= 3) {
+    if (x === 3) return 'D';
+    if (y === 3 || y === 12) return x === 2 && y === 3 ? 'R' : 'm';
+    if (y === 4 || y === 13) return 'M';
+    return x === 1 ? 'l' : x === 2 ? 'P' : 'O';
+  }
+  if (x === 4) return 'k'; // the shadow the leaf throws into the passage
+  if (y === 1) return 'r'; // the lintel's shade across the top
   return (x + y * 3) % 11 === 0 ? 'r' : 'q';
 });
 
@@ -131,14 +152,44 @@ const CORPSE_BASE = [
 ];
 const CORPSE = shiftRows(CORPSE_BASE, 2);
 
+// walls: four courses of staggered stone blocks. Each block has a lit top row and left edge, a shaded bottom row, one of
+// three body tones, and the odd chip; mortar is darker than any block. The wall variants (outlines, lit north edge) are
+// made from this by the game.
+const WALL_JOINTS = [[7, 15], [3, 11]];
+const brickOf = (course, x) => {
+  const j = WALL_JOINTS[course % 2];
+  return j.filter((jx) => x > jx).length;
+};
+const WALL = build((x, y) => {
+  const course = y >> 2;
+  const r = y & 3;
+  if (r === 3) return 'm';
+  const joints = WALL_JOINTS[course % 2];
+  if (joints.includes(x)) return 'n';
+  const id = brickOf(course, x);
+  const tone = ((course * 5 + id * 3 + (course ^ id)) % 3);
+  if (r === 0) return 'L';
+  if (joints.includes(x - 1) || (x === 0 && course % 2 === 1 && id === 0)) return 'L';
+  if (r === 2) return 'D';
+  if ((x * 11 + y * 7 + course * 5) % 17 === 0) return 'c';
+  return ['b', 'B', 'v'][tone];
+});
+
 export const HAND_IMAGES = {
-  floor_a: { palette: { a: '#34353a', b: '#2a2b2f', c: '#3f4046', d: '#24252a' }, rows: FLOOR_A },
+  floor_a: {
+    palette: { a: '#33353c', b: '#1c1d22', c: '#434550', d: '#2a2b33', e: '#3d3f49', f: '#646774', g: '#16171b', h: '#232429' },
+    rows: FLOOR_A,
+  },
+  wall: {
+    palette: { L: '#bfc0b3', b: '#a3a498', B: '#999a8d', v: '#aaaa9e', D: '#85867a', c: '#7b7c70', m: '#5d5a50', n: '#6a675c' },
+    rows: WALL,
+  },
   door_closed: {
-    palette: { k: '#0b0c12', O: '#b5651d', d: '#8a4d12', D: '#5a3a1a', m: '#8a8a99', M: '#5d6178', y: '#ffe14d' },
+    palette: { k: '#0b0c12', O: '#b5651d', P: '#a35a19', d: '#8a4d12', D: '#5a3a1a', l: '#d48a3e', m: '#8a8a99', M: '#5d6178', R: '#c9c9d6', y: '#ffe14d', Y: '#fff3a8', g: '#6b4a00' },
     rows: DOOR_CLOSED,
   },
   door_open: {
-    palette: { k: '#0b0c12', O: '#b5651d', D: '#5a3a1a', m: '#8a8a99', q: '#202229', r: '#2b2d36' },
+    palette: { k: '#0b0c12', O: '#b5651d', P: '#a35a19', D: '#5a3a1a', l: '#d48a3e', m: '#8a8a99', M: '#5d6178', R: '#c9c9d6', q: '#202229', r: '#2b2d36' },
     rows: DOOR_OPEN,
   },
   item_pistol: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_PISTOL },
