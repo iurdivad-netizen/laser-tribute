@@ -438,6 +438,16 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /**
+   * Browsers keep audio silent until a click or key press. On the title screen that first gesture only unlocks the
+   * sound, so the action music is already playing when the player picks from the menu instead of being cut off by it.
+   */
+  private firstGestureOnTitle(): boolean {
+    if (this.screen !== 'title' || !this.sound.waiting) return false;
+    this.sound.unlock();
+    return true;
+  }
+
   /** Opens the soldier card for the selected soldier; nothing without one. */
   private openCard(): void {
     const c = this.controller;
@@ -446,6 +456,7 @@ export class App {
 
   click(p: Pos, pointer: 'mouse' | 'touch' = 'mouse'): void {
     this.wake();
+    if (this.firstGestureOnTitle()) return;
     this.sound.unlock();
     if (this.locked()) return;
     const mp = this.toMenu(p);
@@ -566,6 +577,7 @@ export class App {
 
   key(k: string, repeat = false): boolean {
     this.wake();
+    if (this.firstGestureOnTitle()) return true;
     this.sound.unlock();
     if (repeat && k === 'Enter') return true; // a held key must not chain screens
     if (this.soundKey(k)) return true;
@@ -727,7 +739,8 @@ export class App {
       drawFrame(ctx, rightEdge - 6 - w, 2, w, 13, 'inset');
       drawText(ctx, this.noticeText, rightEdge - 11, 5, UI.accent, 'right');
     } else if (persistent) {
-      drawText(ctx, 'M: sound on/off   - =: volume', rightEdge - 6, VIEW.height - 12, UI.hint, 'right');
+      if (this.screen === 'title' && this.sound.waiting) drawText(ctx, 'CLICK OR PRESS A KEY FOR MUSIC', rightEdge - 6, VIEW.height - 12, UI.accent, 'right');
+      else drawText(ctx, 'M: sound on/off   - =: volume', rightEdge - 6, VIEW.height - 12, UI.hint, 'right');
     }
   }
 
