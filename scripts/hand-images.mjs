@@ -4,6 +4,7 @@
  */
 import { PROP_IMAGES } from './prop-art.mjs';
 import { PAINTED_IMAGES } from './prop-paint.mjs';
+import { ITEM_PAINTED } from './item-paint.mjs';
 const build = (fn) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => fn(x, y)).join(''));
 const blank = () => '................';
 
@@ -209,4 +210,5 @@ export const HAND_IMAGES = {
   },
   ...PROP_IMAGES,
   ...PAINTED_IMAGES,
+  ...ITEM_PAINTED,
 };
