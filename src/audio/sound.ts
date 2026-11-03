@@ -1,3 +1,4 @@
+import { Music, browserScheduler, type Mood, type Scheduler } from './music';
 import { BUSES, BUS_GAIN, BUS_OF, EFFECTS, PITCH_SPREAD_CENTS, type Bus, type Segment, type SoundName, effectDuration } from './effects';
 
 export const SETTINGS_KEY = 'laser-tribute-sound';
@@ -10,6 +11,8 @@ export interface SoundPlayer {
   unlock(): void;
   toggleMute(): string;
   changeVolume(delta: number): string;
+  /** Switches the soundtrack between its calm and action moods. */
+  setMood?(mood: Mood): void;
   readonly muted: boolean;
   readonly volume: number;
 }
@@ -79,11 +82,15 @@ export class Sound implements SoundPlayer {
   private buses: Record<Bus, NodeLike> | null = null;
   /** End times (audio clock) of the sounds still playing. */
   private ends: number[] = [];
+  private master: NodeLike | null = null;
+  private music: Music | null = null;
+  private mood: Mood = 'calm';
 
   constructor(
     private readonly createContext: () => AudioContextLike | null = browserContext,
     private readonly storage: StorageLike | null = browserStorage(),
     private readonly random: () => number = Math.random,
+    private readonly schedule: Scheduler | null = browserScheduler(),
   ) {
     this.load();
   }
@@ -93,19 +100,40 @@ export class Sound implements SoundPlayer {
       this.ctx = this.createContext();
       if (this.ctx) this.buses = this.makeBuses(this.ctx);
     }
+    this.ensureMusic();
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume?.()?.catch?.(() => undefined);
   }
 
   toggleMute(): string {
     this.muted = !this.muted;
     this.save();
+    this.applyMusicLevel();
     return this.muted ? 'Sound off' : 'Sound on';
   }
 
   changeVolume(delta: number): string {
     this.volume = Math.min(1, Math.max(0, Math.round((this.volume + delta) * 10) / 10));
     this.save();
+    this.applyMusicLevel();
     return `Volume ${Math.round(this.volume * 100)}%`;
+  }
+
+  setMood(mood: Mood): void {
+    this.mood = mood;
+    this.music?.setMood(mood);
+  }
+
+  /** The soundtrack needs the audio context, so it starts with the first user gesture; without a timer (tests) there is none. */
+  private ensureMusic(): void {
+    if (this.music || !this.ctx || !this.schedule || !this.master) return;
+    this.music = new Music(this.ctx, this.master, () => this.noiseBuffer(this.ctx!), this.random, this.schedule);
+    this.music.setMood(this.mood);
+    this.applyMusicLevel();
+    this.music.start();
+  }
+
+  private applyMusicLevel(): void {
+    this.music?.setLevel(this.muted ? 0 : this.volume);
   }
 
   play(name: SoundName, volume = 1): void {
@@ -125,6 +153,7 @@ export class Sound implements SoundPlayer {
 
   private makeBuses(ctx: AudioContextLike): Record<Bus, NodeLike> {
     const master = ctx.createGain();
+    this.master = master;
     if (ctx.createDynamicsCompressor) {
       const compressor = ctx.createDynamicsCompressor();
       master.connect(compressor);
