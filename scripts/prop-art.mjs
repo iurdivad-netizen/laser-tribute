@@ -1,6 +1,7 @@
 /**
  * The ten prop pieces, hand-drawn: a one-character palette and 16 rows of 16 characters (`.` is transparent). They stand in
- * the lower part of the tile with a dark outline; each theme has two (see THEMES in src/art/theme.ts).
+ * the lower part of the tile with a dark outline; they are the first two of each theme's six (see THEMES in src/art/theme.ts; the
+ * other four are painted in scripts/prop-paint.mjs).
  */
 export const PROP_IMAGES = {
   prop_supply_crate: {

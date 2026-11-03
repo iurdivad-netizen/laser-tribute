@@ -160,6 +160,13 @@ export const IMAGE_NAMES = [
   'floor_a', 'floor_b', 'floor_c', 'wall', 'door_closed', 'door_open',
   'item_rifle', 'item_pistol', 'item_grenade', 'item_shotgun', 'item_smg', 'item_sniper', 'corpse_player', 'corpse_enemy',
   'prop_supply_crate', 'prop_oil_drum', 'prop_wood_crate', 'prop_barrel', 'prop_machine', 'prop_tank', 'prop_boulder', 'prop_rocks', 'prop_pillar', 'prop_urn',
+  'prop_sandbags', 'prop_crate_stack', 'prop_barrier', 'prop_tyres',
+  'prop_plank_stack', 'prop_hay_bale', 'prop_workbench', 'prop_cask',
+  'prop_server_rack', 'prop_generator', 'prop_pipe_run', 'prop_console',
+  'prop_stalagmite', 'prop_crystals', 'prop_bone_pile', 'prop_mushrooms',
+  'prop_statue', 'prop_brazier', 'prop_sarcophagus', 'prop_broken_column',
+  'decal_stain', 'decal_cracks', 'decal_debris', 'decal_straw', 'decal_scrap', 'decal_grate', 'decal_cable',
+  'decal_pebbles', 'decal_puddle', 'decal_moss', 'decal_rubble', 'decal_chips', 'decal_rune',
 ];
 const IMAGE_SOURCES = {
   floor_a: 'tiles/floor', wall: 'tiles/wall', door_closed: 'tiles/door_closed', door_open: 'tiles/door_open',
@@ -178,10 +185,12 @@ const IMAGE_SOURCES = {
   prop_urn: 'props/urn',
 };
 const SIZE = 16;
+/** A hand-drawn prop may stand taller than a tile (it overhangs the tile above); nothing else may. */
+const MAX_PROP_ROWS = 24;
 
-/** A 16x16 grid of hex colours (null = transparent) from a PNG, else from a hand-drawn entry. */
+/** A grid of hex colours (null = transparent) from a PNG, else from a hand-drawn entry: 16x16, or for a prop 16 wide and 16 to 24 rows. */
 function loadImage(dir, name) {
-  const path = join(dir, `${IMAGE_SOURCES[name]}.png`);
+  const path = join(dir, `${IMAGE_SOURCES[name] ?? `hand/${name}`}.png`);
   const grid = [];
   if (existsSync(path)) {
     const img = decodePng(readFileSync(path));
@@ -198,7 +207,8 @@ function loadImage(dir, name) {
   }
   const hand = HAND_IMAGES[name];
   if (!hand) throw new Error(`${name}: no PNG at ${path} and no entry in scripts/hand-images.mjs`);
-  if (hand.rows.length !== SIZE) throw new Error(`${name}: hand-drawn image has ${hand.rows.length} rows`);
+  const tall = name.startsWith('prop_') && hand.rows.length > SIZE && hand.rows.length <= MAX_PROP_ROWS;
+  if (hand.rows.length !== SIZE && !tall) throw new Error(`${name}: hand-drawn image has ${hand.rows.length} rows`);
   for (const line of hand.rows) {
     if (line.length !== SIZE) throw new Error(`${name}: hand-drawn row is ${line.length} wide`);
     grid.push([...line].map((ch) => {
@@ -216,7 +226,7 @@ const turn180 = (g) => [...g].reverse().map((row) => [...row].reverse());
 /** The eleven 16x16 images (tiles, doors, items, corpses) with a palette each; floor_b and floor_c come from floor_a. */
 export function buildImageData(dir) {
   const grids = {};
-  for (const name of Object.keys(IMAGE_SOURCES)) grids[name] = loadImage(dir, name);
+  for (const name of IMAGE_NAMES) if (name !== 'floor_b' && name !== 'floor_c') grids[name] = loadImage(dir, name);
   for (const name of ['floor_a', 'wall']) {
     if (grids[name].some((row) => row.includes(null))) throw new Error(`${name} must fill the whole tile`);
   }

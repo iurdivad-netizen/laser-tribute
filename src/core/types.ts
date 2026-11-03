@@ -17,7 +17,7 @@ export interface Tile {
   open: boolean; // only meaningful when kind === 'door'
   /** A low wall (a prop): it blocks movement like a wall but not sight. Only set on wall tiles. */
   low?: boolean;
-  /** Which of the theme's two props a low wall shows. */
+  /** Which kind of prop a low wall shows: 0 or 1 (the map letters x and y); the position picks the picture. */
   prop?: 0 | 1;
 }
 

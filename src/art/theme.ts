@@ -20,18 +20,23 @@ export interface Theme {
   ramps?: { floor?: Ramp; wall?: Ramp; door?: Ramp };
   /** Replaces one role with a named image (no recolouring): the place for a hand-drawn piece. */
   overrides?: Partial<Record<Role, ImageName>>;
-  /** The two props (low walls) of the theme: crates, barrels, machines, rocks or pillars, drawn by hand. */
-  props: readonly [ImageName, ImageName];
+  /**
+   * The six props (low walls) of the theme, drawn by hand. Even places (0, 2, 4) are the pictures of the map letter `x`, odd
+   * ones (1, 3, 5) of `y`; which of the three a prop tile shows depends on its position (see `propFor`). A tall one overhangs the tile above.
+   */
+  props: readonly [ImageName, ImageName, ImageName, ImageName, ImageName, ImageName];
+  /** Three marks that lie on the floor now and then (stains, grates, rubble): scenery only, they change nothing in play. */
+  decals: readonly [ImageName, ImageName, ImageName];
 }
 
 const BASE_PIECES = { floors: ['floor_a', 'floor_b', 'floor_c'], wall: 'wall', doorClosed: 'door_closed', doorOpen: 'door_open' } as const;
 
 /** The look of a map's tiles: the base pieces, recoloured by a ramp per group. Ramps are tuned by eye in the dev gallery. */
 export const THEMES: Record<ThemeId, Theme> = {
-  base: { name: 'Concrete', ...BASE_PIECES, props: ['prop_supply_crate', 'prop_oil_drum'] },
+  base: { name: 'Concrete', ...BASE_PIECES, props: ['prop_supply_crate', 'prop_oil_drum', 'prop_sandbags', 'prop_crate_stack', 'prop_barrier', 'prop_tyres'], decals: ['decal_stain', 'decal_cracks', 'decal_debris'] },
   timber: {
     name: 'Timber', ...BASE_PIECES,
-    props: ['prop_wood_crate', 'prop_barrel'],
+    props: ['prop_wood_crate', 'prop_barrel', 'prop_plank_stack', 'prop_hay_bale', 'prop_workbench', 'prop_cask'], decals: ['decal_straw', 'decal_scrap', 'decal_stain'],
     ramps: {
       floor: { shadow: '#24180f', mid: '#41301f', light: '#5e452e' },
       wall: { shadow: '#4a3a28', mid: '#8a6a44', light: '#c7a066' },
@@ -40,7 +45,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   steel: {
     name: 'Steel', ...BASE_PIECES,
-    props: ['prop_machine', 'prop_tank'],
+    props: ['prop_machine', 'prop_tank', 'prop_server_rack', 'prop_generator', 'prop_pipe_run', 'prop_console'], decals: ['decal_grate', 'decal_cable', 'decal_stain'],
     ramps: {
       floor: { shadow: '#18202a', mid: '#283340', light: '#3c4a5c' },
       wall: { shadow: '#33424f', mid: '#6a7f94', light: '#aebdcb' },
@@ -49,7 +54,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   cave: {
     name: 'Cave', ...BASE_PIECES,
-    props: ['prop_boulder', 'prop_rocks'],
+    props: ['prop_boulder', 'prop_rocks', 'prop_stalagmite', 'prop_crystals', 'prop_bone_pile', 'prop_mushrooms'], decals: ['decal_pebbles', 'decal_puddle', 'decal_moss'],
     ramps: {
       floor: { shadow: '#161c19', mid: '#222b26', light: '#33403a' },
       wall: { shadow: '#2a342d', mid: '#5f6e60', light: '#a7b6a4' },
@@ -58,7 +63,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   stone: {
     name: 'Stone', ...BASE_PIECES,
-    props: ['prop_pillar', 'prop_urn'],
+    props: ['prop_pillar', 'prop_urn', 'prop_statue', 'prop_brazier', 'prop_sarcophagus', 'prop_broken_column'], decals: ['decal_rubble', 'decal_chips', 'decal_rune'],
     ramps: {
       floor: { shadow: '#23211e', mid: '#33312d', light: '#44413c' },
       wall: { shadow: '#5a5e66', mid: '#9a9ea6', light: '#d4d6da' },
@@ -104,10 +109,34 @@ export function tileImage(theme: string, kind: TileKind, open: boolean, x: numbe
   return piece(id, 'floor', t.floors[v], t.overrides?.[FLOOR_ROLES[v]]);
 }
 
-/** The prop image of a theme: variant 0 or 1. An unknown or inherited theme id gives the base theme's. */
-export function propImage(theme: string, variant: 0 | 1): Figure {
+/** The prop image of a theme: variant 0 to 5. An unknown or inherited theme id gives the base theme's. */
+export function propImage(theme: string, variant: 0 | 1 | 2 | 3 | 4 | 5): Figure {
   const id: ThemeId = (THEME_IDS as readonly string[]).includes(theme) ? (theme as ThemeId) : 'base';
   return imageOf(THEMES[id].props[variant]);
+}
+
+/** A steady number for a tile, so the same tile always gets the same scenery. */
+function cellHash(x: number, y: number): number {
+  let h = Math.imul(x + 7, 2246822519) ^ Math.imul(y + 13, 3266489917);
+  h = Math.imul(h ^ (h >>> 15), 2654435761);
+  return (h ^ (h >>> 13)) >>> 0;
+}
+
+/** The prop a prop tile shows: the map's letter picks the kind (0 or 1), the position picks which of that kind's three pictures. */
+export function propFor(theme: string, letter: 0 | 1, x: number, y: number): Figure {
+  const pick = (cellHash(x, y) >>> 8) % 3;
+  return propImage(theme, (letter + 2 * pick) as 0 | 1 | 2 | 3 | 4 | 5);
+}
+
+/** Share of floor tiles that carry a decal, in 100ths. */
+export const DECAL_PER_100 = 9;
+
+/** The decal lying on the floor tile at (x, y), or null for a bare one. Same answer every time for the same tile. */
+export function decalFor(theme: string, x: number, y: number): Figure | null {
+  const id: ThemeId = (THEME_IDS as readonly string[]).includes(theme) ? (theme as ThemeId) : 'base';
+  const h = cellHash(y, x);
+  if (h % 100 >= DECAL_PER_100) return null;
+  return imageOf(THEMES[id].decals[(h >>> 12) % 3]);
 }
 
 const wallVariants = new Map<string, Figure>();
