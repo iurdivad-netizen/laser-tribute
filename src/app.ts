@@ -662,7 +662,7 @@ export class App {
     }
   }
 
-  /** The soundtrack turns to action while the squad can see an enemy, and back to mystery a few seconds after the last one is out of sight. */
+  /** The soundtrack plays action on the title screen, and in a mission turns to action while the squad can see an enemy, and back to mystery a few seconds after the last one is out of sight. */
   private updateMusic(now: number): void {
     const c = this.controller;
     let seen = false;
@@ -670,7 +670,7 @@ export class App {
       const grid = visibleGrid(c.state, 'player');
       seen = c.state.units.some((u) => u.alive && u.side === 'enemy' && grid[u.pos.y]?.[u.pos.x]);
     }
-    const mood = this.mood.update(seen, now);
+    const mood = this.screen === 'title' ? 'action' : this.mood.update(seen, now); // the title screen gets the driving beat
     if (mood !== this.soundMood) {
       this.soundMood = mood;
       this.sound.setMood?.(mood);
