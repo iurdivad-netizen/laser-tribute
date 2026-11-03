@@ -173,4 +173,19 @@ describe('the app chooses the mood', () => {
     at(1000);
     expect(moods).toEqual([]);
   });
+
+  it('plays the action mood on the title screen and relaxes to calm once the game moves on', () => {
+    const moods: Mood[] = [];
+    const sound: SoundPlayer = {
+      muted: false, volume: 0.5, play() {}, unlock() {}, toggleMute: () => '', changeVolume: () => '',
+      setMood: (m) => { moods.push(m); },
+    };
+    const app = new App({ clock: () => 0, sound });
+    expect(app.screen).toBe('title');
+    app.update(0);
+    expect(moods).toEqual(['action']);
+    app.screen = 'equipment';
+    app.update(10);
+    expect(moods).toEqual(['action', 'calm']);
+  });
 });
