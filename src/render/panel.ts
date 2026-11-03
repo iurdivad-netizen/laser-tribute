@@ -187,6 +187,16 @@ export function drawPanel(
       ctx.fillRect(r.x + 3, r.y + r.h - 8, r.w - 6, 4);
       ctx.fillStyle = '#7dff9a';
       ctx.fillRect(r.x + 3, r.y + r.h - 8, ((r.w - 6) * s.hp) / s.maxHp, 4);
+      // a lit top row and a shaded bottom row make the bar a tube, and a low one turns amber and then red
+      const filled = ((r.w - 6) * s.hp) / s.maxHp;
+      if (s.hp / s.maxHp <= 0.5) {
+        ctx.fillStyle = s.hp / s.maxHp <= 0.25 ? '#ff5555' : '#ffc84d';
+        ctx.fillRect(r.x + 3, r.y + r.h - 8, filled, 4);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillRect(r.x + 3, r.y + r.h - 8, filled, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(r.x + 3, r.y + r.h - 5, filled, 1);
     }
   });
 
