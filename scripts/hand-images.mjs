@@ -139,10 +139,37 @@ const CORPSE_BASE = [
 ];
 const CORPSE = shiftRows(CORPSE_BASE, 2);
 
+// walls: four courses of staggered stone blocks. Each block has a lit top row and left edge, a shaded bottom row, one of
+// three body tones, and the odd chip; mortar is darker than any block. The wall variants (outlines, lit north edge) are
+// made from this by the game.
+const WALL_JOINTS = [[7, 15], [3, 11]];
+const brickOf = (course, x) => {
+  const j = WALL_JOINTS[course % 2];
+  return j.filter((jx) => x > jx).length;
+};
+const WALL = build((x, y) => {
+  const course = y >> 2;
+  const r = y & 3;
+  if (r === 3) return 'm';
+  const joints = WALL_JOINTS[course % 2];
+  if (joints.includes(x)) return 'n';
+  const id = brickOf(course, x);
+  const tone = ((course * 5 + id * 3 + (course ^ id)) % 3);
+  if (r === 0) return 'L';
+  if (joints.includes(x - 1) || (x === 0 && course % 2 === 1 && id === 0)) return 'L';
+  if (r === 2) return 'D';
+  if ((x * 11 + y * 7 + course * 5) % 17 === 0) return 'c';
+  return ['b', 'B', 'v'][tone];
+});
+
 export const HAND_IMAGES = {
   floor_a: {
     palette: { a: '#33353c', b: '#1c1d22', c: '#434550', d: '#2a2b33', e: '#3d3f49', f: '#646774', g: '#16171b', h: '#232429' },
     rows: FLOOR_A,
+  },
+  wall: {
+    palette: { L: '#bfc0b3', b: '#a3a498', B: '#999a8d', v: '#aaaa9e', D: '#85867a', c: '#7b7c70', m: '#5d5a50', n: '#6a675c' },
+    rows: WALL,
   },
   door_closed: {
     palette: { k: '#0b0c12', O: '#b5651d', d: '#8a4d12', D: '#5a3a1a', m: '#8a8a99', M: '#5d6178', y: '#ffe14d' },

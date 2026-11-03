@@ -12,3 +12,7 @@ The soldier and enemy figures in `src/art/figures.generated.ts` are converted fr
 - `tiles/wall.png`: PixelLab top-down tileset id `1b08e4ca-a47c-4521-8d0e-995b68c071ee` (standard mode, 16 px, high top-down, medium detail, flat shading, single colour outline, lower "dark worn metal floor panels with faint seams", upper "grey brick wall, seen from above"); the all-upper tile. Terms: https://pixellab.ai/termsofservice
 - Tried and rejected: the same tileset's floor (olive, with rows of black slots that read as a grating), a second tileset `0a4a6dae-a63a-4049-b414-0a95ede242dd` (calmer blue-grey floor, but its wall came out pale blue), and a 16 px rifle from `create_object_pro_flash` (object `7879f9be-72ca-4945-bd6f-7da5abf60f3b`: it drew the rifle standing upright and unreadable; this tool costs about 4 generations per piece, and `create_map_object` cannot go below 32 px).
 - Hand-drawn in `scripts/hand-images.mjs` (palette per piece, in the style of the soldiers): `floor_a` (dark neutral panels; the mirrored and turned variants are made by the converter), both doors, the three items and both corpses.
+
+## Stage 3 (2026-11-03)
+
+- `tiles/wall.png` is now `tiles/wall.pixellab-original.png`, kept for reference but no longer read: a PNG with the tile's name would override the hand-drawn entry, and the wall is now drawn by hand in `scripts/hand-images.mjs` (staggered stone blocks, three body tones, lit top and left edges, shaded bottoms). The floor plate was redrawn there too.
