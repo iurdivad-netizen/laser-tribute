@@ -3,6 +3,7 @@
  * (`.` is transparent). A PNG for the same name under art-src/pixellab wins over an entry here.
  */
 import { PROP_IMAGES } from './prop-art.mjs';
+import { PAINTED_IMAGES } from './prop-paint.mjs';
 const build = (fn) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => fn(x, y)).join(''));
 const blank = () => '................';
 
@@ -207,4 +208,5 @@ export const HAND_IMAGES = {
     rows: CORPSE,
   },
   ...PROP_IMAGES,
+  ...PAINTED_IMAGES,
 };

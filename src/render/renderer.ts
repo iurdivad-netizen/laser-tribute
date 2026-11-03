@@ -3,7 +3,7 @@ import { Atlas } from '../art/atlas';
 import { RISE, unitFigure, type Figure } from '../art/figure';
 import { ARMOUR_PIP, pipPositions, rankPips } from '../art/sprite';
 import { corpseHalves, corpseLook } from '../art/corpse';
-import { itemImage, propImage, themeFor, tileImage, wallImage } from '../art/theme';
+import { decalFor, itemImage, propFor, themeFor, tileImage, wallImage } from '../art/theme';
 import { CONFIG, THROWABLES } from '../core/config';
 import type { GameState } from '../core/types';
 import { visibleGrid } from '../core/vision';
@@ -84,10 +84,24 @@ export function drawGame(
         art.drawImage(ctx, tileImage(themeFor(state), 'floor', false, x, y), x * T, y * T);
         shadeFloor(ctx, state, x, y);
         shadeProp(ctx, x, y);
-        art.drawImage(ctx, propImage(themeFor(state), tile.prop ?? 0), x * T, y * T);
+        const prop = propFor(themeFor(state), tile.prop ?? 0, x, y);
+        // a tall prop overhangs the tile above, but not into one the player has not seen (the fog would black it out in a cut)
+        const overhang = prop.height > T && !(y > 0 && state.explored[y - 1][x]);
+        if (overhang) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x * T, y * T, T, T);
+          ctx.clip();
+        }
+        art.drawImage(ctx, prop, x * T, y * T - (prop.height - T));
+        if (overhang) ctx.restore();
       } else {
         art.drawImage(ctx, tileFigure(state, x, y), x * T, y * T);
-        if (tile.kind === 'floor') shadeFloor(ctx, state, x, y);
+        if (tile.kind === 'floor') {
+          const decal = decalFor(themeFor(state), x, y);
+          if (decal) art.drawImage(ctx, decal, x * T, y * T);
+          shadeFloor(ctx, state, x, y);
+        }
       }
     }
   }

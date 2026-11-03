@@ -22,12 +22,17 @@ function redness(n: Name): number {
 }
 
 describe('the generated image data', () => {
-  it('has the twenty-four images, each 16x16 with a valid hex palette and valid indexes', () => {
-    expect(IMAGE_NAMES).toHaveLength(24);
+  it('has the fifty-seven images, each 16 wide and 16 tall (a prop up to 24) with a valid hex palette and valid indexes', () => {
+    expect(IMAGE_NAMES).toHaveLength(57);
     expect(Object.keys(IMAGE_DATA).sort()).toEqual([...IMAGE_NAMES].sort());
     for (const name of IMAGE_NAMES) {
       const { palette, rows } = IMAGE_DATA[name];
-      expect(rows, name).toHaveLength(16);
+      if (name.startsWith('prop_')) {
+        expect(rows.length, name).toBeGreaterThanOrEqual(16);
+        expect(rows.length, name).toBeLessThanOrEqual(24);
+      } else {
+        expect(rows, name).toHaveLength(16);
+      }
       for (const row of rows) expect(row, name).toHaveLength(16);
       expect(palette.length, name).toBeGreaterThan(1);
       expect(palette.length, name).toBeLessThanOrEqual(62);
