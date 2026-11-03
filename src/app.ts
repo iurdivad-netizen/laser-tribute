@@ -1,3 +1,4 @@
+import { MoodTracker } from './audio/music';
 import { Sound, type SoundPlayer } from './audio/sound';
 import { Controller } from './controller';
 import {
@@ -14,7 +15,7 @@ import { describeStash, nextStash } from './core/stash';
 import { summarize, type MissionResult } from './core/result';
 import { unitAt } from './core/geometry';
 import type { GameState, Pos, Unit } from './core/types';
-import { visibleToSide } from './core/vision';
+import { visibleGrid, visibleToSide } from './core/vision';
 import type { Stash } from './core/stash';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
@@ -110,6 +111,8 @@ export class App {
   private readonly missions: MissionDef[];
   private readonly createMission: NonNullable<AppOptions['createMission']>;
   readonly sound: SoundPlayer;
+  private readonly mood = new MoodTracker();
+  private soundMood = 'calm';
 
   constructor(opts: AppOptions = {}) {
     this.clock = opts.clock ?? (() => performance.now());
@@ -623,6 +626,7 @@ export class App {
   /** Call once per frame. Records the finished mission and shows the result shortly after it ends. */
   update(now: number): void {
     const c = this.controller;
+    this.updateMusic(now);
     if (this.screen !== 'mission' || !c) return;
     const cameraBefore = this.camera;
     this.trackCamera(c);
@@ -655,6 +659,21 @@ export class App {
       this.wake();
       this.endedAt = null;
       this.lock();
+    }
+  }
+
+  /** The soundtrack turns to action while the squad can see an enemy, and back to mystery a few seconds after the last one is out of sight. */
+  private updateMusic(now: number): void {
+    const c = this.controller;
+    let seen = false;
+    if (this.screen === 'mission' && c && c.state.status === 'playing') {
+      const grid = visibleGrid(c.state, 'player');
+      seen = c.state.units.some((u) => u.alive && u.side === 'enemy' && grid[u.pos.y]?.[u.pos.x]);
+    }
+    const mood = this.mood.update(seen, now);
+    if (mood !== this.soundMood) {
+      this.soundMood = mood;
+      this.sound.setMood?.(mood);
     }
   }
 
