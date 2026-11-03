@@ -6,7 +6,7 @@
  */
 const OUTLINE = '#0b0c12';
 
-function paint(height) {
+export function paint(height) {
   const g = Array.from({ length: height }, () => Array(16).fill('.'));
   const at = (x, y) => (x >= 0 && x < 16 && y >= 0 && y < height ? g[y][x] : '.');
   const api = {
@@ -52,7 +52,7 @@ function paint(height) {
 }
 
 /** A filled block: lit top row and left column, shaded bottom row and right column. */
-function block(p, x, y, w, h, body, lit, shade) {
+export function block(p, x, y, w, h, body, lit, shade) {
   p.rect(x, y, w, h, body);
   p.rect(x, y, w, 1, lit).rect(x, y, 1, h, lit);
   p.rect(x, y + h - 1, w, 1, shade).rect(x + w - 1, y, 1, h, shade);
