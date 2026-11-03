@@ -33,18 +33,31 @@ const FLOOR_A = build((x, y) => {
   return 'a';
 });
 
-// doors fill the whole tile: planks with iron bands and a brass handle; open: the leaf stands along the left edge
+// doors fill the whole tile. Closed: a dark frame with a lit top and left, three planks of two alternating tones with grain,
+// two riveted iron bands and a brass handle. Open: the same leaf stands along the left edge over a dark passage.
 const DOOR_CLOSED = build((x, y) => {
   if (x === 0 || x === 15 || y === 0 || y === 15) return 'k';
-  if (x === 5 || x === 10) return 'D';
-  if (y === 3 || y === 12) return 'm';
+  if (y === 1 || x === 1) return 'l';
+  if (y === 14 || x === 14) return 'D';
+  if (y === 3 || y === 12) return (x === 3 || x === 8 || x === 12) ? 'R' : 'm';
   if (y === 4 || y === 13) return 'M';
-  if ((x === 12 || x === 13) && (y === 8 || y === 9)) return 'y';
-  return (x + y) % 7 === 0 ? 'd' : 'O';
+  if ((x === 11 || x === 12) && (y === 8 || y === 9)) return x === 11 && y === 8 ? 'Y' : 'y';
+  if (x === 13 && (y === 9 || y === 10)) return 'g';
+  if (x === 5 || x === 10) return 'D';
+  const plank = x < 5 ? 0 : x < 10 ? 1 : 2;
+  if ((x * 3 + y * 5 + plank * 7) % 9 === 0) return 'd';
+  return plank === 1 ? 'P' : 'O';
 });
 const DOOR_OPEN = build((x, y) => {
   if (y === 0 || y === 15 || x === 0) return 'k';
-  if (x <= 3) return x === 3 ? 'D' : y === 3 || y === 12 ? 'm' : 'O';
+  if (x <= 3) {
+    if (x === 3) return 'D';
+    if (y === 3 || y === 12) return x === 2 && y === 3 ? 'R' : 'm';
+    if (y === 4 || y === 13) return 'M';
+    return x === 1 ? 'l' : x === 2 ? 'P' : 'O';
+  }
+  if (x === 4) return 'k'; // the shadow the leaf throws into the passage
+  if (y === 1) return 'r'; // the lintel's shade across the top
   return (x + y * 3) % 11 === 0 ? 'r' : 'q';
 });
 
@@ -172,11 +185,11 @@ export const HAND_IMAGES = {
     rows: WALL,
   },
   door_closed: {
-    palette: { k: '#0b0c12', O: '#b5651d', d: '#8a4d12', D: '#5a3a1a', m: '#8a8a99', M: '#5d6178', y: '#ffe14d' },
+    palette: { k: '#0b0c12', O: '#b5651d', P: '#a35a19', d: '#8a4d12', D: '#5a3a1a', l: '#d48a3e', m: '#8a8a99', M: '#5d6178', R: '#c9c9d6', y: '#ffe14d', Y: '#fff3a8', g: '#6b4a00' },
     rows: DOOR_CLOSED,
   },
   door_open: {
-    palette: { k: '#0b0c12', O: '#b5651d', D: '#5a3a1a', m: '#8a8a99', q: '#202229', r: '#2b2d36' },
+    palette: { k: '#0b0c12', O: '#b5651d', P: '#a35a19', D: '#5a3a1a', l: '#d48a3e', m: '#8a8a99', M: '#5d6178', R: '#c9c9d6', q: '#202229', r: '#2b2d36' },
     rows: DOOR_OPEN,
   },
   item_pistol: { palette: { k: '#0b0c12', a: '#d0d0d0', A: '#8a8a99', O: '#b5651d' }, rows: ITEM_PISTOL },
