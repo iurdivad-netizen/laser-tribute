@@ -1,7 +1,8 @@
 import type { Mode } from '../core/campaign';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame } from '../ui/frame';
-import { drawText } from '../ui/text';
+import { defaultFont, drawText } from '../ui/text';
+import { drawScene } from './titleart';
 
 export interface TitleView {
   /** The game CONTINUE would resume, or null when there is no save. */
@@ -35,11 +36,30 @@ export function titleSummary(c: NonNullable<TitleView['continue']>): string {
 export function drawTitle(ctx: CanvasRenderingContext2D, v: TitleView): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+  drawScene(ctx, { x: 0, y: 0, w: VIEW.width, h: VIEW.height }, { soldiers: 4, bleed: true });
 
   const c = TITLE.card;
-  drawFrame(ctx, c.x, c.y, c.w, c.h, 'raised');
-  drawFrame(ctx, c.x + 8, c.y + 8, c.w - 16, 30, 'inset');
-  drawText(ctx, 'LASER TRIBUTE', c.x + c.w / 2, c.y + 20, UI.accent, 'center');
+  const mid = c.x + c.w / 2;
+  // the logo: big letters with a hard shadow, a red laser line under them and a small line of what the game is
+  defaultFont.draw(ctx, 'LASER TRIBUTE', mid + 3, 43, UI.dark, 'center', 3); // the shadows are not text runs of their own
+  drawText(ctx, 'LASER TRIBUTE', mid, 40, UI.accent, 'center', defaultFont, 3);
+  ctx.fillStyle = 'rgba(255,77,77,0.25)';
+  ctx.fillRect(mid - 118, 67, 236, 5);
+  ctx.fillStyle = '#ff5a5a';
+  ctx.fillRect(mid - 116, 69, 232, 1);
+  ctx.fillStyle = '#ffd0d0';
+  ctx.fillRect(mid - 118, 68, 3, 3);
+  ctx.fillRect(mid + 115, 68, 3, 3);
+  defaultFont.draw(ctx, 'TURN-BASED SQUAD TACTICS', mid + 1, 79, UI.dark, 'center');
+  drawText(ctx, 'TURN-BASED SQUAD TACTICS', mid, 78, UI.text, 'center');
+
+  // a dark panel behind the buttons so they read over the scene
+  const top = v.continue ? c.y + 46 : TITLE.campaign.y - 14;
+  ctx.fillStyle = 'rgba(8,9,16,0.8)';
+  ctx.fillRect(c.x + 8, top, c.w - 16, c.y + 236 - top);
+  ctx.fillStyle = UI.light;
+  ctx.fillRect(c.x + 8, top, c.w - 16, 1);
+  ctx.fillRect(c.x + 8, c.y + 235, c.w - 16, 1);
 
   if (v.continue) {
     drawText(ctx, titleSummary(v.continue), c.x + c.w / 2, c.y + 60, UI.text, 'center');
