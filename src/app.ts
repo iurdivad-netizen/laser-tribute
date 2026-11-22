@@ -40,6 +40,9 @@ import { drawText } from './ui/text';
 
 export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end';
 
+/** Menu pixels (of 480x400) around a small equipment button within which a touch still counts as a tap on it. */
+const TOUCH_SLOP = 9;
+
 const RESULT_DELAY_MS = 1000;
 /** A still screen is redrawn at least this often, so text on a timer still changes on time. */
 const IDLE_BEAT_MS = 250;
@@ -462,14 +465,14 @@ export class App {
     const mp = this.toMenu(p);
     switch (this.screen) {
       case 'title': {
-        const hit = titleHit(mp.x, mp.y, this.continueMode() !== null);
+        const hit = titleHit(mp.x, mp.y, this.continueMode() !== null, pointer === 'touch' ? 5 : 0);
         if (hit === 'continue') this.continueFromTitle();
         else if (hit === 'campaign') this.pressStart('campaign');
         else if (hit === 'tutorial') this.pressStart('tutorial');
         return;
       }
       case 'equipment': {
-        const hit = equipmentHit(mp.x, mp.y);
+        const hit = equipmentHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0);
         if (!hit) return;
         if (hit.kind === 'start') {
           this.startMission();
@@ -525,10 +528,10 @@ export class App {
         return;
       }
       case 'result':
-        if (resultHit(mp.x, mp.y) === 'again') this.continueFromResult();
+        if (resultHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0) === 'again') this.continueFromResult();
         return;
       case 'end':
-        if (endHit(mp.x, mp.y) === 'new') this.toTitle();
+        if (endHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0) === 'new') this.toTitle();
         return;
     }
   }

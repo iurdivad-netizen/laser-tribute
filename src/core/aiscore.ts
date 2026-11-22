@@ -41,7 +41,8 @@ export function pickTarget(s: GameState, unit: Unit, targets: Unit[]): Unit | un
   return best;
 }
 
-export const isHurt = (u: Unit): boolean => u.hp <= u.maxHp * RETREAT_SHARE;
+/** A rusher never falls back, however hurt. */
+export const isHurt = (u: Unit): boolean => u.role !== 'rusher' && u.hp <= u.maxHp * RETREAT_SHARE;
 
 /** Is a legal, affordable step for `unit` from where it stands to `to`. */
 function canStep(s: GameState, unit: Unit, to: Pos): boolean {

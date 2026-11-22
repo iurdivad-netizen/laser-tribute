@@ -9,6 +9,7 @@ const T = CONFIG.tileSize;
 
 type Effect =
   | { kind: 'move'; unitId: string; from: Pos; to: Pos; start: number; dur: number; eased: boolean }
+  | { kind: 'kick'; unitId: string; dx: number; dy: number; start: number; dur: number }
   | { kind: 'text'; text: string; px: Pos; colour: string; scale: number; start: number; dur: number }
   | { kind: 'shot'; from: Pos; to: Pos; hit: boolean; start: number; dur: number }
   | { kind: 'flash'; at: Pos; color: string; start: number; dur: number }
@@ -27,6 +28,10 @@ export interface AddContext {
   seen?: boolean[];
   sideOf?: (unitId: string) => 'player' | 'enemy' | undefined;
 }
+
+/** How far a shooter's figure is pushed back by his own shot, and the target's by a hit, in pixels. */
+const RECOIL_PX = 1;
+const STAGGER_PX = 2;
 
 /** Feedback tiers: the trauma added to the shake and the freeze after an impact, in ms. */
 export const FEEL = {
@@ -140,6 +145,8 @@ export class Effects {
         }
         this.list.push({ kind: 'shot', from: e.from, to: e.impact, hit: e.hit, start: now, dur: 180 });
         const dir = directionTo(e.from, e.impact);
+        this.kick(e.unitId, -dir.x * RECOIL_PX, -dir.y * RECOIL_PX, now, 110); // the shooter's gun kicks back
+        if (e.hit) this.kick(e.targetId, dir.x * STAGGER_PX, dir.y * STAGGER_PX, now + 60, 170); // the target rocks away
         const muzzle = tilePx(e.from);
         this.sprite(['flash_0', 'flash_1'], { x: muzzle.x + dir.x * 8, y: muzzle.y + dir.y * 8 - AIM_RAISE }, now, 90);
         if (e.hit) {
@@ -184,17 +191,31 @@ export class Effects {
     });
   }
 
-  /** Pixel offset to add to a unit's logical position while it slides between tiles. */
+  /** A short nudge of a unit's figure along (dx, dy) pixels that fades out; none under reduced motion. */
+  private kick(unitId: string, dx: number, dy: number, start: number, dur: number): void {
+    if (this.reducedMotion || (dx === 0 && dy === 0)) return;
+    this.list.push({ kind: 'kick', unitId, dx, dy, start, dur });
+  }
+
+  /** Pixel offset to add to a unit's logical position while it slides between tiles or is knocked by a shot. */
   unitOffset(unitId: string, rawNow: number): { x: number; y: number } {
     const now = this.clock(rawNow);
+    let x = 0;
+    let y = 0;
     for (const e of this.list) {
-      if (e.kind !== 'move' || e.unitId !== unitId) continue;
+      if ((e.kind !== 'move' && e.kind !== 'kick') || e.unitId !== unitId) continue;
       const p = (now - e.start) / e.dur;
       if (p < 0 || p >= 1) continue;
-      const left = 1 - (e.eased ? easeOutQuad(p) : p);
-      return { x: (e.from.x - e.to.x) * T * left, y: (e.from.y - e.to.y) * T * left };
+      if (e.kind === 'kick') {
+        x += e.dx * (1 - p);
+        y += e.dy * (1 - p);
+      } else {
+        const left = 1 - (e.eased ? easeOutQuad(p) : p);
+        x += (e.from.x - e.to.x) * T * left;
+        y += (e.from.y - e.to.y) * T * left;
+      }
     }
-    return { x: 0, y: 0 };
+    return { x, y };
   }
 
   /** A walking unit bobs up one pixel for the first half of each step. */

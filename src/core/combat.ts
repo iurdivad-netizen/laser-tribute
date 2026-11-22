@@ -1,4 +1,4 @@
-import { ATTACHMENTS, CONFIG, CRIT, GADGETS, WEAPONS } from './config';
+import { ATTACHMENTS, CONFIG, CRIT, GADGETS, ROLES, WEAPONS } from './config';
 import { NEIGHBORS_4, distance, inBounds, tileAt } from './geometry';
 import { nextCrit, nextRandom } from './rng';
 import type { GameEvent, GameState, Pos, ShotMode, Unit } from './types';
@@ -19,11 +19,18 @@ export function critChance(shooter: Unit, mode: ShotMode): number {
   return CRIT[mode] + (shooter.attachment === 'scope' ? ATTACHMENTS.scope.crit : 0);
 }
 
+/** The accuracy an enemy gains from a living officer of its own side within reach (the officer itself included). */
+export function officerAura(s: GameState, shooter: Unit): number {
+  if (shooter.side !== 'enemy') return 0;
+  const near = s.units.some((u) => u.alive && u.role === 'officer' && distance(u.pos, shooter.pos) <= ROLES.officerRadius);
+  return near ? ROLES.officerBonus : 0;
+}
+
 export function hitChance(s: GameState, shooter: Unit, target: Unit, mode: ShotMode): number {
   const w = WEAPONS[shooter.weapon];
   const weaponAccuracy = mode === 'snap' ? w.snapAccuracy : w.aimedAccuracy;
   const scope = shooter.attachment === 'scope' ? ATTACHMENTS.scope.accuracy : 0;
-  const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy + scope);
+  const base = Math.min(CONFIG.maxHitChance, weaponAccuracy + shooter.accuracy + scope + officerAura(s, shooter));
   const d = distance(shooter.pos, target.pos);
   const rangeFactor = Math.max(0, 1 - (w.falloff ?? 0.5) * (d / w.range));
   const close = w.closePenalty && d <= w.closePenalty.within ? w.closePenalty.multiplier : 1;

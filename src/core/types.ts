@@ -27,6 +27,8 @@ export type GadgetId = 'medkit' | 'armour' | 'scanner';
 export type AttachmentId = 'scope';
 export type ItemKind = WeaponId | 'grenade';
 export type ShotMode = 'snap' | 'aimed';
+/** What an enemy does on the battlefield beyond carrying a gun; absent means a plain rifleman. */
+export type EnemyRole = 'sniper' | 'rusher' | 'officer';
 
 export interface Unit {
   id: string;
@@ -64,6 +66,8 @@ export interface Unit {
   attachment: AttachmentId | null;
   patrol: Pos[];
   patrolIndex: number;
+  /** Enemies only, and only from mission 3 of the campaign; undefined for the tutorial and for plain riflemen. */
+  role?: EnemyRole;
 }
 
 export interface Hazard {

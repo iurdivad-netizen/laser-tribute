@@ -182,22 +182,47 @@ export function changeClips(
   return l.map((s, j) => (j === i ? { ...s, clips: s.clips + delta } : s));
 }
 
-export function equipmentHit(px: number, py: number): EquipmentHit | null {
+/** Every button of the screen with its rectangle, in the order a click is tested. */
+function equipmentRects(): { hit: EquipmentHit; x: number; y: number; w: number; h: number }[] {
   const s = EQ.start;
-  if (inRect(px, py, s.x, s.y, s.w, s.h)) return { kind: 'start' };
+  const out: { hit: EquipmentHit; x: number; y: number; w: number; h: number }[] = [{ hit: { kind: 'start' }, x: s.x, y: s.y, w: s.w, h: s.h }];
   for (let i = 0; i < SQUAD_SIZE; i++) {
     const y = rowY(i);
-    if (inRect(px, py, EQ.weapon.x, y, EQ.weapon.w, EQ.btnH)) return { kind: 'weapon', index: i };
-    if (inRect(px, py, EQ.throwable.x, y, EQ.throwable.w, EQ.btnH)) return { kind: 'throwable', index: i };
-    if (inRect(px, py, EQ.minus.x, y, EQ.minus.w, EQ.btnH)) return { kind: 'minus', index: i };
-    if (inRect(px, py, EQ.plus.x, y, EQ.plus.w, EQ.btnH)) return { kind: 'plus', index: i };
     const cy = y + EQ.clipDy;
-    if (inRect(px, py, EQ.minus.x, cy, EQ.minus.w, EQ.btnH)) return { kind: 'clipMinus', index: i };
-    if (inRect(px, py, EQ.plus.x, cy, EQ.plus.w, EQ.btnH)) return { kind: 'clipPlus', index: i };
-    if (inRect(px, py, EQ.gadget.x, cy, EQ.gadget.w, EQ.btnH)) return { kind: 'gadget', index: i };
-    if (inRect(px, py, EQ.scope.x, cy, EQ.scope.w, EQ.btnH)) return { kind: 'scope', index: i };
+    out.push(
+      { hit: { kind: 'weapon', index: i }, x: EQ.weapon.x, y, w: EQ.weapon.w, h: EQ.btnH },
+      { hit: { kind: 'throwable', index: i }, x: EQ.throwable.x, y, w: EQ.throwable.w, h: EQ.btnH },
+      { hit: { kind: 'minus', index: i }, x: EQ.minus.x, y, w: EQ.minus.w, h: EQ.btnH },
+      { hit: { kind: 'plus', index: i }, x: EQ.plus.x, y, w: EQ.plus.w, h: EQ.btnH },
+      { hit: { kind: 'clipMinus', index: i }, x: EQ.minus.x, y: cy, w: EQ.minus.w, h: EQ.btnH },
+      { hit: { kind: 'clipPlus', index: i }, x: EQ.plus.x, y: cy, w: EQ.plus.w, h: EQ.btnH },
+      { hit: { kind: 'gadget', index: i }, x: EQ.gadget.x, y: cy, w: EQ.gadget.w, h: EQ.btnH },
+      { hit: { kind: 'scope', index: i }, x: EQ.scope.x, y: cy, w: EQ.scope.w, h: EQ.btnH },
+    );
   }
-  return null;
+  return out;
+}
+
+/**
+ * The button under the point. With a `slop` (a finger is wider than a 24 px button) a point that misses every button
+ * still counts as the nearest one within that many pixels of its edge, so a tap beside a small + or - lands on it.
+ */
+export function equipmentHit(px: number, py: number, slop = 0): EquipmentHit | null {
+  const rects = equipmentRects();
+  for (const r of rects) if (inRect(px, py, r.x, r.y, r.w, r.h)) return r.hit;
+  if (slop <= 0) return null;
+  let best: EquipmentHit | null = null;
+  let bestD = slop + 1e-9;
+  for (const r of rects) {
+    const dx = Math.max(r.x - px, 0, px - (r.x + r.w - 1));
+    const dy = Math.max(r.y - py, 0, py - (r.y + r.h - 1));
+    const d = Math.hypot(dx, dy);
+    if (d < bestD) {
+      best = r.hit;
+      bestD = d;
+    }
+  }
+  return best;
 }
 
 export function blockReasonFor(

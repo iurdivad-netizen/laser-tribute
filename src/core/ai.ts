@@ -23,7 +23,7 @@ function stepToward(s: GameState, unit: Unit, goal: Pos, hunting: boolean): Comm
       return t.kind === 'door' && !t.open;
     };
     // too far to go through a door: take the door-free route instead (none means stay put)
-    if (path.length > CONFIG.huntRadius && path.some(closed)) return stepToward(s, unit, goal, false);
+    if (unit.role !== 'rusher' && path.length > CONFIG.huntRadius && path.some(closed)) return stepToward(s, unit, goal, false);
     if (closed(next)) {
       return unit.ap >= CONFIG.doorCost ? { type: 'OpenDoor', unitId: unit.id, at: { ...next } } : null;
     }
@@ -62,12 +62,12 @@ function candidates(s: GameState, unit: Unit): Command[] {
         facing: facingFromDelta(target.pos.x - unit.pos.x, target.pos.y - unit.pos.y),
       });
     }
-    const step = !falling && unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
+    const step = !falling && unit.role !== 'sniper' && unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
     if (step) out.push((step.type === 'Move' && coverStep(s, unit, target.pos, step.to)) || step);
     return out;
   }
 
-  if (isHurt(unit)) return out; // a badly hurt soldier stays where it is: no hunting, no patrol
+  if (isHurt(unit) || unit.role === 'sniper') return out; // a badly hurt soldier stays where it is: no hunting, no patrol; a sniper holds its post
   const patrolGoal = unit.patrol.length > 0 ? unit.patrol[unit.patrolIndex] : null;
   const goals: [Pos | null, boolean][] = [[s.enemyMemory, true], [patrolGoal, false]];
   for (const [goal, hunting] of goals) {

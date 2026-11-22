@@ -16,7 +16,7 @@ import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
 import { drawCard } from './card';
 import { drawLight, shadeFloor, shadeProp } from './lighting';
 import { wallMask } from './wallmask';
-import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
+import { RANGE_COLORS, blastTiles, blastVictims, hitLabels, rangeTiles } from './ranges';
 
 const T = CONFIG.tileSize;
 
@@ -29,6 +29,9 @@ const COLORS = {
   scan: '#ff4d4d',
   armour: '#4da6ff',
 };
+
+/** The pip over an enemy that has a role: an officer is gold, a sniper cyan, a rusher orange. */
+const ROLE_COLORS = { officer: '#ffd24d', sniper: '#4dd2ff', rusher: '#ff8a2e' } as const;
 
 function tileFigure(state: GameState, x: number, y: number): Figure {
   const tile = state.tiles[y][x];
@@ -174,6 +177,10 @@ export function drawGame(
     // The status stack (pips, bar, alert mark) floats above the head; for a unit on the first walkable row there is no
     // room above the map's top edge, so the stack is pushed down over the head instead of being clipped away.
     const shift = Math.max(0, -(y0 - RISE - (u.alert ? 13 : 9)));
+    if (u.side === 'enemy' && u.role) {
+      ctx.fillStyle = ROLE_COLORS[u.role];
+      ctx.fillRect(x0 + ARMOUR_PIP.x, y0 + ARMOUR_PIP.y + shift, ARMOUR_PIP.w, ARMOUR_PIP.h);
+    }
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
       for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y + shift, 1, 2);
@@ -217,6 +224,18 @@ export function drawGame(
   if (ui.hover) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
+  }
+
+  if (selected && aiming && ui.mode !== 'throw') {
+    // the chance each visible enemy in reach would be hit by the next shot, over the enemy: green when likely, red when not
+    for (const { unit: foe, pct } of hitLabels(state, selected, ui.mode as 'snap' | 'aimed')) {
+      const label = `${pct}%`;
+      const colour = pct >= 60 ? '#7dff7d' : pct >= 35 ? '#ffe14d' : '#ff6b6b';
+      const lx = foe.pos.x * T + T / 2;
+      const ly = Math.max(0, foe.pos.y * T - 9);
+      drawText(ctx, label, lx + 1, ly + 1, '#000000', 'center');
+      drawText(ctx, label, lx, ly, colour, 'center');
+    }
   }
 
   if (selected && blastAt) {
