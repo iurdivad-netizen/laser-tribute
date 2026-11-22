@@ -6,7 +6,8 @@ import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from '../co
 import { createMission } from '../core/missions';
 import type { Stash } from '../core/stash';
 import type { GameState, WeaponId } from '../core/types';
-import { botTurn } from './bot';
+import { roleSwitch } from '../core/enemyArms';
+import { botTurn, type BotMode } from './bot';
 
 /** A mission that runs past this many turns counts as lost (the bot is stuck). */
 export const TURN_LIMIT = 80;
@@ -49,7 +50,8 @@ export interface CampaignRun {
 }
 
 /** Plays a whole campaign with the bot: the seed picks the map variations and every mission's random stream. */
-export function runCampaign(seed: number): CampaignRun {
+export function runCampaign(seed: number, mode: BotMode = 'basic', roles = true): CampaignRun {
+  roleSwitch.enabled = roles;
   let c = newCampaign('campaign', drawVariations(seed));
   const records: MissionRecord[] = [];
   while (c.status === 'active') {
@@ -67,7 +69,7 @@ export function runCampaign(seed: number): CampaignRun {
         s = { ...s, status: 'lost' };
         break;
       }
-      s = botTurn(s);
+      s = botTurn(s, mode);
       if (s.status === 'playing' && s.turn === 'enemy') s = runEnemyTurn(s).state;
     }
     const casualties = s.units.filter((u) => u.side === 'player' && !u.alive).length;

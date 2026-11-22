@@ -30,7 +30,11 @@ export function assignEnemyWeapons(s: GameState, level: number): void {
  * same seed-and-position hash as the weapons so a mission always has the same cast. Always leaves at least one plain
  * rifleman. A sniper is handed the sniper rifle and a rusher the SMG when their weapons are unlocked.
  */
+/** Lets the balance harness play a campaign without roles to measure what they add; always on in the game. */
+export const roleSwitch = { enabled: true };
+
 export function assignEnemyRoles(s: GameState, level: number): void {
+  if (!roleSwitch.enabled) return;
   const enemies = s.units.filter((u) => u.side === 'enemy');
   const n = enemies.length;
   const order = enemies
