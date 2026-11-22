@@ -21,9 +21,9 @@ export const END = {
   again: { x: 175, y: 240, w: 130, h: 26 },
 } as const;
 
-export function endHit(px: number, py: number): 'new' | null {
+export function endHit(px: number, py: number, slop = 0): 'new' | null {
   const b = END.again;
-  return px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h ? 'new' : null;
+  return px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop ? 'new' : null;
 }
 
 export function drawCampaignEnd(ctx: CanvasRenderingContext2D, v: EndView): void {

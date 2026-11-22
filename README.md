@@ -52,7 +52,7 @@ Throwables (up to 3 per soldier, one kind each): Frag (mission 1, breaks doors),
 | Space or Enter | End turn |
 | Esc or right-click | Cancel |
 
-Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens, and so does loot from killed enemies (their weapons and spare clips; the stash keeps at most 4 weapons and 4 clips). Each soldier's row shows the net price after the stash. On touch screens the same actions are available through on-screen buttons.
+Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens, and so does loot from killed enemies (their weapons and spare clips; the stash keeps at most 4 weapons and 4 clips). Each soldier's row shows the net price after the stash. On touch screens the same actions are on-screen buttons, and the menus accept taps slightly beside small buttons.
 
 ## Enemy roles
 

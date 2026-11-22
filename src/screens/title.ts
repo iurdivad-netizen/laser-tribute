@@ -18,13 +18,14 @@ export const TITLE = {
   tutorial: { x: 160, y: 210, w: 160, h: 28 },
 } as const;
 
-const inside = (b: { x: number; y: number; w: number; h: number }, px: number, py: number): boolean =>
-  px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h;
+const inside = (b: { x: number; y: number; w: number; h: number }, px: number, py: number, slop = 0): boolean =>
+  px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop;
 
-export function titleHit(px: number, py: number, hasContinue: boolean): 'continue' | 'campaign' | 'tutorial' | null {
-  if (hasContinue && inside(TITLE.cont, px, py)) return 'continue';
-  if (inside(TITLE.campaign, px, py)) return 'campaign';
-  if (inside(TITLE.tutorial, px, py)) return 'tutorial';
+/** The slop widens each button by that many pixels all round (a finger is wider than a button); the gap between buttons is 12, so keep it under 6. */
+export function titleHit(px: number, py: number, hasContinue: boolean, slop = 0): 'continue' | 'campaign' | 'tutorial' | null {
+  if (hasContinue && inside(TITLE.cont, px, py, slop)) return 'continue';
+  if (inside(TITLE.campaign, px, py, slop)) return 'campaign';
+  if (inside(TITLE.tutorial, px, py, slop)) return 'tutorial';
   return null;
 }
 

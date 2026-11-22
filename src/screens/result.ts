@@ -26,9 +26,9 @@ export function promotionLines(promoted: string[]): string[] {
   return promoted.slice(0, 4).map((p) => `Promoted: ${p}`);
 }
 
-export function resultHit(px: number, py: number): 'again' | null {
+export function resultHit(px: number, py: number, slop = 0): 'again' | null {
   const b = RESULT.again;
-  return px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h ? 'again' : null;
+  return px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop ? 'again' : null;
 }
 
 export function drawResult(ctx: CanvasRenderingContext2D, v: ResultView): void {
