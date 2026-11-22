@@ -1,6 +1,6 @@
 import type { RosterSoldier } from './campaign';
 import { TUTORIAL_LEVEL } from './config';
-import { assignEnemyWeapons } from './enemyArms';
+import { assignEnemyRoles, assignEnemyWeapons } from './enemyArms';
 import { themeOfMap } from './themes';
 import { LOADOUT, applyLoadout, type Loadout } from './loadout';
 import type { Stash } from './stash';
@@ -147,7 +147,10 @@ export function createMission(
     const patrol = def.patrols[u.id];
     if (patrol) u.patrol = patrol.map((p) => ({ ...p }));
   }
-  if (level > TUTORIAL_LEVEL) assignEnemyWeapons(s, level);
+  if (level > TUTORIAL_LEVEL) {
+    assignEnemyWeapons(s, level);
+    assignEnemyRoles(s, level);
+  }
   if (loadout) s = applyLoadout(s, loadout, budget, stash, level);
   if (roster) {
     s.units

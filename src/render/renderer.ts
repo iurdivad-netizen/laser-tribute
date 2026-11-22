@@ -30,6 +30,9 @@ const COLORS = {
   armour: '#4da6ff',
 };
 
+/** The pip over an enemy that has a role: an officer is gold, a sniper cyan, a rusher orange. */
+const ROLE_COLORS = { officer: '#ffd24d', sniper: '#4dd2ff', rusher: '#ff8a2e' } as const;
+
 function tileFigure(state: GameState, x: number, y: number): Figure {
   const tile = state.tiles[y][x];
   if (tile.kind === 'wall') return wallImage(themeFor(state), wallMask(state, x, y));
@@ -174,6 +177,10 @@ export function drawGame(
     // The status stack (pips, bar, alert mark) floats above the head; for a unit on the first walkable row there is no
     // room above the map's top edge, so the stack is pushed down over the head instead of being clipped away.
     const shift = Math.max(0, -(y0 - RISE - (u.alert ? 13 : 9)));
+    if (u.side === 'enemy' && u.role) {
+      ctx.fillStyle = ROLE_COLORS[u.role];
+      ctx.fillRect(x0 + ARMOUR_PIP.x, y0 + ARMOUR_PIP.y + shift, ARMOUR_PIP.w, ARMOUR_PIP.h);
+    }
     if (u.side === 'player') {
       ctx.fillStyle = COLORS.pip;
       for (const p of pipPositions(rankPips(u.rank))) ctx.fillRect(x0 + p.x, y0 + p.y + shift, 1, 2);

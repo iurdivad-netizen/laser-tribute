@@ -54,6 +54,10 @@ Throwables (up to 3 per soldier, one kind each): Frag (mission 1, breaks doors),
 
 Every action button shows its AP cost. Found weapons and grenades from a won mission go into a squad stash that makes the same gear free on the next equipment screens, and so does loot from killed enemies (their weapons and spare clips; the stash keeps at most 4 weapons and 4 clips). Each soldier's row shows the net price after the stash. On touch screens the same actions are available through on-screen buttons.
 
+## Enemy roles
+
+From campaign mission 3 some enemies have a role, shown by a coloured pip over the figure. The **officer** (gold) gives every enemy within 6 tiles +10% accuracy, so kill him first. The **rusher** (orange, from mission 4) carries an SMG, hunts the squad through doors from any distance and never falls back. The **sniper** (cyan, from mission 6) holds his post with a sniper rifle and long sight, so approach him with care or smoke. Everyone else is a plain rifleman.
+
 ## Ranks
 
 Soldiers are promoted by their own kills, which persist through the campaign: Private at 2 kills (+10 HP, +4 AP, +4% accuracy), Sergeant at 5 (+20 HP, +8 AP, +8%), Captain at 9 (+30 HP, +12 AP, +12%). Soldier accuracy adds to the weapon's accuracy (capped at 95%) and also improves the knife. The result screen announces promotions.
