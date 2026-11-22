@@ -147,7 +147,7 @@ export function botTurn(state: GameState, mode: BotMode = 'basic'): GameState {
         break;
       }
     }
-    if (!pick && watch && !moved && !relaxed) {
+    if (!pick && !moved && !relaxed) {
       relaxed = true; // nobody can move: let the front soldiers go on regardless of the others
       continue;
     }
