@@ -150,3 +150,31 @@ describe('eased moves', () => {
     expect(fx.unitOffset('e1', 121)).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe('shot recoil and stagger', () => {
+  const shot = (hit: boolean): GameEvent => ({
+    type: 'shot', unitId: 'p1', targetId: 'e1', mode: 'snap', hit, crit: false, damage: 10, from: { x: 2, y: 2 }, impact: { x: 6, y: 2 },
+  });
+
+  it('kicks the shooter back and rocks a hit target away, both fading to nothing', () => {
+    const fx = new Effects();
+    fx.add([shot(true)], 0);
+    expect(fx.unitOffset('p1', 10).x).toBeLessThan(0);
+    expect(fx.unitOffset('e1', 100).x).toBeGreaterThan(0);
+    expect(fx.unitOffset('p1', 200)).toEqual({ x: 0, y: 0 });
+    expect(fx.unitOffset('e1', 400)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('does not move a target that was missed', () => {
+    const fx = new Effects();
+    fx.add([shot(false)], 0);
+    expect(fx.unitOffset('e1', 100)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('stays still under reduced motion', () => {
+    const fx = new Effects();
+    fx.reducedMotion = true;
+    fx.add([shot(true)], 0);
+    expect(fx.unitOffset('p1', 10)).toEqual({ x: 0, y: 0 });
+  });
+});
