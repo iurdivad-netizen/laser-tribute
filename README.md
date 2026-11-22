@@ -37,7 +37,7 @@ Throwables (up to 3 per soldier, one kind each): Frag (mission 1, breaks doors),
 |---|---|
 | Click soldier, keys 1 to 4, Tab | Select a soldier |
 | Click floor | Move (hover shows the AP cost) |
-| S / A, then click an enemy | Snap shot / aimed shot |
+| S / A, then click an enemy | Snap shot / aimed shot (each visible enemy in reach shows its hit chance) |
 | T, then click a tile | Throw a grenade |
 | K, then click an adjacent enemy | Stab with the combat knife (20 AP, very high damage) |
 | D, then click a door | Open or close a door |

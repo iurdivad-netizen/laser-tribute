@@ -16,7 +16,7 @@ import { DEFAULT_LAYOUT, type PanelExtras, drawPanel } from './panel';
 import { drawCard } from './card';
 import { drawLight, shadeFloor, shadeProp } from './lighting';
 import { wallMask } from './wallmask';
-import { RANGE_COLORS, blastTiles, blastVictims, rangeTiles } from './ranges';
+import { RANGE_COLORS, blastTiles, blastVictims, hitLabels, rangeTiles } from './ranges';
 
 const T = CONFIG.tileSize;
 
@@ -217,6 +217,18 @@ export function drawGame(
   if (ui.hover) {
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
     ctx.strokeRect(ui.hover.x * T + 0.5, ui.hover.y * T + 0.5, T - 1, T - 1);
+  }
+
+  if (selected && aiming && ui.mode !== 'throw') {
+    // the chance each visible enemy in reach would be hit by the next shot, over the enemy: green when likely, red when not
+    for (const { unit: foe, pct } of hitLabels(state, selected, ui.mode as 'snap' | 'aimed')) {
+      const label = `${pct}%`;
+      const colour = pct >= 60 ? '#7dff7d' : pct >= 35 ? '#ffe14d' : '#ff6b6b';
+      const lx = foe.pos.x * T + T / 2;
+      const ly = Math.max(0, foe.pos.y * T - 9);
+      drawText(ctx, label, lx + 1, ly + 1, '#000000', 'center');
+      drawText(ctx, label, lx, ly, colour, 'center');
+    }
   }
 
   if (selected && blastAt) {

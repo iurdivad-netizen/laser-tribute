@@ -1,3 +1,4 @@
+import { hitChance } from '../core/combat';
 import { THROWABLES, WEAPONS } from '../core/config';
 import { chebyshev, distance, inBounds, posEq, tileAt } from '../core/geometry';
 import type { GameState, Pos, Unit } from '../core/types';
@@ -63,6 +64,14 @@ export function blastVictims(s: GameState, thrower: Unit, at: Pos): { unit: Unit
     .filter((u) => u.alive && chebyshev(u.pos, at) <= t.radius && hasLineOfSight(s, at, u.pos, true))
     .filter((u) => u.side === 'player' || visibleToSide(s, 'player', u.pos))
     .map((u) => ({ unit: u, friend: u.side === thrower.side }));
+}
+
+/** The chance (0 to 100) that the soldier's next shot in `mode` hits each enemy he could shoot at now. */
+export function hitLabels(s: GameState, u: Unit, mode: 'snap' | 'aimed'): { unit: Unit; pct: number }[] {
+  const reach = new Set(rangeTiles('shot', s, u).map((p) => `${p.x},${p.y}`));
+  return s.units
+    .filter((e) => e.alive && e.side !== u.side && reach.has(`${e.pos.x},${e.pos.y}`) && visibleToSide(s, 'player', e.pos))
+    .map((e) => ({ unit: e, pct: Math.round(hitChance(s, u, e, mode) * 100) }));
 }
 
 type Memo = { state: GameState; key: string; tiles: Pos[] } | null;
