@@ -2,7 +2,7 @@ import { MoodTracker } from './audio/music';
 import { Sound, type SoundPlayer } from './audio/sound';
 import { Controller } from './controller';
 import {
-  budgetBreakdown, campaignBudget, newCampaign, recordMission, totalKills,
+  CAMPAIGN, budgetBreakdown, campaignBudget, newCampaign, recordMission, totalKills,
   type Campaign, type Mode, type RosterSoldier,
 } from './core/campaign';
 import { CAMPAIGN_LENGTH, drawVariations, generateMission } from './core/gen';
@@ -11,12 +11,18 @@ import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './cor
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
 import { addStash, capStash, lootFrom } from './core/loot';
 import { promotions, rankFor } from './core/ranks';
-import { describeStash, nextStash } from './core/stash';
+import { STASH_KEYS, describeStash, nextStash } from './core/stash';
 import { summarize, type MissionResult } from './core/result';
 import { unitAt } from './core/geometry';
 import type { GameState, Pos, Unit } from './core/types';
 import { visibleGrid, visibleToSide } from './core/vision';
 import type { Stash } from './core/stash';
+import type { DifficultyId } from './core/world/difficulty';
+import { REGIONS } from './core/world/planet';
+import {
+  canAttack, canVisit, gearLevel as storyGearLevel, missionFor, newWorld, regionsHeld, resolve, storyBudget, visit,
+  type MissionSpec, type World,
+} from './core/world/world';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
 import {
@@ -30,15 +36,18 @@ import { drawCampaignEnd, endHit } from './screens/end';
 import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
+import { difficultyHit, drawDifficulty } from './screens/difficulty';
+import { drawPlanet, planetHit } from './screens/planet';
 import { drawResult, resultHit } from './screens/result';
 import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit, type TitleView } from './screens/title';
 import { defaultCampaignStore, defaultLastMode, defaultSaveStore, type LastMode, type Save, type SaveStore } from './save';
+import { defaultStoryStore, type StorySave, type StoryStore } from './storysave';
 import { textWidth } from './ui/font';
 import { UI, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
 
-export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end';
+export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty';
 
 /** Menu pixels (of 480x400) around a small equipment button within which a touch still counts as a tap on it. */
 const TOUCH_SLOP = 9;
@@ -75,7 +84,9 @@ export interface AppOptions {
   /** Remembers which mode was played last. */
   last?: LastMode | null;
   /** Builds a campaign mission from (type, variation); defaults to the generator. */
-  generate?: (type: number, variation: number) => MissionDef;
+  generate?: (type: number, variation: number, difficulty?: number) => MissionDef;
+  /** Where the story is saved (same rule as `campaignStore`). */
+  storyStore?: StoryStore | null;
   /** With no save to continue, start on the tutorial's equipment screen instead of the title (tests and tools). */
   skipTitle?: boolean;
 }
@@ -109,6 +120,14 @@ export class App {
   private newArmedUntil = 0;
   private armedMode: Mode | null = null;
   private saves: { tutorial: Save | null; campaign: Save | null } = { tutorial: null, campaign: null };
+  /** The story being played, or null while the tutorial or the campaign is. */
+  story: World | null = null;
+  private storySave: StorySave | null = null;
+  private readonly storyStore: StoryStore | null;
+  private selectedRegion: number | null = null;
+  private pendingSpec: MissionSpec | null = null;
+  private planetNotice = '';
+  private abandonUntil = 0;
   private readonly campaignStore: SaveStore | null;
   private readonly lastMode: LastMode | null;
   private readonly generate: NonNullable<AppOptions['generate']>;
@@ -141,6 +160,8 @@ export class App {
     this.store = real ? defaultSaveStore(this.missions.length) : (opts.store ?? null);
     this.campaignStore = opts.campaignStore !== undefined ? opts.campaignStore : real ? defaultCampaignStore() : null;
     this.lastMode = opts.last !== undefined ? opts.last : real ? defaultLastMode() : null;
+    this.storyStore = opts.storyStore !== undefined ? opts.storyStore : real ? defaultStoryStore() : null;
+    this.storySave = this.storyStore?.load() ?? null;
     this.generate = opts.generate ?? generateMission;
     this.saves = { tutorial: this.store?.load() ?? null, campaign: this.campaignStore?.load() ?? null };
     this.screen = this.continueMode() === null && opts.skipTitle ? 'equipment' : 'title';
@@ -312,11 +333,23 @@ export class App {
   }
 
   private budget(): number {
-    return campaignBudget(this.campaign);
+    return this.story ? storyBudget(this.story) : campaignBudget(this.campaign);
+  }
+
+  private gearStash(): Stash {
+    return this.story ? this.story.stash : this.campaign.stash;
+  }
+
+  private gearLevel(): number {
+    return this.story ? storyGearLevel(this.story) : levelOf(this.campaign);
   }
 
   private startMission(): void {
-    if (validateLoadout(this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign)) !== null) return;
+    if (validateLoadout(this.loadout, this.budget(), this.gearStash(), this.gearLevel()) !== null) return;
+    if (this.story && this.pendingSpec) {
+      this.startStoryMission(this.story, this.pendingSpec);
+      return;
+    }
     const def = this.mission();
     const state = this.createMission(
       def, this.newSeed(), this.campaign.roster, this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign),
@@ -334,8 +367,142 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  private startStoryMission(w: World, spec: MissionSpec): void {
+    const def = this.generate(spec.type, spec.variation, spec.difficulty);
+    const state = this.createMission(
+      def, spec.seed, w.roster, this.loadout, storyBudget(w), w.stash, storyGearLevel(w), spec.enemyLevel,
+    );
+    this.usedLoadout = this.loadout;
+    this.controller = new Controller(state, createUiState('p1'), this.newEffects(), this.sound);
+    this.camera = createCamera(this.layout, state.width, state.height);
+    this.followSelected();
+    this.playedName = REGIONS[spec.region].name.toUpperCase();
+    this.result = null;
+    this.promoted = [];
+    this.endedAt = null;
+    this.screen = 'mission';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** Saves the story, or clears the save once it is over. */
+  private saveStory(): void {
+    const w = this.story;
+    if (!w) return;
+    if (w.status === 'active') {
+      const loadout = fitLoadout(this.loadout, storyBudget(w), w.stash, storyGearLevel(w));
+      this.storyStore?.save(w, loadout);
+      this.storySave = { world: w, loadout };
+    } else {
+      this.storyStore?.clear();
+      this.storySave = null;
+    }
+  }
+
+  /** The mission just ended: fold it into the world and show the result card. */
+  private finishStoryMission(c: Controller, w: World, spec: MissionSpec): void {
+    const fallenBefore = w.fallen.length;
+    const rosterBefore = w.roster;
+    const stashBefore = w.stash;
+    this.result = summarize(c.state);
+    const next = resolve(w, spec, c.state, this.usedLoadout);
+    this.story = next;
+    this.saveStory();
+    this.promoted = promotions(rosterBefore, next.roster);
+    this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
+    this.fallenNow = next.fallen.slice(fallenBefore).map((f) => f.name);
+    this.screen = 'result';
+    this.wake();
+    this.endedAt = null;
+    this.lock();
+  }
+
+  /** STORY on the title: continue the saved story, or choose a difficulty for a new one. */
+  private pressStory(): void {
+    const save = this.storySave;
+    this.newArmedUntil = 0;
+    if (save) {
+      this.story = save.world;
+      this.loadout = fitLoadout(save.loadout, storyBudget(save.world), save.world.stash, storyGearLevel(save.world));
+      this.selectedRegion = null;
+      this.planetNotice = '';
+      this.pendingSpec = null;
+      this.screen = 'planet';
+    } else {
+      this.screen = 'difficulty';
+    }
+    this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  private startStory(id: DifficultyId): void {
+    this.story = newWorld(this.newSeed(), id);
+    this.loadout = defaultLoadout();
+    this.selectedRegion = null;
+    this.planetNotice = '';
+    this.pendingSpec = null;
+    this.saveStory();
+    this.screen = 'planet';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** The planet's action button: attack the selected region (equipment first) or visit it. */
+  private actOnRegion(): void {
+    const w = this.story;
+    const id = this.selectedRegion;
+    if (!w || id === null) return;
+    if (canAttack(w, id)) {
+      this.pendingSpec = missionFor(w, id);
+      this.loadout = fitLoadout(this.loadout, storyBudget(w), w.stash, storyGearLevel(w));
+      this.screen = 'equipment';
+      this.hover = null;
+      this.lock();
+      this.sound.play('click', 0.9);
+    } else if (canVisit(w, id)) {
+      const next = visit(w, id);
+      const gained = STASH_KEYS.filter((k) => next.stash[k] > w.stash[k]);
+      this.planetNotice = w.regions[id].holder === 'neutral'
+        ? `${REGIONS[id].name} joins you.`
+        : gained.length > 0 ? `Found 1 ${gained[0]}.` : 'Found supplies (stash full).';
+      this.story = next;
+      this.saveStory();
+      this.lock();
+      this.sound.play('click', 0.9);
+    }
+  }
+
+  /** ABANDON on the planet: the first press arms, a second one erases the story and asks for a new difficulty. */
+  private abandonStory(): void {
+    if (this.clock() >= this.abandonUntil) {
+      this.abandonUntil = this.clock() + NEW_CONFIRM_MS;
+      this.lock();
+      this.sound.play('click', 0.9);
+      return;
+    }
+    this.abandonUntil = 0;
+    this.story = null;
+    this.storyStore?.clear();
+    this.storySave = null;
+    this.pendingSpec = null;
+    this.screen = 'difficulty';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
   /** From the result screen: the next mission's equipment while the campaign is active, else the end screen. */
   private continueFromResult(): void {
+    if (this.story) {
+      this.screen = this.story.status === 'active' ? 'planet' : 'end';
+      this.pendingSpec = null;
+      this.controller = null;
+      this.endedAt = null;
+      this.hover = null;
+      this.lock();
+      this.sound.play('click', 0.9);
+      return;
+    }
     if (this.campaign.status === 'active') {
       this.loadout = fitLoadout(this.loadout, this.budget(), this.campaign.stash, levelOf(this.campaign));
       this.screen = 'equipment';
@@ -378,6 +545,7 @@ export class App {
           }
         : null,
       armed: this.clock() < this.newArmedUntil ? this.armedMode : null,
+      story: this.storySave ? { day: this.storySave.world.day, held: regionsHeld(this.storySave.world) } : null,
     };
   }
 
@@ -386,6 +554,8 @@ export class App {
     const save = mode ? this.saves[mode] : null;
     if (!mode || !save) return;
     this.newArmedUntil = 0;
+    this.story = null;
+    this.pendingSpec = null;
     this.campaign = save.campaign;
     this.generated.clear();
     this.loadout = fitLoadout(save.loadout, campaignBudget(save.campaign), save.campaign.stash, levelOf(save.campaign));
@@ -431,6 +601,8 @@ export class App {
 
   /** A fresh run of `mode` on the equipment screen. */
   private begin(mode: Mode): void {
+    this.story = null;
+    this.pendingSpec = null;
     this.campaign = mode === 'campaign' ? newCampaign('campaign', drawVariations(this.newSeed())) : newCampaign();
     this.generated.clear();
     this.loadout = defaultLoadout();
@@ -474,6 +646,25 @@ export class App {
         if (hit === 'continue') this.continueFromTitle();
         else if (hit === 'campaign') this.pressStart('campaign');
         else if (hit === 'tutorial') this.pressStart('tutorial');
+        else if (hit === 'story') this.pressStory();
+        return;
+      }
+      case 'difficulty': {
+        const hit = difficultyHit(mp.x, mp.y, pointer === 'touch' ? 5 : 0);
+        if (hit === 'back') this.toTitle();
+        else if (hit) this.startStory(hit);
+        return;
+      }
+      case 'planet': {
+        const hit = planetHit(mp.x, mp.y, pointer === 'touch' ? 6 : 0);
+        if (!hit) return;
+        if (hit.kind === 'region') {
+          this.selectedRegion = hit.id;
+          this.planetNotice = '';
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'act') this.actOnRegion();
+        else if (hit.kind === 'abandon') this.abandonStory();
+        else this.toTitle();
         return;
       }
       case 'equipment': {
@@ -483,7 +674,7 @@ export class App {
           this.startMission();
           return;
         }
-        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.campaign.stash, levelOf(this.campaign));
+        const next = applyEquipmentHit(this.loadout, hit, this.budget(), this.gearStash(), this.gearLevel());
         if (next !== this.loadout) this.sound.play('click', 0.9);
         this.loadout = next;
         return;
@@ -595,8 +786,23 @@ export class App {
           if (!this.locked() && this.continueMode() !== null) this.continueFromTitle();
           return true;
         }
+        if (k === 's' || k === 'S') {
+          if (!repeat && !this.locked()) this.pressStory();
+          return true;
+        }
         if (k === 'n' || k === 'N' || k === 't' || k === 'T') {
           if (!repeat && !this.locked()) this.pressStart(k === 'n' || k === 'N' ? 'campaign' : 'tutorial');
+          return true;
+        }
+        return false;
+      case 'difficulty':
+      case 'planet':
+        if (k === 'Escape') {
+          if (!this.locked()) this.toTitle();
+          return true;
+        }
+        if (k === 'Enter' && this.screen === 'planet') {
+          if (!this.locked()) this.actOnRegion();
           return true;
         }
         return false;
@@ -657,6 +863,10 @@ export class App {
     }
     if (this.endedAt === null) this.endedAt = now;
     if (now - this.endedAt >= RESULT_DELAY_MS && !c.ui.busy) {
+      if (this.story && this.pendingSpec) {
+        this.finishStoryMission(c, this.story, this.pendingSpec);
+        return;
+      }
       const fallenBefore = this.campaign.fallen.length;
       const rosterBefore = this.campaign.roster;
       const stashBefore = this.campaign.stash;
@@ -709,6 +919,20 @@ export class App {
   }
 
   private equipmentView(): EquipmentView {
+    const w = this.story;
+    if (w && this.pendingSpec) {
+      const r = REGIONS[this.pendingSpec.region];
+      const kills = w.roster.reduce((sum, s) => sum + s.kills, 0);
+      return {
+        budget: storyBudget(w),
+        title: `${r.name.toUpperCase()}: ${w.regions[r.id].garrison} ENEMIES`,
+        breakdown: `Base ${CAMPAIGN.baseBudget} + regions ${storyBudget(w) - CAMPAIGN.baseBudget - CAMPAIGN.killBonus * kills}` +
+          ` + kills ${CAMPAIGN.killBonus * kills}`,
+        soldiers: w.roster.map((s) => ({ ...s, rank: rankFor(s.kills).name })),
+        stash: w.stash,
+        level: storyGearLevel(w),
+      };
+    }
     const c = this.campaign;
     return {
       budget: this.budget(),
@@ -726,7 +950,8 @@ export class App {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this.width, this.height);
     this.drawScreen(ctx, now);
-    const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end';
+    const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end' ||
+      this.screen === 'planet' || this.screen === 'difficulty';
     if (menu) {
       this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
       this.drawRotateHint(ctx);
@@ -776,6 +1001,30 @@ export class App {
       this.inMenuSpace(ctx, () => drawEquipment(ctx, this.loadout, this.hover, this.equipmentView()));
       return;
     }
+    if (this.screen === 'difficulty') {
+      this.inMenuSpace(ctx, () => drawDifficulty(ctx));
+      return;
+    }
+    if (this.screen === 'planet' && this.story) {
+      const w = this.story;
+      this.inMenuSpace(ctx, () => drawPlanet(ctx, {
+        world: w, selected: this.selectedRegion, armedAbandon: this.clock() < this.abandonUntil, notice: this.planetNotice,
+      }));
+      return;
+    }
+    if (this.screen === 'end' && this.story) {
+      const w = this.story;
+      this.inMenuSpace(ctx, () => drawCampaignEnd(ctx, {
+        story: true,
+        won: w.status === 'won',
+        missionsWon: REGIONS.filter((r) => r.kind === 'enemy' && w.regions[r.id].holder === 'player').length,
+        missionCount: REGIONS.filter((r) => r.kind === 'enemy').length,
+        totalKills: w.roster.reduce((sum, r) => sum + r.kills, 0) + w.fallen.reduce((sum, f) => sum + f.kills, 0),
+        survivors: w.roster.map((r) => r.name),
+        fallen: w.fallen.map((f) => f.name),
+      }));
+      return;
+    }
     if (this.screen === 'end') {
       const c = this.campaign;
       this.inMenuSpace(ctx, () => drawCampaignEnd(ctx, {
@@ -800,7 +1049,7 @@ export class App {
         result: this.result!,
         missionName: this.playedName,
         fallen: this.fallenNow,
-        nextBudget: this.campaign.status === 'active' ? this.budget() : null,
+        nextBudget: (this.story ? this.story.status : this.campaign.status) === 'active' ? this.budget() : null,
         promoted: this.promoted,
         loot: this.loot,
       }));
