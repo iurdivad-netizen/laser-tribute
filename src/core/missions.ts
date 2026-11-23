@@ -161,7 +161,7 @@ export function createMission(
       .forEach((u, i) => {
         if (roster[i]) {
           u.name = roster[i].name;
-          applyRank(u, roster[i].kills);
+          applyRank(u, roster[i].kills + (roster[i].trained ?? 0));
         }
       });
   }
