@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { generateMission } from '../src/core/gen';
 import { CAPITAL_GATES, CAPITAL_REGION, REGIONS, START_REGION } from '../src/core/world/planet';
 import {
-  attackable, canAttack, canVisit, capitalOpen, gearLevel, incomeRegions, missionFor, newWorld, regionsHeld,
-  storyBudget, type Holder, type World,
+  attackable, canAttack, canVisit, capitalOpen, incomePerDay, incomeRegions, missionFor, newWorld, regionsHeld,
+  type Holder, type World,
 } from '../src/core/world/world';
 
 const hold = (w: World, ids: number[], holder: Holder = 'player'): World => ({
@@ -21,7 +21,7 @@ describe('newWorld', () => {
     expect(w.status).toBe('active');
     expect(w.regions[START_REGION].holder).toBe('player');
     expect(regionsHeld(w)).toBe(1);
-    expect(w.roster.map((r) => r.name)).toEqual(['Alvarez', 'Brandt', 'Chen', 'Dubois']);
+    expect(w.soldiers.map((r) => r.name)).toEqual(['Alvarez', 'Brandt', 'Chen', 'Dubois']);
     expect(w.namesUsed).toBe(4);
     expect(w.fallen).toEqual([]);
   });
@@ -36,12 +36,11 @@ describe('newWorld', () => {
     }
   });
 
-  it('budgets 120 plus income, and gear starts at level 1', () => {
-    expect(storyBudget(w)).toBe(128);
-    expect(storyBudget(newWorld(1, 'pressure'))).toBe(124);
-    expect(gearLevel(w)).toBe(1);
-    const veteran = { ...w, roster: w.roster.map((r, i) => (i === 0 ? { ...r, kills: 3 } : r)) };
-    expect(storyBudget(veteran)).toBe(143);
+  it('starts with 150 credits and a daily income per preset', () => {
+    expect(w.credits).toBe(150);
+    expect(incomePerDay(w)).toBe(4);
+    expect(incomePerDay(newWorld(1, 'standard'))).toBe(3);
+    expect(incomePerDay(newWorld(1, 'pressure'))).toBe(2);
   });
 
   it('can attack only the enemy regions linked to held ground', () => {
@@ -56,14 +55,7 @@ describe('queries', () => {
     const w = hold(newWorld(1, 'calm'), [5], 'allied');
     expect(regionsHeld(w)).toBe(1);
     expect(incomeRegions(w)).toBe(2);
-    expect(storyBudget(w)).toBe(136);
-  });
-
-  it('raises gear level by one per three regions taken from the enemy, capped at 10', () => {
-    const base = newWorld(1, 'calm');
-    expect(gearLevel(hold(base, enemyIds.slice(0, 2)))).toBe(1);
-    expect(gearLevel(hold(base, enemyIds.slice(0, 3)))).toBe(2);
-    expect(gearLevel(hold(base, enemyIds))).toBe(6); // 17 enemy regions: 1 + floor(17 / 3)
+    expect(incomePerDay(w)).toBe(8);
   });
 
   it('opens the capital once two gates are held', () => {

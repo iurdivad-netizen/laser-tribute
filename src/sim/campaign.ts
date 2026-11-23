@@ -1,6 +1,6 @@
 import { runEnemyTurn } from '../core/ai';
 import { campaignBudget, levelOf, newCampaign, recordMission, type Campaign } from '../core/campaign';
-import { unlockedWeapons } from '../core/config';
+import { gearRulesOf, unlocked, type GearArg } from '../core/gear';
 import { CAMPAIGN_LENGTH, drawVariations, generateMission } from '../core/gen';
 import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from '../core/loadout';
 import { createMission } from '../core/missions';
@@ -23,11 +23,12 @@ export interface MissionRecord {
 }
 
 /** Spends the budget the way a sensible player would: a rifle each, spare clips, a frag each, a medkit or two, then heavier guns. */
-export function chooseLoadout(budget: number, stash: Stash, level: number): Loadout {
+export function chooseLoadout(budget: number, stash: Stash, level: GearArg): Loadout {
+  const rules = gearRulesOf(level);
   let l: Loadout = defaultLoadout().map((s) => ({ ...s, weapon: 'pistol' as WeaponId, grenades: 0 }));
   const ok = (x: Loadout) => validateLoadout(x, budget, stash, level) === null;
   const set = (i: number, patch: Partial<Loadout[number]>) => (x: Loadout) => x.map((s, j) => (j === i ? { ...s, ...patch } : s));
-  const has = (w: WeaponId) => unlockedWeapons(level).includes(w) || stash[w] > 0;
+  const has = (w: WeaponId) => unlocked(rules, 'weapon', w) || stash[w] > 0;
   const steps: ((x: Loadout) => Loadout)[] = [];
   for (let i = 0; i < 4; i++) steps.push(set(i, { weapon: 'rifle' }));
   for (let i = 0; i < 4; i++) steps.push(set(i, { clips: 2 }));

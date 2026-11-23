@@ -1,9 +1,10 @@
 import {
-  ATTACHMENTS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, TUTORIAL_LEVEL, WEAPONS, WEAPON_IDS, unlockedThrowables,
-  unlockedWeapons,
+  ATTACHMENTS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, TUTORIAL_LEVEL, WEAPONS, WEAPON_IDS,
 } from '../core/config';
+import { gearRulesOf, unlocked, type GearArg } from '../core/gear';
 import {
-  LOADOUT, SQUAD_SIZE, loadoutCost, netSoldierCost, validateLoadout, weaponPrice, type Loadout,
+  LOADOUT, SQUAD_SIZE, attachmentPrice, gadgetPrice, loadoutCost, netSoldierCost, validateLoadout, weaponAllowed, weaponPrice,
+  type Loadout,
 } from '../core/loadout';
 import { coverage, describeStash, emptyStash, throwableKey, type Stash } from '../core/stash';
 import type { GadgetId, ThrowableId, WeaponId } from '../core/types';
@@ -22,8 +23,8 @@ export interface EquipmentView {
   breakdown: string;
   soldiers: { name: string; kills: number; rank?: string }[];
   stash: Stash;
-  /** The unlock level: which weapons and throwables the buttons offer (default: the tutorial's). */
-  level?: number;
+  /** The unlock level, or the story's gear rules: which gear the buttons offer and what it costs (default: the tutorial's). */
+  level?: GearArg;
 }
 
 export const DEFAULT_VIEW: EquipmentView = {
@@ -53,17 +54,22 @@ export const EQ = {
   start: { x: 170, y: 330, w: 140, h: 30 },
 } as const;
 
+const scopeAllowed = (rules: ReturnType<typeof gearRulesOf>, stash: Stash): boolean =>
+  unlocked(rules, 'attachment', 'scope') || stash.scope > 0 || rules.premium !== null;
+
 export function scopeBlockReason(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): string | null {
   if (l[i].attachment) return null; // taking it off is always allowed
+  const rules = gearRulesOf(gear);
+  if (!scopeAllowed(rules, stash)) return 'The scope is locked';
   const after = l.map((s, j) => (j === i ? { ...s, attachment: 'scope' as const } : s));
-  const need = loadoutCost(after, stash) - budget;
+  const need = loadoutCost(after, stash, rules) - budget;
   return need > 0 ? `Need ${need} more credits` : null;
 }
 
 export function toggleScope(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
   if (l[i].attachment) {
     return l.map((s, j) => {
@@ -72,7 +78,7 @@ export function toggleScope(
       return rest;
     });
   }
-  if (scopeBlockReason(l, i, budget, stash)) return l;
+  if (scopeBlockReason(l, i, budget, stash, gear)) return l;
   return l.map((s, j) => (j === i ? { ...s, attachment: 'scope' as const } : s));
 }
 
@@ -80,13 +86,15 @@ const GADGET_CYCLE: (GadgetId | undefined)[] = [undefined, ...GADGET_IDS];
 
 /** The next gadget in the cycle none -> medkit -> armour -> scanner -> none that the budget can pay for. */
 export function cycleGadget(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
+  const rules = gearRulesOf(gear);
   const at = GADGET_CYCLE.indexOf(l[i].gadget);
   for (let step = 1; step <= GADGET_CYCLE.length; step++) {
     const gadget = GADGET_CYCLE[(at + step) % GADGET_CYCLE.length];
+    if (gadget !== undefined && !unlocked(rules, 'gadget', gadget) && stash[gadget] < 1 && rules.premium === null) continue;
     const next = l.map((s, j) => (j === i ? { ...s, gadget } : s));
-    if (loadoutCost(next, stash) <= budget) return next;
+    if (loadoutCost(next, stash, rules) <= budget) return next;
   }
   return l;
 }
@@ -96,89 +104,111 @@ const inRect = (px: number, py: number, x: number, y: number, w: number, h: numb
   px >= x && px < x + w && py >= y && py < y + h;
 
 /** The next weapon in the list that is unlocked at the level or lying in the stash, wrapping around. */
-export function nextWeapon(l: Loadout, i: number, level: number, stash: Stash): WeaponId {
-  const options = WEAPON_IDS.filter((w) => unlockedWeapons(level).includes(w) || stash[w] > 0 || w === l[i].weapon);
+export function nextWeapon(l: Loadout, i: number, level: GearArg, stash: Stash): WeaponId {
+  const rules = gearRulesOf(level);
+  const options = WEAPON_IDS.filter((w) => weaponAllowed(rules, stash, w) || w === l[i].weapon);
   return options[(options.indexOf(l[i].weapon) + 1) % options.length];
 }
 
 /** The next throwable kind that is unlocked at the level or lying in the stash, wrapping around. */
-export function nextThrowable(l: Loadout, i: number, level: number, stash: Stash): ThrowableId {
+export function nextThrowable(l: Loadout, i: number, level: GearArg, stash: Stash): ThrowableId {
+  const rules = gearRulesOf(level);
   const kind = l[i].throwable ?? 'frag';
-  const options = THROWABLE_IDS.filter((t) => unlockedThrowables(level).includes(t) || stash[throwableKey(t)] > 0 || t === kind);
+  const options = THROWABLE_IDS.filter(
+    (t) => unlocked(rules, 'throwable', t) || stash[throwableKey(t)] > 0 || rules.premium !== null || t === kind,
+  );
   return options[(options.indexOf(kind) + 1) % options.length];
 }
 
+/**
+ * The weapon a tap moves to. Under story rules (a premium exists) the cycle skips weapons the budget cannot pay for, so
+ * a soldier is never stuck on a dear weapon with the cheap ones out of reach; level numbers keep the plain cycle.
+ */
+export function nextAffordableWeapon(l: Loadout, i: number, budget: number, stash: Stash, level: GearArg): WeaponId {
+  const rules = gearRulesOf(level);
+  const plain = nextWeapon(l, i, level, stash);
+  if (rules.premium === null) return plain;
+  const options = WEAPON_IDS.filter((w) => weaponAllowed(rules, stash, w) || w === l[i].weapon);
+  const at = options.indexOf(l[i].weapon);
+  for (let step = 1; step < options.length; step++) {
+    const weapon = options[(at + step) % options.length];
+    const after = l.map((s, j) => (j === i ? { ...s, weapon } : s));
+    if (loadoutCost(after, stash, rules) <= budget) return weapon;
+  }
+  return plain;
+}
+
 export function toggleBlockReason(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): string | null {
-  const after = l.map((s, j) => (j === i ? { ...s, weapon: nextWeapon(l, i, level, stash) } : s));
-  const need = loadoutCost(after, stash) - budget;
+  const after = l.map((s, j) => (j === i ? { ...s, weapon: nextAffordableWeapon(l, i, budget, stash, level) } : s));
+  const need = loadoutCost(after, stash, gearRulesOf(level)) - budget;
   return need > 0 ? `Need ${need} more credits` : null;
 }
 
 export function toggleWeapon(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
   if (toggleBlockReason(l, i, budget, stash, level)) return l;
-  return l.map((s, j) => (j === i ? { ...s, weapon: nextWeapon(l, i, level, stash) } : s));
+  return l.map((s, j) => (j === i ? { ...s, weapon: nextAffordableWeapon(l, i, budget, stash, level) } : s));
 }
 
 export function throwableBlockReason(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): string | null {
   const next = nextThrowable(l, i, level, stash);
   if (next === (l[i].throwable ?? 'frag')) return 'No other throwable unlocked';
   const after = l.map((s, j) => (j === i ? { ...s, throwable: next } : s));
-  const need = loadoutCost(after, stash) - budget;
+  const need = loadoutCost(after, stash, gearRulesOf(level)) - budget;
   return need > 0 ? `Need ${need} more credits` : null;
 }
 
 export function cycleThrowable(
-  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
   if (throwableBlockReason(l, i, budget, stash, level)) return l;
   return l.map((s, j) => (j === i ? { ...s, throwable: nextThrowable(l, i, level, stash) } : s));
 }
 
 export function grenadeBlockReason(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): string | null {
   const next = l[i].grenades + delta;
   if (next < 0) return 'No grenades to remove';
   if (next > LOADOUT.maxGrenades) return `Max ${LOADOUT.maxGrenades} grenades`;
   if (delta === 1) {
     const after = l.map((s, j) => (j === i ? { ...s, grenades: next } : s));
-    const need = loadoutCost(after, stash) - budget;
+    const need = loadoutCost(after, stash, gearRulesOf(gear)) - budget;
     if (need > 0) return `Need ${need} more credits`;
   }
   return null;
 }
 
 export function changeGrenades(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
-  if (grenadeBlockReason(l, i, delta, budget, stash)) return l;
+  if (grenadeBlockReason(l, i, delta, budget, stash, gear)) return l;
   return l.map((s, j) => (j === i ? { ...s, grenades: s.grenades + delta } : s));
 }
 
 export function clipBlockReason(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): string | null {
   const next = l[i].clips + delta;
   if (next < 1) return 'At least 1 spare clip';
   if (next > CONFIG.maxClips) return `Max ${CONFIG.maxClips} spare clips`;
   if (delta === 1) {
     const after = l.map((s, j) => (j === i ? { ...s, clips: next } : s));
-    const need = loadoutCost(after, stash) - budget;
+    const need = loadoutCost(after, stash, gearRulesOf(gear)) - budget;
     if (need > 0) return `Need ${need} more credits`;
   }
   return null;
 }
 
 export function changeClips(
-  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(),
+  l: Loadout, i: number, delta: 1 | -1, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
-  if (clipBlockReason(l, i, delta, budget, stash)) return l;
+  if (clipBlockReason(l, i, delta, budget, stash, gear)) return l;
   return l.map((s, j) => (j === i ? { ...s, clips: s.clips + delta } : s));
 }
 
@@ -226,33 +256,33 @@ export function equipmentHit(px: number, py: number, slop = 0): EquipmentHit | n
 }
 
 export function blockReasonFor(
-  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): string | null {
   switch (hit.kind) {
     case 'weapon': return toggleBlockReason(l, hit.index, budget, stash, level);
     case 'throwable': return throwableBlockReason(l, hit.index, budget, stash, level);
-    case 'minus': return grenadeBlockReason(l, hit.index, -1, budget, stash);
-    case 'plus': return grenadeBlockReason(l, hit.index, 1, budget, stash);
-    case 'clipMinus': return clipBlockReason(l, hit.index, -1, budget, stash);
-    case 'clipPlus': return clipBlockReason(l, hit.index, 1, budget, stash);
+    case 'minus': return grenadeBlockReason(l, hit.index, -1, budget, stash, level);
+    case 'plus': return grenadeBlockReason(l, hit.index, 1, budget, stash, level);
+    case 'clipMinus': return clipBlockReason(l, hit.index, -1, budget, stash, level);
+    case 'clipPlus': return clipBlockReason(l, hit.index, 1, budget, stash, level);
     case 'gadget': return null;
-    case 'scope': return scopeBlockReason(l, hit.index, budget, stash);
+    case 'scope': return scopeBlockReason(l, hit.index, budget, stash, level);
     case 'start': return validateLoadout(l, budget, stash, level);
   }
 }
 
 export function applyEquipmentHit(
-  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, hit: EquipmentHit, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
   switch (hit.kind) {
     case 'weapon': return toggleWeapon(l, hit.index, budget, stash, level);
     case 'throwable': return cycleThrowable(l, hit.index, budget, stash, level);
-    case 'minus': return changeGrenades(l, hit.index, -1, budget, stash);
-    case 'plus': return changeGrenades(l, hit.index, 1, budget, stash);
-    case 'clipMinus': return changeClips(l, hit.index, -1, budget, stash);
-    case 'clipPlus': return changeClips(l, hit.index, 1, budget, stash);
-    case 'gadget': return cycleGadget(l, hit.index, budget, stash);
-    case 'scope': return toggleScope(l, hit.index, budget, stash);
+    case 'minus': return changeGrenades(l, hit.index, -1, budget, stash, level);
+    case 'plus': return changeGrenades(l, hit.index, 1, budget, stash, level);
+    case 'clipMinus': return changeClips(l, hit.index, -1, budget, stash, level);
+    case 'clipPlus': return changeClips(l, hit.index, 1, budget, stash, level);
+    case 'gadget': return cycleGadget(l, hit.index, budget, stash, level);
+    case 'scope': return toggleScope(l, hit.index, budget, stash, level);
     case 'start': return l;
   }
 }
@@ -269,8 +299,9 @@ export function drawEquipment(
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
 
-  const cost = loadoutCost(l, view.stash);
   const level = view.level ?? TUTORIAL_LEVEL;
+  const rules = gearRulesOf(level);
+  const cost = loadoutCost(l, view.stash, rules);
   drawText(ctx, view.title, 20, 8, UI.accent);
   drawText(ctx, `Credits ${cost}/${view.budget}  (${view.budget - cost} left)`, 20, 22, UI.dim);
   drawFrame(ctx, 18, 32, 444, 12, 'inset');
@@ -291,7 +322,7 @@ export function drawEquipment(
     }
     drawButton(
       ctx, { x: EQ.weapon.x, y, w: EQ.weapon.w, h: EQ.btnH },
-      `${WEAPONS[s.weapon].name} (${cover.weapon ? 'FREE' : weaponPrice(s.weapon)})`,
+      `${WEAPONS[s.weapon].name} (${cover.weapon ? 'FREE' : weaponPrice(s.weapon, rules)})`,
       buttonState(toggleBlockReason(l, i, view.budget, view.stash, level) === null, hot('weapon')),
     );
     drawButton(
@@ -301,30 +332,30 @@ export function drawEquipment(
     );
     drawText(ctx, 'Grenades', 190, y + 8, UI.dim);
     drawButton(ctx, { x: EQ.minus.x, y, w: EQ.minus.w, h: EQ.btnH }, '-',
-      buttonState(grenadeBlockReason(l, i, -1, view.budget, view.stash) === null, hot('minus')));
+      buttonState(grenadeBlockReason(l, i, -1, view.budget, view.stash, level) === null, hot('minus')));
     drawText(ctx, `${s.grenades}`, 304, y + 8, UI.text, 'center');
     drawButton(ctx, { x: EQ.plus.x, y, w: EQ.plus.w, h: EQ.btnH }, '+',
-      buttonState(grenadeBlockReason(l, i, 1, view.budget, view.stash) === null, hot('plus')));
+      buttonState(grenadeBlockReason(l, i, 1, view.budget, view.stash, level) === null, hot('plus')));
 
     const cy = y + EQ.clipDy;
     drawText(ctx, 'Spare clips', 190, cy + 8, UI.dim);
     drawButton(ctx, { x: EQ.minus.x, y: cy, w: EQ.minus.w, h: EQ.btnH }, '-',
-      buttonState(clipBlockReason(l, i, -1, view.budget, view.stash) === null, hot('clipMinus')));
+      buttonState(clipBlockReason(l, i, -1, view.budget, view.stash, level) === null, hot('clipMinus')));
     drawText(ctx, `${s.clips}`, 304, cy + 8, UI.text, 'center');
     drawButton(ctx, { x: EQ.plus.x, y: cy, w: EQ.plus.w, h: EQ.btnH }, '+',
-      buttonState(clipBlockReason(l, i, 1, view.budget, view.stash) === null, hot('clipPlus')));
+      buttonState(clipBlockReason(l, i, 1, view.budget, view.stash, level) === null, hot('clipPlus')));
     const g = s.gadget;
     drawButton(
       ctx, { x: EQ.gadget.x, y: cy, w: EQ.gadget.w, h: EQ.btnH },
-      g ? `${GADGETS[g].name.toUpperCase()} (${cover.gadget ? 'FREE' : GADGETS[g].price})` : 'NO GADGET',
+      g ? `${GADGETS[g].name.toUpperCase()} (${cover.gadget ? 'FREE' : gadgetPrice(g, rules)})` : 'NO GADGET',
       buttonState(true, hot('gadget')),
     );
     drawButton(
       ctx, { x: EQ.scope.x, y: cy, w: EQ.scope.w, h: EQ.btnH },
-      s.attachment ? `SCOPE (${cover.attachment ? 'FREE' : ATTACHMENTS.scope.price})` : 'NO SCOPE',
-      buttonState(scopeBlockReason(l, i, view.budget, view.stash) === null, hot('scope')),
+      s.attachment ? `SCOPE (${cover.attachment ? 'FREE' : attachmentPrice('scope', rules)})` : 'NO SCOPE',
+      buttonState(scopeBlockReason(l, i, view.budget, view.stash, level) === null, hot('scope')),
     );
-    const net = netSoldierCost(l, i, view.stash);
+    const net = netSoldierCost(l, i, view.stash, rules);
     drawText(ctx, net === 0 ? 'FREE' : `${net} cr`, 432, y + 8, net === 0 ? UI.green : UI.dim);
   });
 

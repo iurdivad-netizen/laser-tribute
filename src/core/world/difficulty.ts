@@ -12,7 +12,7 @@ export interface Difficulty {
   growthCap: number;
   /** The enemy tries to retake the weakest liberated region every this many days; null never. */
   counterEvery: number | null;
-  /** Credits per region held (or allied) added to the equipment budget. */
+  /** Credits per day for each region held or allied (supply contracts add to it). */
   income: number;
 }
 
@@ -20,15 +20,15 @@ export interface Difficulty {
 export const DIFFICULTIES: Record<DifficultyId, Difficulty> = {
   calm: {
     name: 'CALM', blurb: 'No pushback. Take your time.',
-    growthEvery: null, growthCap: 0, counterEvery: null, income: 8,
+    growthEvery: null, growthCap: 0, counterEvery: null, income: 4,
   },
   standard: {
     name: 'STANDARD', blurb: 'Garrisons slowly dig in.',
-    growthEvery: 12, growthCap: 3, counterEvery: null, income: 6,
+    growthEvery: 12, growthCap: 3, counterEvery: null, income: 3,
   },
   pressure: {
     name: 'PRESSURE', blurb: 'They fight back. Regions can fall.',
-    growthEvery: 6, growthCap: 5, counterEvery: 15, income: 4,
+    growthEvery: 6, growthCap: 5, counterEvery: 15, income: 2,
   },
 };
 

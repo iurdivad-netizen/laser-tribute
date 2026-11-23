@@ -21,6 +21,10 @@ Before each mission you equip four named soldiers from a shared budget and press
 
 **Story** is a third mode: a frontier colony world of 30 regions, taken back from a corporation's private army with the same four mercenaries. Pick a region linked to ground you hold and attack it (each region is one fixed map, so a returning fight is a place you know), visit neutral settlements to gain allies and income, and search the wilderness for gear. Not every region needs taking: win by taking the enemy capital, which opens once you hold two of the gates that lead to it. Choose CALM (no pushback), STANDARD (garrisons slowly grow) or PRESSURE (garrisons grow and the enemy retakes liberated regions) when you start. A lost mission wipes the squad; a rookie squad replaces it after a time penalty, and you only lose the game when no region is left in your hands. Press S on the title, or pick STORY.
 
+### The base (story mode)
+
+Between fights, open the **Base** from the planet screen. Credits are a stockpile that grows every day (more regions and supply contracts, more income), and each mission's kit is paid for from it. The **Lab** researches gear and base upgrades for credits and days, one project at a time; unresearched gear can still be carried, at a 50% premium at the **Market**. The **Barracks** holds a pool of soldiers (hired for credits, up to the bed count); you pick four for each mission, and a loaned mercenary fills any empty slot for a small fee. **Training** takes one soldier out for days to raise his rank (capped by the facility level), the **Field hospital** gives a fallen soldier a chance to survive a won mission, and **Wait** spends one or three days (the planet pushes back while you do). A dead soldier is not replaced for free.
+
 ## Gear
 
 Better gear unlocks as the campaign advances (the tutorial offers only the first kit).

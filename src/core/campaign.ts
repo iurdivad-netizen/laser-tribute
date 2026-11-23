@@ -14,6 +14,8 @@ export const SOLDIER_NAMES = [
 export interface RosterSoldier {
   name: string;
   kills: number;
+  /** Story mode: rank-only training points; the rank is `rankFor(kills + trained)`. Never adds to kills or credits. */
+  trained?: number;
 }
 
 /** The hand-drawn tutorial or the generated ten-mission campaign. */
@@ -99,7 +101,7 @@ export function recordMission(
       roster.push({ ...soldier });
       return;
     }
-    const updated = { name: soldier.name, kills: soldier.kills + unit.kills };
+    const updated = { ...soldier, kills: soldier.kills + unit.kills };
     if (unit.alive) {
       roster.push(updated);
     } else {

@@ -1,4 +1,5 @@
-import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, TUTORIAL_LEVEL, WEAPONS, WEAPON_IDS, unlockedThrowables, unlockedWeapons } from './config';
+import { ATTACHMENTS, ATTACHMENT_IDS, CONFIG, GADGETS, GADGET_IDS, THROWABLES, THROWABLE_IDS, TUTORIAL_LEVEL, WEAPONS, WEAPON_IDS } from './config';
+import { gearRulesOf, priceFactor, unlocked, type GearArg, type GearRules } from './gear';
 import { coverage, emptyStash, throwableKey, type Stash } from './stash';
 import type { AttachmentId, GadgetId, GameState, ThrowableId, WeaponId } from './types';
 
@@ -8,8 +9,23 @@ export const LOADOUT = {
   maxGrenades: 3,
 } as const;
 
-export const weaponPrice = (id: WeaponId): number => WEAPONS[id].price;
-export const throwablePrice = (s: { throwable?: ThrowableId }): number => THROWABLES[s.throwable ?? 'frag'].price;
+/** A base price times the rules' factor for that item (rounded, at least 1); unchanged without rules. */
+const priced = (base: number, factor: number): number => (factor === 1 ? base : Math.max(1, Math.round(base * factor)));
+
+export const weaponPrice = (id: WeaponId, rules?: GearRules): number =>
+  priced(WEAPONS[id].price, rules ? priceFactor(rules, 'weapon', id) : 1);
+export const throwablePrice = (s: { throwable?: ThrowableId }, rules?: GearRules): number => {
+  const kind = s.throwable ?? 'frag';
+  return priced(THROWABLES[kind].price, rules ? priceFactor(rules, 'throwable', kind) : 1);
+};
+export const gadgetPrice = (id: GadgetId, rules?: GearRules): number =>
+  priced(GADGETS[id].price, rules ? priceFactor(rules, 'gadget', id) : 1);
+export const attachmentPrice = (id: AttachmentId, rules?: GearRules): number =>
+  priced(ATTACHMENTS[id].price, rules ? priceFactor(rules, 'attachment', id) : 1);
+
+/** Whether a weapon may be carried: unlocked, covered by the stash, or buyable at a premium. */
+export const weaponAllowed = (rules: GearRules, stash: Stash, id: WeaponId): boolean =>
+  unlocked(rules, 'weapon', id) || stash[id] > 0 || rules.premium !== null;
 
 export const SQUAD_SIZE = 4;
 
@@ -37,35 +53,35 @@ export function defaultLoadout(): Loadout {
   ];
 }
 
-export function soldierCost(s: SoldierLoadout): number {
-  return weaponPrice(s.weapon) + throwablePrice(s) * s.grenades + LOADOUT.prices.clip * (s.clips - 1) +
-    (s.gadget ? GADGETS[s.gadget].price : 0) +
-    (s.attachment ? ATTACHMENTS[s.attachment].price : 0);
+export function soldierCost(s: SoldierLoadout, rules?: GearRules): number {
+  return weaponPrice(s.weapon, rules) + throwablePrice(s, rules) * s.grenades + LOADOUT.prices.clip * (s.clips - 1) +
+    (s.gadget ? gadgetPrice(s.gadget, rules) : 0) +
+    (s.attachment ? attachmentPrice(s.attachment, rules) : 0);
 }
 
 /** Credits the loadout costs; gear covered by the stash is free. */
-export function loadoutCost(l: Loadout, stash: Stash = emptyStash()): number {
-  const gross = l.reduce((sum, s) => sum + soldierCost(s), 0);
+export function loadoutCost(l: Loadout, stash: Stash = emptyStash(), rules?: GearRules): number {
+  const gross = l.reduce((sum, s) => sum + soldierCost(s, rules), 0);
   const free = coverage(l, stash).reduce(
     (sum, c, i) =>
-      sum + (c.weapon ? weaponPrice(l[i].weapon) : 0) + c.grenades * throwablePrice(l[i]) + c.clips * LOADOUT.prices.clip +
-      (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) +
-      (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0),
+      sum + (c.weapon ? weaponPrice(l[i].weapon, rules) : 0) + c.grenades * throwablePrice(l[i], rules) + c.clips * LOADOUT.prices.clip +
+      (c.gadget && l[i].gadget ? gadgetPrice(l[i].gadget!, rules) : 0) +
+      (c.attachment && l[i].attachment ? attachmentPrice(l[i].attachment!, rules) : 0),
     0,
   );
   return gross - free;
 }
 
 /** What soldier `i` costs after the stash covers part of the kit (0 when everything is free). */
-export function netSoldierCost(l: Loadout, i: number, stash: Stash = emptyStash()): number {
+export function netSoldierCost(l: Loadout, i: number, stash: Stash = emptyStash(), rules?: GearRules): number {
   const c = coverage(l, stash)[i];
   return (
-    soldierCost(l[i]) -
-    (c.weapon ? weaponPrice(l[i].weapon) : 0) -
-    c.grenades * throwablePrice(l[i]) -
+    soldierCost(l[i], rules) -
+    (c.weapon ? weaponPrice(l[i].weapon, rules) : 0) -
+    c.grenades * throwablePrice(l[i], rules) -
     c.clips * LOADOUT.prices.clip -
-    (c.gadget && l[i].gadget ? GADGETS[l[i].gadget!].price : 0) -
-    (c.attachment && l[i].attachment ? ATTACHMENTS[l[i].attachment!].price : 0)
+    (c.gadget && l[i].gadget ? gadgetPrice(l[i].gadget!, rules) : 0) -
+    (c.attachment && l[i].attachment ? attachmentPrice(l[i].attachment!, rules) : 0)
   );
 }
 
@@ -74,15 +90,16 @@ export function cheapLoadout(): Loadout {
 }
 
 export function validateLoadout(
-  l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): string | null {
+  const rules = gearRulesOf(gear);
   if (l.length !== SQUAD_SIZE) return `A loadout needs exactly ${SQUAD_SIZE} soldiers`;
   for (const [i, s] of l.entries()) {
     if (!WEAPON_IDS.includes(s.weapon)) return `Soldier ${i + 1} needs a weapon`;
     if (s.throwable !== undefined && !THROWABLE_IDS.includes(s.throwable)) return `Soldier ${i + 1} has an unknown throwable`;
-    if (!unlockedWeapons(level).includes(s.weapon) && stash[s.weapon] < 1) return `Soldier ${i + 1}: the ${WEAPONS[s.weapon].name} is locked`;
+    if (!weaponAllowed(rules, stash, s.weapon)) return `Soldier ${i + 1}: the ${WEAPONS[s.weapon].name} is locked`;
     const kind = s.throwable ?? 'frag';
-    if (s.grenades > 0 && !unlockedThrowables(level).includes(kind) && stash[throwableKey(kind)] < 1) {
+    if (s.grenades > 0 && !unlocked(rules, 'throwable', kind) && rules.premium === null && stash[throwableKey(kind)] < 1) {
       return `Soldier ${i + 1}: ${THROWABLES[kind].name} is locked`;
     }
     if (!Number.isInteger(s.grenades) || s.grenades < 0 || s.grenades > LOADOUT.maxGrenades) {
@@ -95,16 +112,24 @@ export function validateLoadout(
     if (!Number.isInteger(s.clips) || s.clips < 1 || s.clips > CONFIG.maxClips) {
       return `Soldier ${i + 1} must carry 1 to ${CONFIG.maxClips} spare clips`;
     }
+    if (s.gadget !== undefined && !unlocked(rules, 'gadget', s.gadget) && rules.premium === null && stash[s.gadget] < 1) {
+      return `Soldier ${i + 1}: the ${GADGETS[s.gadget].name} is locked`;
+    }
+    if (s.attachment !== undefined && !unlocked(rules, 'attachment', s.attachment) && rules.premium === null && stash[s.attachment] < 1) {
+      return `Soldier ${i + 1}: the ${ATTACHMENTS[s.attachment].name} is locked`;
+    }
   }
-  const cost = loadoutCost(l, stash);
+  const cost = loadoutCost(l, stash, rules);
   if (cost > budget) return `Loadout costs ${cost}, budget is ${budget}`;
   return null;
 }
 
 /** The previous kit if it still fits the budget and the level, else the same kit with one spare clip each, else the kit without gadgets (locked items swapped for a pistol and frags), else the cheap fallback kit. */
 export function fitLoadout(
-  previous: Loadout, budget: number, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  previous: Loadout, budget: number, stash: Stash = emptyStash(), gear: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
+  const level = gear;
+  const rules = gearRulesOf(gear);
   if (validateLoadout(previous, budget, stash, level) === null) return previous;
   // Trim the extra spare clips before giving up the weapons and grenades.
   const trimmed = previous.map((s) => ({ ...s, clips: 1 }));
@@ -112,7 +137,7 @@ export function fitLoadout(
   const bare = trimmed.map(({ gadget: _gadget, attachment: _attachment, ...rest }) => rest);
   if (validateLoadout(bare, budget, stash, level) === null) return bare;
   const safe = bare.map((s) => ({
-    weapon: unlockedWeapons(level).includes(s.weapon) || stash[s.weapon] > 0 ? s.weapon : ('pistol' as const),
+    weapon: weaponAllowed(rules, stash, s.weapon) ? s.weapon : ('pistol' as const),
     grenades: s.grenades,
     clips: 1,
   }));
@@ -120,7 +145,7 @@ export function fitLoadout(
 }
 
 export function applyLoadout(
-  state: GameState, l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: number = TUTORIAL_LEVEL,
+  state: GameState, l: Loadout, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): GameState {
   const error = validateLoadout(l, budget, stash, level);
   if (error) throw new Error(error);

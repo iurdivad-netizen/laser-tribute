@@ -2,7 +2,7 @@ import { CAPITAL_REGION, REGIONS } from '../core/world/planet';
 import { RECIPES } from '../core/gen';
 import { DAYS, DIFFICULTIES } from '../core/world/difficulty';
 import {
-  canAttack, canVisit, capitalOpen, regionsHeld, storyBudget, type Holder, type World,
+  canAttack, canVisit, capitalOpen, regionsHeld, type Holder, type World,
 } from '../core/world/world';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
@@ -12,6 +12,7 @@ import { clipText, drawText } from '../ui/text';
 export const PLANET = {
   map: { x: 6, y: 22, w: 330, h: 372 },
   panel: { x: 342, y: 22, w: 132, h: 372 },
+  base: { x: 350, y: 258, w: 116, h: 24 },
   act: { x: 350, y: 290, w: 116, h: 28 },
   abandon: { x: 350, y: 326, w: 116, h: 22 },
   back: { x: 350, y: 358, w: 116, h: 22 },
@@ -32,7 +33,7 @@ export interface PlanetView {
   notice: string;
 }
 
-export type PlanetHit = { kind: 'region'; id: number } | { kind: 'act' } | { kind: 'abandon' } | { kind: 'back' };
+export type PlanetHit = { kind: 'region'; id: number } | { kind: 'act' } | { kind: 'base' } | { kind: 'abandon' } | { kind: 'back' };
 
 const REGION_HIT = 10;
 
@@ -49,6 +50,7 @@ export function planetHit(px: number, py: number, slop = 0): PlanetHit | null {
   }
   if (best !== null) return { kind: 'region', id: best };
   if (inside(PLANET.act, px, py, slop)) return { kind: 'act' };
+  if (inside(PLANET.base, px, py, slop)) return { kind: 'base' };
   if (inside(PLANET.abandon, px, py, slop)) return { kind: 'abandon' };
   if (inside(PLANET.back, px, py, slop)) return { kind: 'back' };
   return null;
@@ -126,7 +128,7 @@ export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView): void {
   const col = P.x + 8;
   const maxPx = P.w - 14;
   drawText(ctx, `DAY ${w.day}`, col, P.y + 10, UI.text, 'left');
-  drawText(ctx, `HELD ${regionsHeld(w)}   ${storyBudget(w)} CR`, col, P.y + 22, UI.dim, 'left');
+  drawText(ctx, `HELD ${regionsHeld(w)}   ${w.credits} CR`, col, P.y + 22, UI.dim, 'left');
   const sel = v.selected;
   if (sel !== null) {
     const r = REGIONS[sel];
@@ -146,8 +148,9 @@ export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView): void {
   } else {
     drawText(ctx, 'PICK A REGION', col, P.y + 44, UI.hint, 'left');
   }
-  if (v.notice) drawText(ctx, clipText(v.notice.toUpperCase(), maxPx), col, P.y + 250, UI.accent, 'left');
+  if (v.notice) drawText(ctx, clipText(v.notice.toUpperCase(), maxPx), col, P.y + 226, UI.accent, 'left');
   const label = actLabel(v);
+  drawButton(ctx, PLANET.base, 'BASE', 'raised');
   drawButton(ctx, PLANET.act, label ?? 'NO ACTION', label === 'ATTACK' || label === 'VISIT' ? 'raised' : 'disabled');
   if (v.armedAbandon) {
     drawFrame(ctx, PLANET.abandon.x, PLANET.abandon.y, PLANET.abandon.w, PLANET.abandon.h, 'raised');
