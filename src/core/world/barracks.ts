@@ -1,6 +1,6 @@
-import type { RosterSoldier } from '../campaign';
+import { soldierName, type RosterSoldier } from '../campaign';
 import { cheapLoadout, loadoutCost } from '../loadout';
-import { BASE_RULES } from './base';
+import { BASE_RULES, bedCount, levelsOf } from './base';
 import type { World } from './world';
 
 const SQUAD_SIZE = 4;
@@ -48,4 +48,38 @@ export function setSquad(w: World, names: string[]): World {
  */
 export function kitBudget(w: World): number {
   return Math.max(loadoutCost(cheapLoadout()), w.credits - BASE_RULES.mercFee * deployed(w).mercs);
+}
+
+/** Whether a rookie can be hired: the story is on, a bed is free and the credits cover him. */
+export function canHire(w: World): boolean {
+  return w.status === 'active' && w.soldiers.length < bedCount(w.research.done) && w.credits >= BASE_RULES.hireCost;
+}
+
+/** Hires a rookie for credits. Throws unless `canHire`. */
+export function hire(w: World): World {
+  if (!canHire(w)) throw new Error('cannot hire');
+  return {
+    ...w,
+    credits: w.credits - BASE_RULES.hireCost,
+    soldiers: [...w.soldiers, { name: soldierName(w.namesUsed), kills: 0, trained: 0, status: 'ready', daysLeft: 0 }],
+    namesUsed: w.namesUsed + 1,
+  };
+}
+
+/** Whether a soldier can start training: a facility exists, nobody else trains, he is ready and below the level's rank cap. */
+export function canTrain(w: World, name: string): boolean {
+  const level = levelsOf(w.research.done).training;
+  if (w.status !== 'active' || level < 1 || w.soldiers.some((s) => s.status === 'training')) return false;
+  const s = w.soldiers.find((x) => x.name === name);
+  return s !== undefined && s.status === 'ready' && s.kills + s.trained < BASE_RULES.trainCaps[level - 1];
+}
+
+/** Sends a soldier to train for days; he leaves the squad. Throws unless `canTrain`. */
+export function startTraining(w: World, name: string): World {
+  if (!canTrain(w, name)) throw new Error(`cannot train ${name}`);
+  return {
+    ...w,
+    soldiers: w.soldiers.map((s) => (s.name === name ? { ...s, status: 'training' as const, daysLeft: BASE_RULES.trainDays } : { ...s })),
+    squad: w.squad.filter((n) => n !== name),
+  };
 }

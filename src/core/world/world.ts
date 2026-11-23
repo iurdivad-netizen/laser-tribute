@@ -4,6 +4,7 @@ import { addStash, capStash, lootFrom } from '../loot';
 import { emptyStash, nextStash, stashOf, type Stash } from '../stash';
 import { seededRandom } from '../rng';
 import type { GameState } from '../types';
+import { RANKS } from '../ranks';
 import { BASE_RULES, levelsOf } from './base';
 import { autoSquad, deployed } from './barracks';
 import { DAYS, DIFFICULTIES, type DifficultyId } from './difficulty';
@@ -163,10 +164,10 @@ export function advance(w: World, days: number): World {
     for (const soldier of next.soldiers) {
       if (soldier.status === 'ready') continue;
       soldier.daysLeft -= 1;
-      if (soldier.daysLeft <= 0) {
-        soldier.status = 'ready';
-        soldier.daysLeft = 0;
-      }
+      if (soldier.daysLeft > 0) continue;
+      if (soldier.status === 'training') raiseByTraining(soldier, levelsOf(next.research.done).training);
+      soldier.status = 'ready';
+      soldier.daysLeft = 0;
     }
     if (rules.growthEvery !== null && d % rules.growthEvery === 0) {
       for (const r of REGIONS) {
@@ -201,6 +202,15 @@ export function counterattack(w: World, roll: number): World {
   next.regions[target.id] = { ...next.regions[target.id], holder: 'enemy', garrison: Math.max(1, target.garrison) };
   if (regionsHeld(next) === 0) next.status = 'lost';
   return next;
+}
+
+/** A finished training stint lifts rank (kills plus training) to the next rank step, never past the facility level's cap. */
+function raiseByTraining(s: PoolSoldier, level: number): void {
+  const cap = level >= 1 ? BASE_RULES.trainCaps[level - 1] : 0;
+  const effective = s.kills + s.trained;
+  const step = RANKS.map((r) => r.minKills).find((m) => m > effective);
+  if (step === undefined) return;
+  s.trained += Math.max(0, Math.min(step, cap) - effective);
 }
 
 const clone = (w: World): World => ({
@@ -254,8 +264,19 @@ export function resolve(w: World, spec: MissionSpec, finished: GameState, used: 
     soldier.kills += unit.kills;
     if (!unit.alive) dead.push(r.name);
   });
+  // The field hospital: after a win, each dead soldier may be recovered wounded instead of lost.
+  const chance = BASE_RULES.hospitalChance[levelsOf(w.research.done).hospital];
+  const roll = seededRandom(missionSeed(w.seed, spec.region, w.regions[spec.region].attempts, 77));
+  roll();
+  roll();
+  roll(); // the first values of nearby seeds are alike
   for (const name of dead) {
     const at = next.soldiers.findIndex((x) => x.name === name);
+    if (won && roll() < chance) {
+      next.soldiers[at].status = 'wounded';
+      next.soldiers[at].daysLeft = BASE_RULES.woundedDays;
+      continue;
+    }
     const [gone] = next.soldiers.splice(at, 1);
     next.fallen.push({ name: gone.name, kills: gone.kills, trained: gone.trained });
   }
@@ -272,4 +293,11 @@ export function resolve(w: World, spec: MissionSpec, finished: GameState, used: 
   const advanced = advance(next, DAYS.attack + (won ? 0 : DAYS.lossPenalty));
   if (advanced.status === 'active' && regionsHeld(advanced) === 0) advanced.status = 'lost';
   return advanced;
+}
+
+/** Spends 1 or 3 days doing nothing: income, research, training and healing run, and so do the garrisons and counterattacks. */
+export function wait(w: World, days: number): World {
+  if (w.status !== 'active') throw new Error('the story is over');
+  if (!(BASE_RULES.waitOptions as readonly number[]).includes(days)) throw new RangeError(`cannot wait ${days} days`);
+  return advance(w, days);
 }
