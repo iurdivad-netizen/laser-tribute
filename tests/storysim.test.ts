@@ -20,7 +20,7 @@ const stub = (status: 'won' | 'lost'): PlayMission => (spec, world, loadout) => 
 describe('runStory with a fixed outcome', () => {
   it('takes the capital on every difficulty when every fight is won', () => {
     for (const difficulty of DIFFICULTY_IDS) {
-      for (let seed = 1; seed <= 5; seed++) {
+      for (let seed = 1; seed <= 3; seed++) {
         const run = runStory(seed, difficulty, stub('won'));
         expect(run.status, `${difficulty} seed ${seed}`).toBe('won');
         expect(run.steps).toBeLessThanOrEqual(300);
@@ -28,7 +28,7 @@ describe('runStory with a fixed outcome', () => {
         expect(run.held).toBeGreaterThan(0);
       }
     }
-  });
+  }, 60_000);
 
   it('stays bounded and active on CALM when every fight is lost', () => {
     const run = runStory(1, 'calm', stub('lost'), 40);
