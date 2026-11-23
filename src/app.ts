@@ -43,6 +43,11 @@ export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end';
 /** Menu pixels (of 480x400) around a small equipment button within which a touch still counts as a tap on it. */
 const TOUCH_SLOP = 9;
 
+/** True in an upright phone window, where the menus shrink to under 400 px wide and leave room above them for a hint. */
+export function wantsRotateHint(width: number, height: number): boolean {
+  return width < 480 && height > width * 1.3;
+}
+
 const RESULT_DELAY_MS = 1000;
 /** A still screen is redrawn at least this often, so text on a timer still changes on time. */
 const IDLE_BEAT_MS = 250;
@@ -722,8 +727,23 @@ export class App {
     ctx.fillRect(0, 0, this.width, this.height);
     this.drawScreen(ctx, now);
     const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end';
-    if (menu) this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
+    if (menu) {
+      this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
+      this.drawRotateHint(ctx);
+    }
     else this.drawSoundHint(ctx, this.width, false);
+  }
+
+  /** A phone held upright shows the 480x400 menus small: say so in the empty band above them. */
+  private drawRotateHint(ctx: CanvasRenderingContext2D): void {
+    if (!wantsRotateHint(this.width, this.height)) return;
+    const m = this.menuTransform();
+    ctx.save();
+    ctx.translate(this.width / 2, m.y / 2 - 5);
+    ctx.scale(2, 2);
+    drawText(ctx, 'TURN YOUR PHONE SIDEWAYS', 0, -3, UI.accent, 'center');
+    drawText(ctx, 'FOR A BIGGER MENU', 0, 6, UI.hint, 'center');
+    ctx.restore();
   }
 
   /** Runs `draw` in the 480x400 menu space, scaled and centred in the window. */
