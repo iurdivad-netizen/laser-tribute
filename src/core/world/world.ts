@@ -2,6 +2,7 @@ import { CAMPAIGN, recordMission, soldierName, type Campaign, type RosterSoldier
 import type { Loadout } from '../loadout';
 import { addStash, capStash } from '../loot';
 import { emptyStash, stashOf, type Stash } from '../stash';
+import { seededRandom } from '../rng';
 import type { GameState } from '../types';
 import { DAYS, DIFFICULTIES, type DifficultyId } from './difficulty';
 import {
@@ -126,10 +127,48 @@ export function missionFor(w: World, id: number): MissionSpec {
   };
 }
 
-/** Moves the calendar on. (Task 6 adds garrison growth and counterattacks here.) */
+/**
+ * Moves the calendar on day by day. On a growth day every enemy garrison below its cap gains one; on a counterattack
+ * day (PRESSURE) the enemy may retake a liberated region, decided by a roll from the world seed and the day.
+ */
 export function advance(w: World, days: number): World {
   if (!Number.isInteger(days) || days < 0) throw new RangeError(`cannot advance ${days} days`);
-  return { ...w, day: w.day + days };
+  const rules = DIFFICULTIES[w.difficulty];
+  let next = clone(w);
+  for (let d = w.day + 1; d <= w.day + days; d++) {
+    if (rules.growthEvery !== null && d % rules.growthEvery === 0) {
+      for (const r of REGIONS) {
+        const s = next.regions[r.id];
+        if (s.holder === 'enemy' && s.garrison < r.garrison + rules.growthCap) s.garrison += 1;
+      }
+    }
+    if (rules.counterEvery !== null && d % rules.counterEvery === 0 && next.status === 'active') {
+      next = counterattack(next, seededRandom(missionSeed(w.seed, 1000 + d))());
+    }
+  }
+  next.day = w.day + days;
+  return next;
+}
+
+/**
+ * The enemy tries to retake the weakest liberated region that touches enemy ground (lowest base garrison, then lowest
+ * id). It succeeds when `roll` is below attackers / (attackers + defenders), kept between 0.1 and 0.9. A region that
+ * falls goes back to the enemy with its base garrison (at least 1). Losing the last held region loses the game.
+ */
+export function counterattack(w: World, roll: number): World {
+  const enemyNeighbours = (id: number) => REGIONS[id].links.filter((l) => w.regions[l].holder === 'enemy');
+  const targets = REGIONS
+    .filter((r) => w.regions[r.id].holder === 'player' && enemyNeighbours(r.id).length > 0)
+    .sort((a, b) => a.garrison - b.garrison || a.id - b.id);
+  if (targets.length === 0) return w;
+  const target = targets[0];
+  const attackers = Math.max(...enemyNeighbours(target.id).map((l) => w.regions[l].garrison));
+  const chance = Math.min(0.9, Math.max(0.1, attackers / (attackers + target.garrison + 1)));
+  if (roll >= chance) return w;
+  const next = clone(w);
+  next.regions[target.id] = { ...next.regions[target.id], holder: 'enemy', garrison: Math.max(1, target.garrison) };
+  if (regionsHeld(next) === 0) next.status = 'lost';
+  return next;
 }
 
 const clone = (w: World): World => ({
