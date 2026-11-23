@@ -1,9 +1,11 @@
-import { CAMPAIGN, recordMission, soldierName, type Campaign, type RosterSoldier } from '../campaign';
+import { CAMPAIGN, soldierName, type RosterSoldier } from '../campaign';
 import type { Loadout } from '../loadout';
-import { addStash, capStash } from '../loot';
-import { emptyStash, stashOf, type Stash } from '../stash';
+import { addStash, capStash, lootFrom } from '../loot';
+import { emptyStash, nextStash, stashOf, type Stash } from '../stash';
 import { seededRandom } from '../rng';
 import type { GameState } from '../types';
+import { BASE_RULES, levelsOf } from './base';
+import { autoSquad, deployed } from './barracks';
 import { DAYS, DIFFICULTIES, type DifficultyId } from './difficulty';
 import {
   CAPITAL_GATES, CAPITAL_REGION, CAPITAL_UNLOCK, PLANET_VERSION, REGIONS, missionDifficulty,
@@ -22,6 +24,15 @@ export interface RegionState {
 
 export type WorldStatus = 'active' | 'won' | 'lost';
 
+/** A soldier in the barracks. `trained` is rank-only training; `daysLeft` is 0 when ready. */
+export interface PoolSoldier {
+  name: string;
+  kills: number;
+  trained: number;
+  status: 'ready' | 'training' | 'wounded';
+  daysLeft: number;
+}
+
 export interface World {
   planetVersion: number;
   seed: number;
@@ -29,7 +40,14 @@ export interface World {
   day: number;
   status: WorldStatus;
   regions: RegionState[];
-  roster: RosterSoldier[];
+  /** The credit stockpile: income arrives daily, kit, research and hiring spend it. */
+  credits: number;
+  /** Finished research ids, and the one project in progress (one at a time). */
+  research: { done: string[]; active: { node: string; daysLeft: number } | null };
+  /** Everyone in the barracks, including those training or wounded. */
+  soldiers: PoolSoldier[];
+  /** The names picked for the next mission (at most four, all ready); loaned mercenaries fill the rest. */
+  squad: string[];
   fallen: RosterSoldier[];
   namesUsed: number;
   stash: Stash;
@@ -62,7 +80,12 @@ export function newWorld(seed: number, difficulty: DifficultyId): World {
     day: 0,
     status: 'active',
     regions: REGIONS.map((r) => ({ holder: HOLDER_AT_START[r.kind], garrison: r.garrison, visited: false, attempts: 0 })),
-    roster: Array.from({ length: CAMPAIGN.rosterSize }, (_, i) => ({ name: soldierName(i), kills: 0 })),
+    credits: BASE_RULES.startCredits,
+    research: { done: [], active: null },
+    soldiers: Array.from({ length: CAMPAIGN.rosterSize }, (_, i) => ({
+      name: soldierName(i), kills: 0, trained: 0, status: 'ready' as const, daysLeft: 0,
+    })),
+    squad: Array.from({ length: CAMPAIGN.rosterSize }, (_, i) => soldierName(i)),
     fallen: [],
     namesUsed: CAMPAIGN.rosterSize,
     stash: emptyStash(),
@@ -77,17 +100,9 @@ export const regionsHeld = (w: World): number => count(w, 'player');
 /** Regions that pay income: held and allied. */
 export const incomeRegions = (w: World): number => count(w, 'player', 'allied');
 
-/** The equipment budget: 120 plus income per region plus 5 per kill of a living soldier. Not stockpiled. */
-export function storyBudget(w: World): number {
-  const kills = w.roster.reduce((sum, r) => sum + r.kills, 0);
-  return CAMPAIGN.baseBudget + DIFFICULTIES[w.difficulty].income * incomeRegions(w) + CAMPAIGN.killBonus * kills;
-}
-
-/** The player's gear level: 1 plus a level for every three enemy regions taken, at most 10. */
-export function gearLevel(w: World): number {
-  const taken = REGIONS.filter((r) => r.kind === 'enemy' && w.regions[r.id].holder === 'player').length;
-  return Math.min(10, 1 + Math.floor(taken / 3));
-}
+/** Credits earned per day: every held or allied region pays the preset's rate plus one per supply-contracts level. */
+export const incomePerDay = (w: World): number =>
+  incomeRegions(w) * (DIFFICULTIES[w.difficulty].income + levelsOf(w.research.done).contracts);
 
 export const capitalOpen = (w: World): boolean =>
   CAPITAL_GATES.filter((g) => w.regions[g].holder === 'player').length >= CAPITAL_UNLOCK;
@@ -136,6 +151,23 @@ export function advance(w: World, days: number): World {
   const rules = DIFFICULTIES[w.difficulty];
   let next = clone(w);
   for (let d = w.day + 1; d <= w.day + days; d++) {
+    next.credits += incomePerDay(next);
+    const project = next.research.active;
+    if (project) {
+      project.daysLeft -= 1;
+      if (project.daysLeft <= 0) {
+        next.research.done.push(project.node);
+        next.research.active = null;
+      }
+    }
+    for (const soldier of next.soldiers) {
+      if (soldier.status === 'ready') continue;
+      soldier.daysLeft -= 1;
+      if (soldier.daysLeft <= 0) {
+        soldier.status = 'ready';
+        soldier.daysLeft = 0;
+      }
+    }
     if (rules.growthEvery !== null && d % rules.growthEvery === 0) {
       for (const r of REGIONS) {
         const s = next.regions[r.id];
@@ -174,7 +206,9 @@ export function counterattack(w: World, roll: number): World {
 const clone = (w: World): World => ({
   ...w,
   regions: w.regions.map((r) => ({ ...r })),
-  roster: w.roster.map((r) => ({ ...r })),
+  research: { done: [...w.research.done], active: w.research.active ? { ...w.research.active } : null },
+  soldiers: w.soldiers.map((r) => ({ ...r })),
+  squad: [...w.squad],
   fallen: w.fallen.map((r) => ({ ...r })),
   stash: { ...w.stash },
 });
@@ -196,27 +230,38 @@ export function visit(w: World, id: number): World {
 }
 
 /**
- * Folds a finished fight into the world. A win takes the region (and the game when it is the capital); a loss leaves
- * it enemy-held, replaces the dead with rookies and costs extra days. The game is lost when no region is held.
+ * Folds a finished fight into the world. The deployed soldiers' kills go to the pool; a dead soldier is gone for good
+ * (a free replacement no longer exists: hire or borrow). The kit and loan fees are paid, the squad's kills pay a bounty,
+ * a win takes the region (and the game when it is the capital), a loss costs extra days. The game is lost when no region
+ * is held.
  */
-export function resolve(w: World, spec: MissionSpec, finished: GameState, used: Loadout): World {
+export function resolve(w: World, spec: MissionSpec, finished: GameState, used: Loadout, kitCost: number): World {
   if (w.status !== 'active') throw new Error('the story is over');
   if (finished.status === 'playing') throw new Error('The mission is not finished');
   const won = finished.status === 'won';
-  const asCampaign: Campaign = {
-    mode: 'campaign', variations: [], missionIndex: 0, missionsWon: 0, status: 'active',
-    roster: w.roster, fallen: w.fallen, namesUsed: w.namesUsed, stash: w.stash,
-  };
-  const folded = recordMission(asCampaign, finished, 99, used);
+  const { roster, mercs } = deployed(w);
+  const players = finished.units.filter((u) => u.side === 'player');
   const next = clone(w);
-  next.roster = folded.roster;
-  next.fallen = folded.fallen;
-  next.namesUsed = folded.namesUsed;
-  next.stash = folded.stash;
-  while (next.roster.length < CAMPAIGN.rosterSize) {
-    next.roster.push({ name: soldierName(next.namesUsed), kills: 0 });
-    next.namesUsed += 1;
+  let bounty = 0;
+  const dead: string[] = [];
+  roster.forEach((r, i) => {
+    const unit = players[i];
+    if (!unit) return;
+    bounty += BASE_RULES.bounty * unit.kills;
+    if (i >= roster.length - mercs) return; // a loaned mercenary leaves no record
+    const soldier = next.soldiers.find((x) => x.name === r.name);
+    if (!soldier) return;
+    soldier.kills += unit.kills;
+    if (!unit.alive) dead.push(r.name);
+  });
+  for (const name of dead) {
+    const at = next.soldiers.findIndex((x) => x.name === name);
+    const [gone] = next.soldiers.splice(at, 1);
+    next.fallen.push({ name: gone.name, kills: gone.kills, trained: gone.trained });
   }
+  next.credits = Math.max(0, next.credits - kitCost - BASE_RULES.mercFee * mercs) + bounty;
+  if (won) next.stash = capStash(addStash(nextStash(w.stash, used, finished), lootFrom(finished)));
+  next.squad = autoSquad(next);
   const region = next.regions[spec.region];
   region.attempts += 1;
   if (won) {

@@ -7,9 +7,9 @@ describe('story difficulty presets', () => {
   });
 
   it('holds the starting values', () => {
-    expect(DIFFICULTIES.calm).toMatchObject({ name: 'CALM', growthEvery: null, growthCap: 0, counterEvery: null, income: 8 });
-    expect(DIFFICULTIES.standard).toMatchObject({ name: 'STANDARD', growthEvery: 12, growthCap: 3, counterEvery: null, income: 6 });
-    expect(DIFFICULTIES.pressure).toMatchObject({ name: 'PRESSURE', growthEvery: 6, growthCap: 5, counterEvery: 15, income: 4 });
+    expect(DIFFICULTIES.calm).toMatchObject({ name: 'CALM', growthEvery: null, growthCap: 0, counterEvery: null, income: 4 });
+    expect(DIFFICULTIES.standard).toMatchObject({ name: 'STANDARD', growthEvery: 12, growthCap: 3, counterEvery: null, income: 3 });
+    expect(DIFFICULTIES.pressure).toMatchObject({ name: 'PRESSURE', growthEvery: 6, growthCap: 5, counterEvery: 15, income: 2 });
     expect(DAYS).toEqual({ attack: 3, visit: 2, lossPenalty: 6 });
   });
 

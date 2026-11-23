@@ -2,7 +2,7 @@ import { CAPITAL_REGION, REGIONS } from '../core/world/planet';
 import { RECIPES } from '../core/gen';
 import { DAYS, DIFFICULTIES } from '../core/world/difficulty';
 import {
-  canAttack, canVisit, capitalOpen, regionsHeld, storyBudget, type Holder, type World,
+  canAttack, canVisit, capitalOpen, regionsHeld, type Holder, type World,
 } from '../core/world/world';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
@@ -126,7 +126,7 @@ export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView): void {
   const col = P.x + 8;
   const maxPx = P.w - 14;
   drawText(ctx, `DAY ${w.day}`, col, P.y + 10, UI.text, 'left');
-  drawText(ctx, `HELD ${regionsHeld(w)}   ${storyBudget(w)} CR`, col, P.y + 22, UI.dim, 'left');
+  drawText(ctx, `HELD ${regionsHeld(w)}   ${w.credits} CR`, col, P.y + 22, UI.dim, 'left');
   const sel = v.selected;
   if (sel !== null) {
     const r = REGIONS[sel];

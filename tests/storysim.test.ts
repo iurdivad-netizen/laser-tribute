@@ -3,14 +3,15 @@ import { generateMission } from '../src/core/gen';
 import { createMission } from '../src/core/missions';
 import type { GameState } from '../src/core/types';
 import { DIFFICULTY_IDS } from '../src/core/world/difficulty';
-import { gearLevel, storyBudget } from '../src/core/world/world';
+import { storyGearRules } from '../src/core/world/base';
+import { deployed, kitBudget } from '../src/core/world/barracks';
 import { runStory, type PlayMission } from '../src/sim/story';
 
 /** A "fight" that is decided by the stub: builds the real state, then sets the outcome and who died. */
 const stub = (status: 'won' | 'lost'): PlayMission => (spec, world, loadout) => {
   const def = generateMission(spec.type, spec.variation, spec.difficulty);
   const s: GameState = createMission(
-    def, spec.seed, world.roster, loadout, storyBudget(world), world.stash, gearLevel(world), spec.enemyLevel,
+    def, spec.seed, deployed(world).roster, loadout, kitBudget(world), world.stash, storyGearRules(world.research.done), spec.enemyLevel,
   );
   if (status === 'lost') for (const u of s.units) if (u.side === 'player') u.alive = false;
   s.status = status;

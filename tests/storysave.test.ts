@@ -15,7 +15,7 @@ function memory(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-const good = () => JSON.parse(JSON.stringify({ version: 1, world: newWorld(3, 'standard'), loadout: defaultLoadout() }));
+const good = () => JSON.parse(JSON.stringify({ version: 2, world: newWorld(3, 'standard'), loadout: defaultLoadout() }));
 const reject = (mutate: (o: any) => void) => {
   const o = good();
   mutate(o);
@@ -68,7 +68,7 @@ describe('parseStory', () => {
   });
 
   it('rejects the wrong version, planet version, difficulty or status', () => {
-    reject((o) => { o.version = 2; });
+    reject((o) => { o.version = 3; });
     reject((o) => { o.world.planetVersion = 99; });
     reject((o) => { o.world.difficulty = 'iron'; });
     reject((o) => { o.world.status = 'paused'; });
@@ -94,10 +94,27 @@ describe('parseStory', () => {
   });
 
   it('rejects a bad roster, fallen list, name counter or stash', () => {
-    reject((o) => { o.world.roster.pop(); });
-    reject((o) => { o.world.roster[0].name = ''; });
+    reject((o) => { o.world.soldiers[1].name = o.world.soldiers[0].name; }); // duplicate names
+    reject((o) => { o.world.soldiers[0].name = ''; });
+    reject((o) => { o.world.soldiers[0].status = 'asleep'; });
+    reject((o) => { o.world.soldiers[0].status = 'training'; }); // training needs days left
+    reject((o) => { o.world.soldiers[0].daysLeft = 3; }); // ready needs none
+    reject((o) => { o.world.soldiers[0].kills = -1; });
+    reject((o) => { o.world.soldiers = Array.from({ length: 7 }, (_, i) => ({ name: `S${i}`, kills: 0, trained: 0, status: 'ready', daysLeft: 0 })); o.world.namesUsed = 7; }); // over 6 beds
+    reject((o) => { o.world.squad = ['Alvarez', 'Brandt', 'Chen', 'Dubois', 'Alvarez']; });
+    reject((o) => { o.world.squad = ['Nobody']; });
+    reject((o) => { o.world.soldiers[0].status = 'training'; o.world.soldiers[0].daysLeft = 2; }); // squad still names him
+    reject((o) => { o.world.credits = -5; });
+    reject((o) => { o.world.credits = 1.5; });
+    reject((o) => { o.world.research.done = ['smg']; }); // shotgun missing
+    reject((o) => { o.world.research.done = ['warp-drive']; });
+    reject((o) => { o.world.research.done = ['shotgun', 'shotgun']; });
+    reject((o) => { o.world.research.active = { node: 'shotgun', daysLeft: 0 }; });
+    reject((o) => { o.world.research.done = ['shotgun']; o.world.research.active = { node: 'shotgun', daysLeft: 2 }; });
+    reject((o) => { o.world.research.active = { node: 'smg', daysLeft: 2 }; }); // prerequisite missing
     reject((o) => { o.world.fallen = 'none'; });
     reject((o) => { o.world.namesUsed = 3; });
+    reject((o) => { o.world.fallen = [{ name: 'Old', kills: 1 }]; o.world.namesUsed = 4; }); // 4 soldiers + 1 fallen
     reject((o) => { o.world.stash.rifle = -2; });
   });
 

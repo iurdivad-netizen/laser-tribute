@@ -7,7 +7,7 @@ import {
 } from './core/campaign';
 import { CAMPAIGN_LENGTH, drawVariations, generateMission } from './core/gen';
 import { levelOf } from './core/campaign';
-import { defaultLoadout, fitLoadout, validateLoadout, type Loadout } from './core/loadout';
+import { defaultLoadout, fitLoadout, loadoutCost, validateLoadout, type Loadout } from './core/loadout';
 import { MISSIONS, createMission, type MissionDef } from './core/missions';
 import { addStash, capStash, lootFrom } from './core/loot';
 import { promotions, rankFor } from './core/ranks';
@@ -20,9 +20,10 @@ import type { Stash } from './core/stash';
 import type { DifficultyId } from './core/world/difficulty';
 import { REGIONS } from './core/world/planet';
 import {
-  canAttack, canVisit, gearLevel as storyGearLevel, missionFor, newWorld, regionsHeld, resolve, storyBudget, visit,
-  type MissionSpec, type World,
+  canAttack, canVisit, missionFor, newWorld, regionsHeld, resolve, visit, type MissionSpec, type World,
 } from './core/world/world';
+import { BASE_RULES, storyGearRules } from './core/world/base';
+import { autoSquad, deployed, kitBudget } from './core/world/barracks';
 import type { GearArg } from './core/gear';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
@@ -334,15 +335,15 @@ export class App {
   }
 
   private budget(): number {
-    return this.story ? storyBudget(this.story) : campaignBudget(this.campaign);
+    return this.story ? kitBudget(this.story) : campaignBudget(this.campaign);
   }
 
   private gearStash(): Stash {
     return this.story ? this.story.stash : this.campaign.stash;
   }
 
-  private gearLevel(): number {
-    return this.story ? storyGearLevel(this.story) : levelOf(this.campaign);
+  private gearLevel(): GearArg {
+    return this.story ? storyGearRules(this.story.research.done) : levelOf(this.campaign);
   }
 
   private startMission(): void {
@@ -371,7 +372,7 @@ export class App {
   private startStoryMission(w: World, spec: MissionSpec): void {
     const def = this.generate(spec.type, spec.variation, spec.difficulty);
     const state = this.createMission(
-      def, spec.seed, w.roster, this.loadout, storyBudget(w), w.stash, storyGearLevel(w), spec.enemyLevel,
+      def, spec.seed, deployed(w).roster, this.loadout, kitBudget(w), w.stash, storyGearRules(w.research.done), spec.enemyLevel,
     );
     this.usedLoadout = this.loadout;
     this.controller = new Controller(state, createUiState('p1'), this.newEffects(), this.sound);
@@ -391,7 +392,7 @@ export class App {
     const w = this.story;
     if (!w) return;
     if (w.status === 'active') {
-      const loadout = fitLoadout(this.loadout, storyBudget(w), w.stash, storyGearLevel(w));
+      const loadout = fitLoadout(this.loadout, kitBudget(w), w.stash, storyGearRules(w.research.done));
       this.storyStore?.save(w, loadout);
       this.storySave = { world: w, loadout };
     } else {
@@ -403,13 +404,13 @@ export class App {
   /** The mission just ended: fold it into the world and show the result card. */
   private finishStoryMission(c: Controller, w: World, spec: MissionSpec): void {
     const fallenBefore = w.fallen.length;
-    const rosterBefore = w.roster;
+    const rosterBefore = w.soldiers.map((s) => ({ name: s.name, kills: s.kills + s.trained }));
     const stashBefore = w.stash;
     this.result = summarize(c.state);
-    const next = resolve(w, spec, c.state, this.usedLoadout);
+    const next = resolve(w, spec, c.state, this.usedLoadout, loadoutCost(this.usedLoadout, w.stash, storyGearRules(w.research.done)));
     this.story = next;
     this.saveStory();
-    this.promoted = promotions(rosterBefore, next.roster);
+    this.promoted = promotions(rosterBefore, next.soldiers.map((s) => ({ name: s.name, kills: s.kills + s.trained })));
     this.loot = c.state.status === 'won' ? this.lootText(stashBefore, c.state) : '';
     this.fallenNow = next.fallen.slice(fallenBefore).map((f) => f.name);
     this.screen = 'result';
@@ -424,7 +425,7 @@ export class App {
     this.newArmedUntil = 0;
     if (save) {
       this.story = save.world;
-      this.loadout = fitLoadout(save.loadout, storyBudget(save.world), save.world.stash, storyGearLevel(save.world));
+      this.loadout = fitLoadout(save.loadout, kitBudget(save.world), save.world.stash, storyGearRules(save.world.research.done));
       this.selectedRegion = null;
       this.planetNotice = '';
       this.pendingSpec = null;
@@ -456,7 +457,7 @@ export class App {
     if (!w || id === null) return;
     if (canAttack(w, id)) {
       this.pendingSpec = missionFor(w, id);
-      this.loadout = fitLoadout(this.loadout, storyBudget(w), w.stash, storyGearLevel(w));
+      this.loadout = fitLoadout(this.loadout, kitBudget(w), w.stash, storyGearRules(w.research.done));
       this.screen = 'equipment';
       this.hover = null;
       this.lock();
@@ -940,15 +941,14 @@ export class App {
     const w = this.story;
     if (w && this.pendingSpec) {
       const r = REGIONS[this.pendingSpec.region];
-      const kills = w.roster.reduce((sum, s) => sum + s.kills, 0);
+      const squad = deployed(w);
       return {
-        budget: storyBudget(w),
+        budget: kitBudget(w),
         title: `${r.name.toUpperCase()}: ${w.regions[r.id].garrison} ENEMIES`,
-        breakdown: `Base ${CAMPAIGN.baseBudget} + regions ${storyBudget(w) - CAMPAIGN.baseBudget - CAMPAIGN.killBonus * kills}` +
-          ` + kills ${CAMPAIGN.killBonus * kills}`,
-        soldiers: w.roster.map((s) => ({ ...s, rank: rankFor(s.kills).name })),
+        breakdown: `Credits ${w.credits}` + (squad.mercs > 0 ? `, loans ${squad.mercs} x ${BASE_RULES.mercFee}` : ''),
+        soldiers: squad.roster.map((s) => ({ ...s, rank: rankFor(s.kills + (s.trained ?? 0)).name })),
         stash: w.stash,
-        level: storyGearLevel(w),
+        level: storyGearRules(w.research.done),
       };
     }
     const c = this.campaign;
@@ -1040,8 +1040,8 @@ export class App {
         won: w.status === 'won',
         missionsWon: REGIONS.filter((r) => r.kind === 'enemy' && w.regions[r.id].holder === 'player').length,
         missionCount: REGIONS.filter((r) => r.kind === 'enemy').length,
-        totalKills: w.roster.reduce((sum, r) => sum + r.kills, 0) + w.fallen.reduce((sum, f) => sum + f.kills, 0),
-        survivors: w.roster.map((r) => r.name),
+        totalKills: w.soldiers.reduce((sum, r) => sum + r.kills, 0) + w.fallen.reduce((sum, f) => sum + f.kills, 0),
+        survivors: w.soldiers.map((r) => r.name),
         fallen: w.fallen.map((f) => f.name),
       }));
       return;

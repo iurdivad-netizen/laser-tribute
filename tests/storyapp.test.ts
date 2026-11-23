@@ -106,7 +106,7 @@ describe('the planet', () => {
     click(START);
     expect(app.screen).toBe('mission');
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({ budget: 128, level: 1, enemyLevel: REGIONS[1].type + 1 });
+    expect(calls[0]).toMatchObject({ budget: 150, level: { premium: 1.5 }, enemyLevel: REGIONS[1].type + 1 });
   });
 
   it('does nothing when the action is not possible', () => {
@@ -199,7 +199,8 @@ describe('fighting', () => {
     click(RESULT_CONTINUE);
     expect(app.screen).toBe('planet');
     expect(app.story?.regions[1].holder).toBe('enemy');
-    expect(app.story?.roster.map((r) => r.name)).toEqual(['Eriksen', 'Fontaine', 'Garcia', 'Haddad']);
+    expect(app.story?.soldiers).toEqual([]); // no free replacements: the pool is empty
+    expect(app.story?.fallen).toHaveLength(4);
     expect(app.story?.day).toBe(9);
   });
 

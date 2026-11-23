@@ -1,14 +1,15 @@
 import { runEnemyTurn } from '../core/ai';
 import { generateMission } from '../core/gen';
-import type { Loadout } from '../core/loadout';
+import { loadoutCost, type Loadout } from '../core/loadout';
 import { createMission } from '../core/missions';
 import type { GameState } from '../core/types';
 import type { DifficultyId } from '../core/world/difficulty';
 import { CAPITAL_REGION, REGIONS } from '../core/world/planet';
 import {
-  attackable, canVisit, gearLevel, missionFor, newWorld, regionsHeld, resolve, storyBudget, visit,
-  type MissionSpec, type World, type WorldStatus,
+  attackable, canVisit, missionFor, newWorld, regionsHeld, resolve, visit, type MissionSpec, type World, type WorldStatus,
 } from '../core/world/world';
+import { storyGearRules } from '../core/world/base';
+import { deployed, kitBudget } from '../core/world/barracks';
 import { botTurn, type BotMode } from './bot';
 import { TURN_LIMIT, chooseLoadout } from './campaign';
 
@@ -20,7 +21,7 @@ export function playWithBot(mode: BotMode = 'basic'): PlayMission {
   return (spec, world, loadout) => {
     const def = generateMission(spec.type, spec.variation, spec.difficulty);
     let s = createMission(
-      def, spec.seed, world.roster, loadout, storyBudget(world), world.stash, gearLevel(world), spec.enemyLevel,
+      def, spec.seed, deployed(world).roster, loadout, kitBudget(world), world.stash, storyGearRules(world.research.done), spec.enemyLevel,
     );
     while (s.status === 'playing') {
       if (s.turnNumber > TURN_LIMIT) {
@@ -56,10 +57,11 @@ export function runStory(seed: number, difficulty: DifficultyId, play: PlayMissi
     const target = targets.includes(CAPITAL_REGION) ? CAPITAL_REGION : targets[0];
     if (target !== undefined) {
       const spec = missionFor(w, target);
-      const loadout = chooseLoadout(storyBudget(w), w.stash, gearLevel(w));
+      const rules = storyGearRules(w.research.done);
+      const loadout = chooseLoadout(kitBudget(w), w.stash, rules);
       const finished = play(spec, w, loadout);
       if (finished.status === 'lost') losses += 1;
-      w = resolve(w, spec, finished, loadout);
+      w = resolve(w, spec, finished, loadout, loadoutCost(loadout, w.stash, rules));
     } else {
       const place = REGIONS.find((r) => canVisit(w, r.id));
       if (!place) break;
