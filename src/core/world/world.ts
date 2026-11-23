@@ -1,6 +1,9 @@
-import { CAMPAIGN, soldierName, type RosterSoldier } from '../campaign';
-import { emptyStash, type Stash } from '../stash';
-import { DIFFICULTIES, type DifficultyId } from './difficulty';
+import { CAMPAIGN, recordMission, soldierName, type Campaign, type RosterSoldier } from '../campaign';
+import type { Loadout } from '../loadout';
+import { addStash, capStash } from '../loot';
+import { emptyStash, stashOf, type Stash } from '../stash';
+import type { GameState } from '../types';
+import { DAYS, DIFFICULTIES, type DifficultyId } from './difficulty';
 import {
   CAPITAL_GATES, CAPITAL_REGION, CAPITAL_UNLOCK, PLANET_VERSION, REGIONS, missionDifficulty,
 } from './planet';
@@ -121,4 +124,68 @@ export function missionFor(w: World, id: number): MissionSpec {
     enemyLevel: r.type + 1,
     seed: missionSeed(w.seed, id, s.attempts),
   };
+}
+
+/** Moves the calendar on. (Task 6 adds garrison growth and counterattacks here.) */
+export function advance(w: World, days: number): World {
+  if (!Number.isInteger(days) || days < 0) throw new RangeError(`cannot advance ${days} days`);
+  return { ...w, day: w.day + days };
+}
+
+const clone = (w: World): World => ({
+  ...w,
+  regions: w.regions.map((r) => ({ ...r })),
+  roster: w.roster.map((r) => ({ ...r })),
+  fallen: w.fallen.map((r) => ({ ...r })),
+  stash: { ...w.stash },
+});
+
+const LOOT_BY_REGION = ['rifle', 'pistol', 'clip'] as const;
+
+/** A neutral settlement becomes an ally; a wilderness yields one stash item, once. Costs days. */
+export function visit(w: World, id: number): World {
+  if (!canVisit(w, id)) throw new Error(`cannot visit region ${id}`);
+  const next = clone(w);
+  const s = next.regions[id];
+  if (s.holder === 'neutral') {
+    s.holder = 'allied';
+  } else {
+    s.visited = true;
+    next.stash = capStash(addStash(next.stash, stashOf({ [LOOT_BY_REGION[id % 3]]: 1 })));
+  }
+  return advance(next, DAYS.visit);
+}
+
+/**
+ * Folds a finished fight into the world. A win takes the region (and the game when it is the capital); a loss leaves
+ * it enemy-held, replaces the dead with rookies and costs extra days. The game is lost when no region is held.
+ */
+export function resolve(w: World, spec: MissionSpec, finished: GameState, used: Loadout): World {
+  if (w.status !== 'active') throw new Error('the story is over');
+  if (finished.status === 'playing') throw new Error('The mission is not finished');
+  const won = finished.status === 'won';
+  const asCampaign: Campaign = {
+    mode: 'campaign', variations: [], missionIndex: 0, missionsWon: 0, status: 'active',
+    roster: w.roster, fallen: w.fallen, namesUsed: w.namesUsed, stash: w.stash,
+  };
+  const folded = recordMission(asCampaign, finished, 99, used);
+  const next = clone(w);
+  next.roster = folded.roster;
+  next.fallen = folded.fallen;
+  next.namesUsed = folded.namesUsed;
+  next.stash = folded.stash;
+  while (next.roster.length < CAMPAIGN.rosterSize) {
+    next.roster.push({ name: soldierName(next.namesUsed), kills: 0 });
+    next.namesUsed += 1;
+  }
+  const region = next.regions[spec.region];
+  region.attempts += 1;
+  if (won) {
+    region.holder = 'player';
+    region.garrison = 0;
+    if (spec.region === CAPITAL_REGION) next.status = 'won';
+  }
+  const advanced = advance(next, DAYS.attack + (won ? 0 : DAYS.lossPenalty));
+  if (advanced.status === 'active' && regionsHeld(advanced) === 0) advanced.status = 'lost';
+  return advanced;
 }
