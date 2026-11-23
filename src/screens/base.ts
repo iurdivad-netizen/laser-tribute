@@ -52,12 +52,12 @@ export function buildingStatus(w: World, id: BuildingId): string[] {
       return [`PREMIUM +${Math.round((BASE_RULES.premium - 1) * 100)}%`, `${locked} ITEMS LOCKED`];
     }
     case 'training': {
-      if (levels.training === 0) return ['NOT BUILT', 'RESEARCH IT IN THE LAB'];
+      if (levels.training === 0) return ['NOT BUILT', 'RESEARCH IT FIRST'];
       const busy = w.soldiers.find((s) => s.status === 'training');
       return busy ? [busy.name.toUpperCase(), `${busy.daysLeft} DAYS LEFT`] : [`LEVEL ${levels.training}`, 'READY TO TRAIN'];
     }
     case 'hospital': {
-      if (levels.hospital === 0) return ['NOT BUILT', 'RESEARCH IT IN THE LAB'];
+      if (levels.hospital === 0) return ['NOT BUILT', 'RESEARCH IT FIRST'];
       return [`LEVEL ${levels.hospital}`, `${Math.round(BASE_RULES.hospitalChance[levels.hospital] * 100)}% SECOND CHANCE`];
     }
     case 'wait':

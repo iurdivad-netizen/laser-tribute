@@ -4,6 +4,8 @@
 
 Story mode (project 1, merged as PR #54) gives the player a planet to take back, but between fights there is nothing to build: gear unlocks by a made-up number (regions taken / 3), the budget is recomputed each mission, and the squad is exactly four soldiers who are replaced for free. Rui wants the X-COM base layer: somewhere to spend credits and days that makes the next fight better, and makes losing soldiers matter. Goal, as for the whole mode: a beautiful, well-built, enjoyable game.
 
+**Status 2026-11-23:** project 2 implemented on branch `feature/story-base` (plan: `docs/superpowers/plans/2026-11-23-story-mode-base.md`).
+
 Story mode is several projects: (1) planet and spine, done; **(2) the base, this document**; (3) story and art; (4) balance.
 
 ## Decisions Rui made
