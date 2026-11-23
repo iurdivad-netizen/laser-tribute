@@ -1,5 +1,6 @@
 import type { RosterSoldier } from './campaign';
 import { TUTORIAL_LEVEL } from './config';
+import type { GearArg } from './gear';
 import { assignEnemyRoles, assignEnemyWeapons } from './enemyArms';
 import { themeOfMap } from './themes';
 import { LOADOUT, applyLoadout, type Loadout } from './loadout';
@@ -139,9 +140,9 @@ export function createMission(
   loadout?: Loadout,
   budget: number = LOADOUT.budget,
   stash?: Stash,
-  level: number = TUTORIAL_LEVEL,
+  level: GearArg = TUTORIAL_LEVEL,
   /** The level that arms and assigns roles to the enemies; defaults to `level` (story mode sets it apart). */
-  enemyLevel: number = level,
+  enemyLevel: number = typeof level === 'number' ? level : TUTORIAL_LEVEL,
 ): GameState {
   let s = parseMap(def.rows, seed);
   s.theme = themeOfMap(def.id);

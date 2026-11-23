@@ -27,7 +27,7 @@ function memory(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-type Call = { seed: number; roster: unknown; budget: number; level: number; enemyLevel: number | undefined };
+type Call = { seed: number; roster: unknown; budget: number; level: unknown; enemyLevel: number | undefined };
 
 function setup(storage = memory(), opts: AppOptions = {}) {
   let t = 0;

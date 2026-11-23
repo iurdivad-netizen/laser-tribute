@@ -23,6 +23,7 @@ import {
   canAttack, canVisit, gearLevel as storyGearLevel, missionFor, newWorld, regionsHeld, resolve, storyBudget, visit,
   type MissionSpec, type World,
 } from './core/world/world';
+import type { GearArg } from './core/gear';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
 import {
@@ -69,7 +70,7 @@ export interface AppOptions {
   newSeed?: () => number;
   missions?: MissionDef[];
   createMission?: (
-    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash, level: number, enemyLevel?: number,
+    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash, level: GearArg, enemyLevel?: number,
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
