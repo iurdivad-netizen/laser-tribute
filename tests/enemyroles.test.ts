@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runEnemyTurn } from '../src/core/ai';
+import { flankGoal, runEnemyTurn } from '../src/core/ai';
 import { hitChance, officerAura } from '../src/core/combat';
 import { ROLES } from '../src/core/config';
 import { assignEnemyRoles } from '../src/core/enemyArms';
@@ -105,5 +105,61 @@ describe('enemy behaviour', () => {
     const p1x = 1;
     expect(run().pos.x).toBeGreaterThanOrEqual(run('rusher').pos.x);
     expect(run('rusher').pos.x).toBeGreaterThan(p1x);
+  });
+});
+
+describe('flanker', () => {
+  const room = () => {
+    const rows = ['#'.repeat(24)];
+    for (let y = 0; y < 13; y++) rows.push('#' + (y === 0 ? 'P' : y === 1 ? 'E' : '.') + '.'.repeat(21) + '#');
+    rows.push('#'.repeat(24));
+    return rows;
+  };
+  const place = (s: ReturnType<typeof makeState>, id: string, x: number, y: number) => {
+    unit(s, id).pos = { x, y };
+  };
+
+  it('is handed out from mission 5, one per five enemies, and leaves a plain rifleman', () => {
+    expect(count(roles(4, 4), 'flanker')).toBe(0);
+    for (let type = 4; type < 10; type++) {
+      const r = roles(type, type + 1);
+      expect(count(r, 'flanker')).toBeGreaterThanOrEqual(1);
+      expect(count(r, 'plain')).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('aims for the far side of the target, away from the other enemies', () => {
+    const s = makeState(room());
+    const e = s.units.find((u) => u.side === 'enemy')!;
+    const p = unit(s, 'p1');
+    p.pos = { x: 12, y: 7 };
+    e.pos = { x: 3, y: 7 };
+    s.units.push({ ...e, id: 'e2', pos: { x: 2, y: 6 } }, { ...e, id: 'e3', pos: { x: 2, y: 8 } });
+    const goal = flankGoal(s, e, p.pos)!;
+    expect(goal).not.toBeNull();
+    expect(goal.x).toBeGreaterThan(p.pos.x); // beyond the target, not on the pack's side
+  });
+
+  it('goes straight at a target it is already close to', () => {
+    const s = makeState(room());
+    const e = s.units.find((u) => u.side === 'enemy')!;
+    unit(s, 'p1').pos = { x: 6, y: 7 };
+    e.pos = { x: 4, y: 7 };
+    expect(flankGoal(s, e, unit(s, 'p1').pos)).toBeNull();
+  });
+
+  it('presses on past the range where a plain rifleman stops to shoot', () => {
+    const run = (role?: 'flanker') => {
+      const s = makeState(room());
+      const f = s.units.find((u) => u.side === 'enemy')!;
+      f.role = role;
+      place(s, 'p1', 22, 7);
+      f.pos = { x: 2, y: 7 };
+      s.units.push({ ...f, id: 'e2', role: undefined, pos: { x: 1, y: 6 } }, { ...f, id: 'e3', role: undefined, pos: { x: 1, y: 8 } });
+      s.enemyMemory = { x: 22, y: 7 };
+      s.turn = 'enemy';
+      return runEnemyTurn(s).state.units.find((u) => u.id === f.id)!.pos.x;
+    };
+    expect(run('flanker')).toBeGreaterThan(run());
   });
 });

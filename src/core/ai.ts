@@ -1,7 +1,7 @@
 import { applyCommand } from './apply';
 import { canShoot, coverStep, isHurt, pickTarget, retreatStep } from './aiscore';
-import { CONFIG, WEAPONS } from './config';
-import { distance, facingFromDelta, posEq, tileAt } from './geometry';
+import { CONFIG, ROLES, WEAPONS } from './config';
+import { chebyshev, distance, facingFromDelta, inBounds, posEq, tileAt, unitAt } from './geometry';
 import { findPath } from './path';
 import type { Command, GameEvent, GameState, Pos, Result, Unit } from './types';
 import { canSee, visibleToSide } from './vision';
@@ -31,6 +31,36 @@ function stepToward(s: GameState, unit: Unit, goal: Pos, hunting: boolean): Comm
   return unit.ap >= CONFIG.moveCost ? { type: 'Move', unitId: unit.id, to: next } : null;
 }
 
+/**
+ * Where a flanker heads: of the eight tiles `flankRadius` around `target` it can reach, the one farthest from the other
+ * enemies (the far side), nearer ones winning ties. Null when it is already that close or nothing qualifies, and the
+ * flanker then goes straight at the target.
+ */
+export function flankGoal(s: GameState, unit: Unit, target: Pos): Pos | null {
+  if (chebyshev(unit.pos, target) <= ROLES.flankRadius) return null;
+  const others = s.units.filter((u) => u.side === 'enemy' && u.alive && u.id !== unit.id);
+  if (others.length === 0) return null;
+  const cx = others.reduce((a, u) => a + u.pos.x, 0) / others.length;
+  const cy = others.reduce((a, u) => a + u.pos.y, 0) / others.length;
+  let best: Pos | null = null;
+  let bestScore = -Infinity;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const p = { x: target.x + dx * ROLES.flankRadius, y: target.y + dy * ROLES.flankRadius };
+      if (!inBounds(s, p) || tileAt(s, p).kind !== 'floor' || unitAt(s, p)) continue;
+      const path = findPath(s, unit.id, p, { ignoreOccupantAtGoal: false, openDoors: true });
+      if (!path) continue;
+      const score = Math.hypot(p.x - cx, p.y - cy) - path.length * 0.25;
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+  }
+  return best;
+}
+
 function candidates(s: GameState, unit: Unit): Command[] {
   const out: Command[] = [];
   if (unit.ammo < 1 && unit.clips > 0) out.push({ type: 'Reload', unitId: unit.id });
@@ -49,20 +79,22 @@ function candidates(s: GameState, unit: Unit): Command[] {
     }
     const d = distance(unit.pos, target.pos);
     const sees = canSee(s, unit, target.pos);
-    if (sees && d <= w.range) {
+    // a flanker keeps closing on the far side until the target is within half its range, instead of stopping to trade shots in the open
+    const flanking = unit.role === 'flanker' && !falling && d > w.range / 2 && flankGoal(s, unit, target.pos) !== null;
+    if (sees && d <= w.range && !flanking) {
       if (d > 2 && unit.ap >= w.aimedAp) {
         out.push({ type: 'AimedShot', unitId: unit.id, targetId: target.id });
       }
       out.push({ type: 'SnapShot', unitId: unit.id, targetId: target.id });
     }
-    if (!sees) {
+    if (!sees && !flanking) {
       out.push({
         type: 'Turn',
         unitId: unit.id,
         facing: facingFromDelta(target.pos.x - unit.pos.x, target.pos.y - unit.pos.y),
       });
     }
-    const step = !falling && unit.role !== 'sniper' && unit.ap >= CONFIG.doorCost ? stepToward(s, unit, target.pos, true) : null;
+    const step = !falling && unit.role !== 'sniper' && unit.ap >= CONFIG.doorCost ? stepToward(s, unit, (unit.role === 'flanker' && flankGoal(s, unit, target.pos)) || target.pos, true) : null;
     if (step) out.push((step.type === 'Move' && coverStep(s, unit, target.pos, step.to)) || step);
     return out;
   }
@@ -74,7 +106,7 @@ function candidates(s: GameState, unit: Unit): Command[] {
     if (!goal || posEq(unit.pos, goal)) continue;
     // a patrol step needs a move; a hunting goal may only need to open a door
     if (unit.ap < (hunting ? CONFIG.doorCost : CONFIG.moveCost)) continue;
-    const step = stepToward(s, unit, goal, hunting);
+    const step = stepToward(s, unit, (hunting && unit.role === 'flanker' && flankGoal(s, unit, goal)) || goal, hunting);
     if (step) {
       out.push(step);
       break;

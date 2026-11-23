@@ -56,7 +56,7 @@ Every action button shows its AP cost. Found weapons and grenades from a won mis
 
 ## Enemy roles
 
-From campaign mission 3 some enemies have a role, shown by a coloured pip over the figure. The **officer** (gold) gives every enemy within 6 tiles +10% accuracy, so kill him first. The **rusher** (orange, from mission 4) carries an SMG, hunts the squad through doors from any distance and never falls back. The **sniper** (cyan, from mission 6) holds his post with a sniper rifle and long sight, so approach him with care or smoke. Everyone else is a plain rifleman.
+From campaign mission 3 some enemies have a role, shown by a coloured pip over the figure. The **officer** (gold) gives every enemy within 6 tiles +10% accuracy, so kill him first. The **rusher** (orange, from mission 4) carries an SMG, hunts the squad through doors from any distance and never falls back. The **flanker** (purple, from mission 5) heads for the far side of the squad and does not stop to trade shots until you are close, so watch your back. The **sniper** (cyan, from mission 6) holds his post with a sniper rifle and long sight, so approach him with care or smoke. Everyone else is a plain rifleman.
 
 ## Ranks
 
