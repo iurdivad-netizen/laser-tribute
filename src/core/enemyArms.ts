@@ -26,7 +26,7 @@ export function assignEnemyWeapons(s: GameState, level: number): void {
 }
 
 /**
- * Gives some enemies a role from the level on (officers from mission 3, rushers from 4, snipers from 6), chosen by the
+ * Gives some enemies a role from the level on (officers from mission 3, rushers from 4, flankers from 5, snipers from 6), chosen by the
  * same seed-and-position hash as the weapons so a mission always has the same cast. Always leaves at least one plain
  * rifleman. A sniper is handed the sniper rifle and a rusher the SMG when their weapons are unlocked.
  */
@@ -44,10 +44,12 @@ export function assignEnemyRoles(s: GameState, level: number): void {
   const officers = level >= ROLES.officerFrom && n >= 5 ? (n >= 10 ? 2 : 1) : 0;
   const snipers = level >= ROLES.sniperFrom ? (level >= 9 ? 2 : 1) : 0;
   const rushers = level >= ROLES.rusherFrom ? Math.floor(n / 4) : 0;
-  const wanted: ('officer' | 'sniper' | 'rusher')[] = [
+  const flankers = level >= ROLES.flankerFrom && n >= 5 ? Math.floor(n / 5) : 0;
+  const wanted: ('officer' | 'sniper' | 'rusher' | 'flanker')[] = [
     ...Array<'officer'>(officers).fill('officer'),
     ...Array<'sniper'>(snipers).fill('sniper'),
     ...Array<'rusher'>(rushers).fill('rusher'),
+    ...Array<'flanker'>(flankers).fill('flanker'),
   ].slice(0, Math.max(0, n - 1));
   wanted.forEach((role, i) => {
     const u = order[i];

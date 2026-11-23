@@ -118,9 +118,10 @@ export const HAZARD = { fireDamage: 10 } as const;
 
 /**
  * Enemy roles. A sniper holds its post and shoots from afar, a rusher hunts the squad without a door limit and never
- * falls back, an officer gives every enemy within `officerRadius` tiles (itself included) `officerBonus` more accuracy.
+ * falls back, an officer gives every enemy within `officerRadius` tiles (itself included) `officerBonus` more accuracy, a flanker
+ * walks to the far side of its target (a tile `flankRadius` away, opposite the other enemies) instead of straight at it.
  */
-export const ROLES = { officerRadius: 6, officerBonus: 0.1, officerFrom: 3, rusherFrom: 4, sniperFrom: 6 } as const;
+export const ROLES = { officerRadius: 6, officerBonus: 0.1, officerFrom: 3, rusherFrom: 4, flankerFrom: 5, sniperFrom: 6, flankRadius: 3 } as const;
 
 /** The tutorial offers only the level 1 kit. */
 export const TUTORIAL_LEVEL = 1;

@@ -28,7 +28,7 @@ export type AttachmentId = 'scope';
 export type ItemKind = WeaponId | 'grenade';
 export type ShotMode = 'snap' | 'aimed';
 /** What an enemy does on the battlefield beyond carrying a gun; absent means a plain rifleman. */
-export type EnemyRole = 'sniper' | 'rusher' | 'officer';
+export type EnemyRole = 'sniper' | 'rusher' | 'officer' | 'flanker';
 
 export interface Unit {
   id: string;

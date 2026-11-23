@@ -30,8 +30,8 @@ const COLORS = {
   armour: '#4da6ff',
 };
 
-/** The pip over an enemy that has a role: an officer is gold, a sniper cyan, a rusher orange. */
-const ROLE_COLORS = { officer: '#ffd24d', sniper: '#4dd2ff', rusher: '#ff8a2e' } as const;
+/** The pip over an enemy that has a role: an officer is gold, a sniper cyan, a rusher orange, a flanker purple. */
+const ROLE_COLORS = { officer: '#ffd24d', sniper: '#4dd2ff', rusher: '#ff8a2e', flanker: '#c46bff' } as const;
 
 function tileFigure(state: GameState, x: number, y: number): Figure {
   const tile = state.tiles[y][x];
