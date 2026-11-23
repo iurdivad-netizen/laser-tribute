@@ -60,7 +60,7 @@ export interface AppOptions {
   newSeed?: () => number;
   missions?: MissionDef[];
   createMission?: (
-    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash, level: number,
+    def: MissionDef, seed: number, roster: RosterSoldier[], loadout: Loadout, budget: number, stash: Stash, level: number, enemyLevel?: number,
   ) => GameState;
   clock?: () => number;
   sound?: SoundPlayer;
@@ -130,8 +130,8 @@ export class App {
     this.missions = opts.missions ?? MISSIONS;
     this.createMission =
       opts.createMission ??
-      ((def, seed, roster, loadout, budget, stash, level) =>
-        createMission(def, seed, roster, loadout, budget, stash, level));
+      ((def, seed, roster, loadout, budget, stash, level, enemyLevel) =>
+        createMission(def, seed, roster, loadout, budget, stash, level, enemyLevel));
     this.width = opts.width ?? LEGACY_SIZE.width;
     this.height = opts.height ?? LEGACY_SIZE.height;
     this.dpr = opts.dpr ?? 1;
