@@ -4,7 +4,7 @@ import { CAPITAL_GATES, CAPITAL_REGION, REGIONS, START_REGION } from '../src/cor
 import { type Holder, type World } from '../src/core/world/world';
 import type { GameState } from '../src/core/types';
 import { DIFFICULTY_SCREEN } from '../src/screens/difficulty';
-import { PLANET } from '../src/screens/planet';
+import { PLANET, STORY_EQUIPMENT_BACK } from '../src/screens/planet';
 import { TITLE } from '../src/screens/title';
 import { CAMPAIGN_SAVE_KEY, LAST_KEY, LastMode, SAVE_KEY, SaveStore, type SaveStorage } from '../src/save';
 import { STORY_SAVE_KEY, StoryStore } from '../src/storysave';
@@ -148,6 +148,30 @@ describe('the planet', () => {
     click(mid(PLANET.abandon));
     expect(storage.data.has(STORY_SAVE_KEY)).toBe(false);
     expect(app.screen).toBe('difficulty');
+  });
+});
+
+describe('changing your mind at the equipment screen', () => {
+  it('goes back to the planet with Escape, spending nothing', () => {
+    const { app, newStory, act, wait } = setup();
+    newStory();
+    act(1);
+    expect(app.screen).toBe('equipment');
+    wait();
+    app.key('Escape');
+    expect(app.screen).toBe('planet');
+    expect(app.story?.day).toBe(0);
+    act(1);
+    expect(app.screen).toBe('equipment'); // the same region can be attacked again
+  });
+
+  it('goes back with the BACK button', () => {
+    const { app, newStory, act, click } = setup();
+    newStory();
+    act(1);
+    click(mid(STORY_EQUIPMENT_BACK));
+    expect(app.screen).toBe('planet');
+    expect(app.story?.day).toBe(0);
   });
 });
 

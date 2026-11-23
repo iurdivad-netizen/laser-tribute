@@ -37,14 +37,14 @@ import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { difficultyHit, drawDifficulty } from './screens/difficulty';
-import { drawPlanet, planetHit } from './screens/planet';
+import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { drawResult, resultHit } from './screens/result';
 import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit, type TitleView } from './screens/title';
 import { defaultCampaignStore, defaultLastMode, defaultSaveStore, type LastMode, type Save, type SaveStore } from './save';
 import { defaultStoryStore, type StorySave, type StoryStore } from './storysave';
 import { textWidth } from './ui/font';
-import { UI, drawFrame } from './ui/frame';
+import { UI, drawButton, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
 
 export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty';
@@ -473,6 +473,15 @@ export class App {
     }
   }
 
+  /** From the story equipment screen: change your mind and return to the planet; nothing is spent. */
+  private backToPlanet(): void {
+    this.pendingSpec = null;
+    this.screen = 'planet';
+    this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
   /** ABANDON on the planet: the first press arms, a second one erases the story and asks for a new difficulty. */
   private abandonStory(): void {
     if (this.clock() >= this.abandonUntil) {
@@ -668,6 +677,10 @@ export class App {
         return;
       }
       case 'equipment': {
+        if (this.story && this.pendingSpec && storyEquipmentBackHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0)) {
+          this.backToPlanet();
+          return;
+        }
         const hit = equipmentHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0);
         if (!hit) return;
         if (hit.kind === 'start') {
@@ -809,6 +822,10 @@ export class App {
       case 'equipment':
         if (k === 'Enter') {
           if (!this.locked()) this.startMission();
+          return true;
+        }
+        if (k === 'Escape' && this.story && this.pendingSpec) {
+          if (!this.locked()) this.backToPlanet();
           return true;
         }
         return false;
@@ -998,7 +1015,10 @@ export class App {
       return;
     }
     if (this.screen === 'equipment') {
-      this.inMenuSpace(ctx, () => drawEquipment(ctx, this.loadout, this.hover, this.equipmentView()));
+      this.inMenuSpace(ctx, () => {
+        drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
+        if (this.story && this.pendingSpec) drawButton(ctx, STORY_EQUIPMENT_BACK, 'BACK (Esc)', 'raised');
+      });
       return;
     }
     if (this.screen === 'difficulty') {

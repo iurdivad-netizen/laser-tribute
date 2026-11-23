@@ -17,6 +17,12 @@ export const PLANET = {
   back: { x: 350, y: 358, w: 116, h: 22 },
 } as const satisfies Record<string, Rect>;
 
+/** BACK on the story equipment screen: returns to the planet without fighting. Menu space; clear of the equipment rows. */
+export const STORY_EQUIPMENT_BACK = { x: 20, y: 330, w: 80, h: 30 } as const satisfies Rect;
+
+export const storyEquipmentBackHit = (px: number, py: number, slop = 0): boolean =>
+  inside(STORY_EQUIPMENT_BACK, px, py, slop);
+
 export interface PlanetView {
   world: World;
   selected: number | null;

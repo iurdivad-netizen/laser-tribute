@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RECIPES, generateMission } from '../src/core/gen';
 import { createMission } from '../src/core/missions';
+import { canAttack, canVisit, newWorld, type World } from '../src/core/world/world';
 import {
   CAPITAL_GATES, CAPITAL_REGION, CAPITAL_UNLOCK, PLANET_VERSION, REGIONS, START_REGION, missionDifficulty,
 } from '../src/core/world/planet';
@@ -84,5 +85,24 @@ describe('planet data', () => {
     const r = REGIONS[REGIONS[START_REGION].links.find((l) => REGIONS[l].kind === 'enemy')!];
     expect(missionDifficulty(r, r.garrison)).toBe(r.type + 1);
     expect(missionDifficulty(r, r.garrison + 2)).toBe(r.type + 3);
+  });
+
+  it('lets a player who takes and visits everything reach all 30 regions', () => {
+    let w: World = newWorld(1, 'calm');
+    const touched = new Set<number>([START_REGION]);
+    for (let pass = 0; pass < 40; pass++) {
+      for (const r of REGIONS) {
+        if (touched.has(r.id)) continue;
+        if (canAttack(w, r.id)) {
+          w = { ...w, regions: w.regions.map((x, i) => (i === r.id ? { ...x, holder: 'player' } : x)) };
+          touched.add(r.id);
+        } else if (canVisit(w, r.id)) {
+          const neutral = w.regions[r.id].holder === 'neutral';
+          w = { ...w, regions: w.regions.map((x, i) => (i === r.id ? { ...x, holder: neutral ? 'allied' : x.holder, visited: true } : x)) };
+          touched.add(r.id);
+        }
+      }
+    }
+    expect(REGIONS.filter((r) => !touched.has(r.id)).map((r) => r.name)).toEqual([]);
   });
 });
