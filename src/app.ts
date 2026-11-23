@@ -20,10 +20,12 @@ import type { Stash } from './core/stash';
 import type { DifficultyId } from './core/world/difficulty';
 import { REGIONS } from './core/world/planet';
 import {
-  canAttack, canVisit, missionFor, newWorld, regionsHeld, resolve, visit, type MissionSpec, type World,
+  canAttack, canVisit, missionFor, newWorld, regionsHeld, resolve, visit, wait, type MissionSpec, type World,
 } from './core/world/world';
 import { BASE_RULES, storyGearRules } from './core/world/base';
-import { autoSquad, deployed, kitBudget } from './core/world/barracks';
+import { autoSquad, deployed, hire, kitBudget, setSquad, startTraining } from './core/world/barracks';
+import { NODES } from './core/world/base';
+import { startResearch } from './core/world/research';
 import type { GearArg } from './core/gear';
 import { createUiState } from './input/uiState';
 import { Effects } from './render/effects';
@@ -40,6 +42,9 @@ import {
 } from './screens/equipment';
 import { difficultyHit, drawDifficulty } from './screens/difficulty';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
+import { baseHit, drawBase } from './screens/base';
+import { drawPanel, panelAction, panelHit, type PanelId } from './screens/basepanels';
+import { drawSquad, squadHit } from './screens/squad';
 import { drawResult, resultHit } from './screens/result';
 import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit, type TitleView } from './screens/title';
@@ -49,7 +54,7 @@ import { textWidth } from './ui/font';
 import { UI, drawButton, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
 
-export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty';
+export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty' | 'base' | 'panel' | 'squad';
 
 /** Menu pixels (of 480x400) around a small equipment button within which a touch still counts as a tap on it. */
 const TOUCH_SLOP = 9;
@@ -129,6 +134,11 @@ export class App {
   private selectedRegion: number | null = null;
   private pendingSpec: MissionSpec | null = null;
   private planetNotice = '';
+  private panelId: PanelId = 'lab';
+  private panelSelected: number | null = null;
+  private panelPage = 0;
+  private baseNotice = '';
+  private squadPicked: string[] = [];
   private abandonUntil = 0;
   private readonly campaignStore: SaveStore | null;
   private readonly lastMode: LastMode | null;
@@ -457,8 +467,8 @@ export class App {
     if (!w || id === null) return;
     if (canAttack(w, id)) {
       this.pendingSpec = missionFor(w, id);
-      this.loadout = fitLoadout(this.loadout, kitBudget(w), w.stash, storyGearRules(w.research.done));
-      this.screen = 'equipment';
+      this.squadPicked = w.squad.length > 0 ? [...w.squad] : autoSquad(w);
+      this.screen = 'squad';
       this.hover = null;
       this.lock();
       this.sound.play('click', 0.9);
@@ -476,10 +486,80 @@ export class App {
   }
 
   /** From the story equipment screen: change your mind and return to the planet; nothing is spent. */
+  private backToSquad(): void {
+    this.screen = 'squad';
+    this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** Leaves the squad step (or a panel's parent): no fight is started and nothing is spent. */
   private backToPlanet(): void {
     this.pendingSpec = null;
     this.screen = 'planet';
     this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** START on the squad step: fix the squad, then on to equipment. */
+  private confirmSquad(): void {
+    const w = this.story;
+    if (!w) return;
+    this.story = setSquad(w, this.squadPicked.filter((n) => w.soldiers.some((s) => s.name === n && s.status === 'ready')));
+    this.loadout = fitLoadout(this.loadout, kitBudget(this.story), this.story.stash, storyGearRules(this.story.research.done));
+    this.screen = 'equipment';
+    this.hover = null;
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  private openPanel(id: PanelId): void {
+    this.panelId = id;
+    this.panelSelected = null;
+    this.panelPage = 0;
+    this.baseNotice = '';
+    this.screen = 'panel';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  private backToBase(): void {
+    this.screen = 'base';
+    this.lock();
+    this.sound.play('click', 0.9);
+  }
+
+  /** The panel's action button: research, hire, train or wait; every success is saved. */
+  private doPanelAction(): void {
+    const w = this.story;
+    if (!w) return;
+    const label = panelAction(this.panelId, w, this.panelSelected);
+    if (!label) return;
+    const sel = this.panelSelected;
+    let next: World = w;
+    let notice = '';
+    if (this.panelId === 'lab' && sel !== null) {
+      next = startResearch(w, NODES[sel].id);
+      notice = `Researching ${NODES[sel].name}.`;
+    } else if (this.panelId === 'hospital') {
+      const node = NODES.find((n) => n.id === `hospital${w.research.done.filter((d) => d.startsWith('hospital')).length + 1}`)!;
+      next = startResearch(w, node.id);
+      notice = `Researching ${node.name}.`;
+    } else if (this.panelId === 'barracks') {
+      next = hire(w);
+      notice = `Hired ${next.soldiers[next.soldiers.length - 1].name}.`;
+    } else if (this.panelId === 'training' && sel !== null) {
+      next = startTraining(w, w.soldiers[sel].name);
+      notice = `${w.soldiers[sel].name} is training.`;
+    } else if (this.panelId === 'wait' && sel !== null) {
+      const days = sel === 0 ? 1 : 3;
+      next = wait(w, days);
+      notice = `Waited ${days} ${days === 1 ? 'day' : 'days'}.`;
+    }
+    this.story = next;
+    this.baseNotice = notice;
+    this.saveStory();
     this.lock();
     this.sound.play('click', 0.9);
   }
@@ -674,13 +754,54 @@ export class App {
           this.planetNotice = '';
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'act') this.actOnRegion();
-        else if (hit.kind === 'abandon') this.abandonStory();
+        else if (hit.kind === 'base') {
+          this.screen = 'base';
+          this.baseNotice = '';
+          this.lock();
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'abandon') this.abandonStory();
         else this.toTitle();
+        return;
+      }
+      case 'base': {
+        const hit = baseHit(mp.x, mp.y, pointer === 'touch' ? 5 : 0);
+        if (hit === 'planet') this.backToPlanet();
+        else if (hit) this.openPanel(hit);
+        return;
+      }
+      case 'panel': {
+        const w = this.story;
+        if (!w) return;
+        const hit = panelHit(this.panelId, mp.x, mp.y, w, this.panelPage, pointer === 'touch' ? 5 : 0);
+        if (!hit) return;
+        if (hit.kind === 'row') {
+          this.panelSelected = hit.index;
+          this.baseNotice = '';
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'act') this.doPanelAction();
+        else if (hit.kind === 'back') this.backToBase();
+        else if (hit.kind === 'next') this.panelPage += 1;
+        else this.panelPage = Math.max(0, this.panelPage - 1);
+        return;
+      }
+      case 'squad': {
+        const w = this.story;
+        if (!w) return;
+        const hit = squadHit(mp.x, mp.y, w, pointer === 'touch' ? 5 : 0);
+        if (!hit) return;
+        if (hit.kind === 'soldier') {
+          this.squadPicked = this.squadPicked.includes(hit.name)
+            ? this.squadPicked.filter((n) => n !== hit.name)
+            : this.squadPicked.length < 4 ? [...this.squadPicked, hit.name] : this.squadPicked;
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'auto') this.squadPicked = autoSquad(w);
+        else if (hit.kind === 'start') this.confirmSquad();
+        else this.backToPlanet();
         return;
       }
       case 'equipment': {
         if (this.story && this.pendingSpec && storyEquipmentBackHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0)) {
-          this.backToPlanet();
+          this.backToSquad();
           return;
         }
         const hit = equipmentHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0);
@@ -827,7 +948,25 @@ export class App {
           return true;
         }
         if (k === 'Escape' && this.story && this.pendingSpec) {
+          if (!this.locked()) this.backToSquad();
+          return true;
+        }
+        return false;
+      case 'squad':
+        if (k === 'Escape') {
           if (!this.locked()) this.backToPlanet();
+          return true;
+        }
+        return false;
+      case 'base':
+        if (k === 'Escape') {
+          if (!this.locked()) this.backToPlanet();
+          return true;
+        }
+        return false;
+      case 'panel':
+        if (k === 'Escape') {
+          if (!this.locked()) this.backToBase();
           return true;
         }
         return false;
@@ -969,7 +1108,8 @@ export class App {
     ctx.fillRect(0, 0, this.width, this.height);
     this.drawScreen(ctx, now);
     const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end' ||
-      this.screen === 'planet' || this.screen === 'difficulty';
+      this.screen === 'planet' || this.screen === 'difficulty' || this.screen === 'base' || this.screen === 'panel' ||
+      this.screen === 'squad';
     if (menu) {
       this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
       this.drawRotateHint(ctx);
@@ -1024,6 +1164,21 @@ export class App {
     }
     if (this.screen === 'difficulty') {
       this.inMenuSpace(ctx, () => drawDifficulty(ctx));
+      return;
+    }
+    if (this.screen === 'base' && this.story) {
+      const w = this.story;
+      this.inMenuSpace(ctx, () => drawBase(ctx, w, this.baseNotice));
+      return;
+    }
+    if (this.screen === 'panel' && this.story) {
+      const w = this.story;
+      this.inMenuSpace(ctx, () => drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice));
+      return;
+    }
+    if (this.screen === 'squad' && this.story) {
+      const w = this.story;
+      this.inMenuSpace(ctx, () => drawSquad(ctx, w, this.squadPicked));
       return;
     }
     if (this.screen === 'planet' && this.story) {

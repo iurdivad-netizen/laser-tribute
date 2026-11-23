@@ -5,6 +5,7 @@ import { type Holder, type World } from '../src/core/world/world';
 import type { GameState } from '../src/core/types';
 import { DIFFICULTY_SCREEN } from '../src/screens/difficulty';
 import { PLANET, STORY_EQUIPMENT_BACK } from '../src/screens/planet';
+import { SQUAD } from '../src/screens/squad';
 import { TITLE } from '../src/screens/title';
 import { CAMPAIGN_SAVE_KEY, LAST_KEY, LastMode, SAVE_KEY, SaveStore, type SaveStorage } from '../src/save';
 import { STORY_SAVE_KEY, StoryStore } from '../src/storysave';
@@ -53,6 +54,8 @@ function setup(storage = memory(), opts: AppOptions = {}) {
   };
   /** Selects a region and presses the action button. */
   const act = (id: number) => { click(region(id)); click(mid(PLANET.act)); };
+  /** Selects a region, attacks it and takes the default squad on to equipment. */
+  const attack = (id: number) => { act(id); click(mid(SQUAD.start)); };
   const finishMission = (status: 'won' | 'lost') => {
     click(START);
     const state: GameState = app.controller!.state;
@@ -64,7 +67,7 @@ function setup(storage = memory(), opts: AppOptions = {}) {
     app.update(1000);
     app.update(2200);
   };
-  return { app, storage, calls, click, newStory, act, finishMission, wait };
+  return { app, storage, calls, click, newStory, act, attack, finishMission, wait };
 }
 
 const hold = (w: World, ids: number[], holder: Holder = 'player'): World => ({
@@ -99,9 +102,9 @@ describe('starting a story', () => {
 
 describe('the planet', () => {
   it('attacks a region: equipment with the story budget, then the mission with split levels', () => {
-    const { app, calls, newStory, act, click } = setup();
+    const { app, calls, newStory, attack, click } = setup();
     newStory();
-    act(1);
+    attack(1);
     expect(app.screen).toBe('equipment');
     click(START);
     expect(app.screen).toBe('mission');
@@ -151,25 +154,32 @@ describe('the planet', () => {
   });
 });
 
-describe('changing your mind at the equipment screen', () => {
-  it('goes back to the planet with Escape, spending nothing', () => {
-    const { app, newStory, act, wait } = setup();
+describe('changing your mind', () => {
+  it('goes back a step at a time with Escape, spending nothing', () => {
+    const { app, newStory, act, click, wait } = setup();
     newStory();
     act(1);
+    expect(app.screen).toBe('squad');
+    click(mid(SQUAD.start));
     expect(app.screen).toBe('equipment');
+    wait();
+    app.key('Escape');
+    expect(app.screen).toBe('squad');
     wait();
     app.key('Escape');
     expect(app.screen).toBe('planet');
     expect(app.story?.day).toBe(0);
     act(1);
-    expect(app.screen).toBe('equipment'); // the same region can be attacked again
+    expect(app.screen).toBe('squad'); // the same region can be attacked again
   });
 
-  it('goes back with the BACK button', () => {
-    const { app, newStory, act, click } = setup();
+  it('goes back with the BACK buttons', () => {
+    const { app, newStory, attack, click } = setup();
     newStory();
-    act(1);
+    attack(1);
     click(mid(STORY_EQUIPMENT_BACK));
+    expect(app.screen).toBe('squad');
+    click(mid(SQUAD.back));
     expect(app.screen).toBe('planet');
     expect(app.story?.day).toBe(0);
   });
@@ -177,9 +187,9 @@ describe('changing your mind at the equipment screen', () => {
 
 describe('fighting', () => {
   it('a win takes the region, spends days, saves and returns to the planet', () => {
-    const { app, newStory, act, finishMission, click, storage } = setup();
+    const { app, newStory, attack, finishMission, click, storage } = setup();
     newStory();
-    act(1);
+    attack(1);
     finishMission('won');
     expect(app.screen).toBe('result');
     click(RESULT_CONTINUE);
@@ -192,9 +202,9 @@ describe('fighting', () => {
   });
 
   it('a wiped squad leaves the region enemy-held and brings four rookies', () => {
-    const { app, newStory, act, finishMission, click } = setup();
+    const { app, newStory, attack, finishMission, click } = setup();
     newStory();
-    act(1);
+    attack(1);
     finishMission('lost');
     click(RESULT_CONTINUE);
     expect(app.screen).toBe('planet');
@@ -205,10 +215,10 @@ describe('fighting', () => {
   });
 
   it('taking the capital ends the story and clears the save', () => {
-    const { app, newStory, act, finishMission, click, storage } = setup();
+    const { app, newStory, attack, finishMission, click, storage } = setup();
     newStory();
     app.story = hold(app.story!, CAPITAL_GATES.slice(0, 2));
-    act(CAPITAL_REGION);
+    attack(CAPITAL_REGION);
     expect(app.screen).toBe('equipment');
     finishMission('won');
     click(RESULT_CONTINUE);
@@ -220,10 +230,10 @@ describe('fighting', () => {
   });
 
   it('losing the last region ends the story as a defeat', () => {
-    const { app, newStory, act, finishMission, click, storage } = setup();
+    const { app, newStory, attack, finishMission, click, storage } = setup();
     newStory();
     app.story = hold(hold(app.story!, [START_REGION], 'enemy'), [5], 'allied');
-    act(1);
+    attack(1);
     finishMission('lost');
     click(RESULT_CONTINUE);
     expect(app.screen).toBe('end');
