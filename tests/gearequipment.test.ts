@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WEAPONS } from '../src/core/config';
 import type { GearRules } from '../src/core/gear';
-import { defaultLoadout, type Loadout } from '../src/core/loadout';
+import { defaultLoadout, loadoutCost, type Loadout } from '../src/core/loadout';
 import { emptyStash } from '../src/core/stash';
 import {
   applyEquipmentHit, cycleGadget, drawEquipment, nextThrowable, nextWeapon, scopeBlockReason, toggleScope,
@@ -60,6 +60,28 @@ describe('story rules', () => {
     expect(tight[0].weapon).toBe('rifle');
     const roomy = applyEquipmentHit(kit(), { kind: 'weapon', index: 0 }, 500, emptyStash(), rules(1.5));
     expect(roomy[0].weapon).toBe('shotgun');
+  });
+});
+
+describe('the weapon cycle under tight credits (story)', () => {
+  it('skips a premium weapon it cannot afford instead of getting stuck, so cheap weapons stay reachable', () => {
+    const base = kit();
+    const budget = loadoutCost(base, emptyStash(), rules(1.5)) + 20;
+    let l = base;
+    const taps: string[] = [];
+    for (let n = 0; n < 5; n++) {
+      l = applyEquipmentHit(l, { kind: 'weapon', index: 0 }, budget, emptyStash(), rules(1.5));
+      taps.push(l[0].weapon);
+    }
+    expect(taps.slice(0, 3)).toEqual(['shotgun', 'smg', 'pistol']); // the sniper (60) does not fit, so it is skipped
+    expect(taps[3]).toBe('rifle');
+  });
+
+  it('is unchanged for level numbers: a refused step still blocks', () => {
+    const base = kit().map((s, i) => (i === 0 ? { ...s, weapon: 'smg' as const } : s));
+    const budget = loadoutCost(base) + 3;
+    const next = applyEquipmentHit(base, { kind: 'weapon', index: 0 }, budget, emptyStash(), 6);
+    expect(next[0].weapon).toBe('smg'); // level 6: the sniper costs more than the slack, so the tap is refused, as before
   });
 });
 

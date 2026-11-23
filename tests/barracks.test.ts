@@ -5,7 +5,7 @@ import { createMission } from '../src/core/missions';
 import { emptyStash } from '../src/core/stash';
 import type { GameState } from '../src/core/types';
 import { BASE_RULES, storyGearRules } from '../src/core/world/base';
-import { canHire, canTrain, deployed, hire, startTraining } from '../src/core/world/barracks';
+import { canHire, canTrain, deployed, fillSquad, hire, startTraining } from '../src/core/world/barracks';
 import { DAYS } from '../src/core/world/difficulty';
 import {
   advance, attackable, missionFor, newWorld, resolve, wait, type MissionSpec, type World,
@@ -87,6 +87,26 @@ describe('training', () => {
     const w = startTraining(fresh(['training1']), 'Alvarez');
     expect(canTrain(w, 'Brandt')).toBe(false);
     expect(() => startTraining(w, 'Brandt')).toThrow();
+  });
+});
+
+describe('filling a short squad', () => {
+  it('tops a squad up with the best ready soldiers, keeping the picks first', () => {
+    let w = { ...fresh(['training1']), squad: ['Chen', 'Alvarez'] };
+    w = hire(hire(w));
+    expect(fillSquad(w)).toEqual(['Chen', 'Alvarez', 'Brandt', 'Dubois']);
+  });
+
+  it('brings a soldier back from training into the next squad', () => {
+    const w = advance(startTraining(fresh(['training1']), 'Alvarez'), 4);
+    expect(w.squad).toHaveLength(3);
+    expect(fillSquad(w)).toHaveLength(4);
+    expect(fillSquad(w)).toContain('Alvarez');
+  });
+
+  it('never names a soldier who is not ready, and may stay short', () => {
+    const w = { ...fresh(), soldiers: fresh().soldiers.map((s, i) => (i > 0 ? { ...s, status: 'wounded' as const, daysLeft: 2 } : s)), squad: [] as string[] };
+    expect(fillSquad(w)).toEqual(['Alvarez']);
   });
 });
 

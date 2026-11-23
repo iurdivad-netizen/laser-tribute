@@ -23,7 +23,7 @@ import {
   canAttack, canVisit, missionFor, newWorld, regionsHeld, resolve, visit, wait, type MissionSpec, type World,
 } from './core/world/world';
 import { BASE_RULES, storyGearRules } from './core/world/base';
-import { autoSquad, deployed, hire, kitBudget, setSquad, startTraining } from './core/world/barracks';
+import { autoSquad, deployed, fillSquad, hire, kitBudget, setSquad, startTraining } from './core/world/barracks';
 import { NODES } from './core/world/base';
 import { startResearch } from './core/world/research';
 import type { GearArg } from './core/gear';
@@ -467,7 +467,7 @@ export class App {
     if (!w || id === null) return;
     if (canAttack(w, id)) {
       this.pendingSpec = missionFor(w, id);
-      this.squadPicked = w.squad.length > 0 ? [...w.squad] : autoSquad(w);
+      this.squadPicked = fillSquad(w);
       this.screen = 'squad';
       this.hover = null;
       this.lock();
@@ -480,6 +480,7 @@ export class App {
         : gained.length > 0 ? `Found 1 ${gained[0]}.` : 'Found supplies (stash full).';
       this.story = next;
       this.saveStory();
+      this.afterTimePassed();
       this.lock();
       this.sound.play('click', 0.9);
     }
@@ -530,6 +531,14 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /** Time passed outside a fight (a visit, a wait): if the planet fell in the meantime the story is over. */
+  private afterTimePassed(): void {
+    if (this.story && this.story.status !== 'active') {
+      this.screen = 'end';
+      this.hover = null;
+    }
+  }
+
   /** The panel's action button: research, hire, train or wait; every success is saved. */
   private doPanelAction(): void {
     const w = this.story;
@@ -560,6 +569,7 @@ export class App {
     this.story = next;
     this.baseNotice = notice;
     this.saveStory();
+    this.afterTimePassed();
     this.lock();
     this.sound.play('click', 0.9);
   }

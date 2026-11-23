@@ -83,3 +83,14 @@ export function startTraining(w: World, name: string): World {
     squad: w.squad.filter((n) => n !== name),
   };
 }
+
+/**
+ * The squad to offer for the next fight: the ready soldiers already picked, then the best other ready soldiers up to
+ * four, so someone back from training or newly hired is not passed over for a loaned mercenary.
+ */
+export function fillSquad(w: World): string[] {
+  const ready = new Set(w.soldiers.filter((s) => s.status === 'ready').map((s) => s.name));
+  const picked = w.squad.filter((n) => ready.has(n)).slice(0, SQUAD_SIZE);
+  for (const name of autoSquad(w)) if (picked.length < SQUAD_SIZE && !picked.includes(name)) picked.push(name);
+  return picked;
+}

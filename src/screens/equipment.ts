@@ -120,10 +120,28 @@ export function nextThrowable(l: Loadout, i: number, level: GearArg, stash: Stas
   return options[(options.indexOf(kind) + 1) % options.length];
 }
 
+/**
+ * The weapon a tap moves to. Under story rules (a premium exists) the cycle skips weapons the budget cannot pay for, so
+ * a soldier is never stuck on a dear weapon with the cheap ones out of reach; level numbers keep the plain cycle.
+ */
+export function nextAffordableWeapon(l: Loadout, i: number, budget: number, stash: Stash, level: GearArg): WeaponId {
+  const rules = gearRulesOf(level);
+  const plain = nextWeapon(l, i, level, stash);
+  if (rules.premium === null) return plain;
+  const options = WEAPON_IDS.filter((w) => weaponAllowed(rules, stash, w) || w === l[i].weapon);
+  const at = options.indexOf(l[i].weapon);
+  for (let step = 1; step < options.length; step++) {
+    const weapon = options[(at + step) % options.length];
+    const after = l.map((s, j) => (j === i ? { ...s, weapon } : s));
+    if (loadoutCost(after, stash, rules) <= budget) return weapon;
+  }
+  return plain;
+}
+
 export function toggleBlockReason(
   l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): string | null {
-  const after = l.map((s, j) => (j === i ? { ...s, weapon: nextWeapon(l, i, level, stash) } : s));
+  const after = l.map((s, j) => (j === i ? { ...s, weapon: nextAffordableWeapon(l, i, budget, stash, level) } : s));
   const need = loadoutCost(after, stash, gearRulesOf(level)) - budget;
   return need > 0 ? `Need ${need} more credits` : null;
 }
@@ -132,7 +150,7 @@ export function toggleWeapon(
   l: Loadout, i: number, budget: number = LOADOUT.budget, stash: Stash = emptyStash(), level: GearArg = TUTORIAL_LEVEL,
 ): Loadout {
   if (toggleBlockReason(l, i, budget, stash, level)) return l;
-  return l.map((s, j) => (j === i ? { ...s, weapon: nextWeapon(l, i, level, stash) } : s));
+  return l.map((s, j) => (j === i ? { ...s, weapon: nextAffordableWeapon(l, i, budget, stash, level) } : s));
 }
 
 export function throwableBlockReason(

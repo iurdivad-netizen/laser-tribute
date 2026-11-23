@@ -224,6 +224,33 @@ describe('time and fights', () => {
   });
 });
 
+describe('the end of the story while at the base', () => {
+  it('goes to the end screen when waiting lets the enemy retake the last region', () => {
+    const { app, storage, newStory, openBase, openPanel, row, panelAct } = setup();
+    newStory('pressure');
+    openBase();
+    openPanel('wait');
+    row(1);
+    for (let n = 0; n < 60 && app.screen === 'panel'; n++) panelAct();
+    expect(app.story?.status).toBe('lost');
+    expect(app.screen).toBe('end');
+    expect(storage.data.has(STORY_SAVE_KEY)).toBe(false);
+  });
+});
+
+describe('a short squad at the squad step', () => {
+  it('fills the free slots with ready soldiers instead of loaning mercenaries', () => {
+    const { app, calls, newStory, click } = setup();
+    newStory();
+    app.story = { ...app.story!, squad: ['Alvarez', 'Brandt'] };
+    click(region(attackable(app.story)[0]));
+    click(mid(PLANET.act));
+    click(mid(SQUAD.start));
+    click(START);
+    expect(calls[0].roster.map((r) => r.name)).toEqual(['Alvarez', 'Brandt', 'Chen', 'Dubois']);
+  });
+});
+
 describe('saving and old saves', () => {
   it('keeps research, the pool and credits across a reload', () => {
     const storage = memory();
