@@ -17,6 +17,10 @@ There are two modes. The **Tutorial** is three hand-drawn missions (Outpost, War
 
 Before each mission you equip four named soldiers from a shared budget and press Start (or Enter). The budget starts at 120 and grows with each won mission (+20) and with each kill by soldiers who are still alive (+5), so protect your veterans. A soldier who dies is gone for good and replaced by a rookie. After each mission a result screen shows how it went; Continue (or Enter) moves on. Win every mission for Campaign complete; if all four soldiers die the campaign is lost. Progress is saved automatically between missions.
 
+## Story mode
+
+**Story** is a third mode: a frontier colony world of 30 regions, taken back from a corporation's private army with the same four mercenaries. Pick a region linked to ground you hold and attack it (each region is one fixed map, so a returning fight is a place you know), visit neutral settlements to gain allies and income, and search the wilderness for gear. Not every region needs taking: win by taking the enemy capital, which opens once you hold two of the gates that lead to it. Choose CALM (no pushback), STANDARD (garrisons slowly grow) or PRESSURE (garrisons grow and the enemy retakes liberated regions) when you start. A lost mission wipes the squad; a rookie squad replaces it after a time penalty, and you only lose the game when no region is left in your hands. Press S on the title, or pick STORY.
+
 ## Gear
 
 Better gear unlocks as the campaign advances (the tutorial offers only the first kit).

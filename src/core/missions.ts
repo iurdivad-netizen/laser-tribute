@@ -140,6 +140,8 @@ export function createMission(
   budget: number = LOADOUT.budget,
   stash?: Stash,
   level: number = TUTORIAL_LEVEL,
+  /** The level that arms and assigns roles to the enemies; defaults to `level` (story mode sets it apart). */
+  enemyLevel: number = level,
 ): GameState {
   let s = parseMap(def.rows, seed);
   s.theme = themeOfMap(def.id);
@@ -147,9 +149,9 @@ export function createMission(
     const patrol = def.patrols[u.id];
     if (patrol) u.patrol = patrol.map((p) => ({ ...p }));
   }
-  if (level > TUTORIAL_LEVEL) {
-    assignEnemyWeapons(s, level);
-    assignEnemyRoles(s, level);
+  if (enemyLevel > TUTORIAL_LEVEL) {
+    assignEnemyWeapons(s, enemyLevel);
+    assignEnemyRoles(s, enemyLevel);
   }
   if (loadout) s = applyLoadout(s, loadout, budget, stash, level);
   if (roster) {

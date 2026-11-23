@@ -9,6 +9,8 @@ export interface TitleView {
   continue: { mode: Mode; missionNumber: number; missionCount: number; soldiers: number; budget: number } | null;
   /** The first press of a button that would replace a save happened; a second one replaces it. */
   armed: Mode | null;
+  /** A story that can continue: its day and the regions held. Null or absent when there is none. */
+  story?: { day: number; held: number } | null;
 }
 
 export const TITLE = {
@@ -16,16 +18,18 @@ export const TITLE = {
   cont: { x: 160, y: 130, w: 160, h: 28 },
   campaign: { x: 160, y: 170, w: 160, h: 28 },
   tutorial: { x: 160, y: 210, w: 160, h: 28 },
+  story: { x: 160, y: 250, w: 160, h: 28 },
 } as const;
 
 const inside = (b: { x: number; y: number; w: number; h: number }, px: number, py: number, slop = 0): boolean =>
   px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop;
 
 /** The slop widens each button by that many pixels all round (a finger is wider than a button); the gap between buttons is 12, so keep it under 6. */
-export function titleHit(px: number, py: number, hasContinue: boolean, slop = 0): 'continue' | 'campaign' | 'tutorial' | null {
+export function titleHit(px: number, py: number, hasContinue: boolean, slop = 0): 'continue' | 'campaign' | 'tutorial' | 'story' | null {
   if (hasContinue && inside(TITLE.cont, px, py, slop)) return 'continue';
   if (inside(TITLE.campaign, px, py, slop)) return 'campaign';
   if (inside(TITLE.tutorial, px, py, slop)) return 'tutorial';
+  if (inside(TITLE.story, px, py, slop)) return 'story';
   return null;
 }
 
@@ -57,10 +61,10 @@ export function drawTitle(ctx: CanvasRenderingContext2D, v: TitleView): void {
   // a dark panel behind the buttons so they read over the scene
   const top = v.continue ? c.y + 46 : TITLE.campaign.y - 14;
   ctx.fillStyle = 'rgba(8,9,16,0.8)';
-  ctx.fillRect(c.x + 8, top, c.w - 16, c.y + 236 - top);
+  ctx.fillRect(c.x + 8, top, c.w - 16, c.y + 250 - top);
   ctx.fillStyle = UI.light;
   ctx.fillRect(c.x + 8, top, c.w - 16, 1);
-  ctx.fillRect(c.x + 8, c.y + 235, c.w - 16, 1);
+  ctx.fillRect(c.x + 8, c.y + 249, c.w - 16, 1);
 
   if (v.continue) {
     drawText(ctx, titleSummary(v.continue), c.x + c.w / 2, c.y + 60, UI.text, 'center');
@@ -77,7 +81,10 @@ export function drawTitle(ctx: CanvasRenderingContext2D, v: TitleView): void {
   };
   button(TITLE.campaign, 'NEW CAMPAIGN', v.armed === 'campaign');
   button(TITLE.tutorial, 'TUTORIAL', v.armed === 'tutorial');
+  drawButton(
+    ctx, { ...TITLE.story }, v.story ? `STORY: DAY ${v.story.day}, ${v.story.held} HELD` : 'STORY', 'raised',
+  );
   drawText(
-    ctx, `${v.continue ? 'ENTER CONTINUE   ' : ''}N NEW CAMPAIGN   T TUTORIAL`, c.x + c.w / 2, c.y + 220, UI.hint, 'center',
+    ctx, `${v.continue ? 'ENTER CONTINUE   ' : ''}N NEW CAMPAIGN   T TUTORIAL`, c.x + c.w / 2, c.y + 238, UI.hint, 'center',
   );
 }

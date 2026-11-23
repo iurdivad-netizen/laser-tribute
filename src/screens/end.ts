@@ -7,6 +7,8 @@ import { clipText, drawText } from '../ui/text';
 export interface EndView {
   /** Which game just ended; the heading says so. Defaults to the campaign. */
   mode?: Mode;
+  /** A story mode ending: the heading and the first count talk about the planet and its regions. */
+  story?: boolean;
   won: boolean;
   missionsWon: number;
   missionCount: number;
@@ -34,11 +36,12 @@ export function drawCampaignEnd(ctx: CanvasRenderingContext2D, v: EndView): void
   drawFrame(ctx, c.x, c.y, c.w, c.h, 'raised');
   drawFrame(ctx, c.x + 8, c.y + 8, c.w - 16, 30, 'inset');
   const game = v.mode === 'tutorial' ? 'TUTORIAL' : 'CAMPAIGN';
-  drawText(ctx, `${game} ${v.won ? 'COMPLETE' : 'LOST'}`, c.x + c.w / 2, c.y + 20, v.won ? UI.green : UI.red, 'center');
+  const heading = v.story ? (v.won ? 'PLANET TAKEN' : 'THE PLANET IS LOST') : `${game} ${v.won ? 'COMPLETE' : 'LOST'}`;
+  drawText(ctx, heading, c.x + c.w / 2, c.y + 20, v.won ? UI.green : UI.red, 'center');
 
   const x = c.x + 30;
   const room = c.w - 30 - 8; // 262 px
-  drawText(ctx, `Missions won  ${v.missionsWon} of ${v.missionCount}`, x, c.y + 60, UI.text);
+  drawText(ctx, `${v.story ? 'Regions taken' : 'Missions won '} ${v.missionsWon} of ${v.missionCount}`, x, c.y + 60, UI.text);
   drawText(ctx, `Total kills   ${v.totalKills}`, x, c.y + 80, UI.text);
   const survivors = v.survivors.length > 0 ? v.survivors.join(', ') : 'none';
   drawText(ctx, `Survivors: ${clipText(survivors, room - 'Survivors: '.length * ADVANCE)}`, x, c.y + 110, UI.text);

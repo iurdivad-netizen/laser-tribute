@@ -23,8 +23,8 @@ export interface Save {
 
 type Obj = Record<string, unknown>;
 
-const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
-const isInt = (v: unknown, min: number, max: number): v is number =>
+export const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isInt = (v: unknown, min: number, max: number): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
 
 function soldier(v: unknown): RosterSoldier | null {
@@ -33,7 +33,7 @@ function soldier(v: unknown): RosterSoldier | null {
   return { name: v.name, kills: v.kills };
 }
 
-function soldiers(v: unknown, exactly?: number): RosterSoldier[] | null {
+export function soldiers(v: unknown, exactly?: number): RosterSoldier[] | null {
   if (!Array.isArray(v) || v.length > 999 || (exactly !== undefined && v.length !== exactly)) return null;
   const out: RosterSoldier[] = [];
   for (const item of v) {
@@ -44,7 +44,7 @@ function soldiers(v: unknown, exactly?: number): RosterSoldier[] | null {
   return out;
 }
 
-function stash(v: unknown): Stash | null {
+export function stash(v: unknown): Stash | null {
   if (!isObj(v)) return null;
   const out = emptyStash();
   for (const k of STASH_KEYS) {
@@ -57,7 +57,7 @@ function stash(v: unknown): Stash | null {
 }
 
 /** The saved loadout when it is well formed; the default one otherwise (the app then fits it to the budget). */
-function loadout(v: unknown): Loadout {
+export function loadout(v: unknown): Loadout {
   if (!Array.isArray(v) || v.length !== CAMPAIGN.rosterSize) return defaultLoadout();
   const out: Loadout = [];
   for (const s of v) {
@@ -177,7 +177,7 @@ export class LastMode {
   }
 }
 
-function browserStorage(): SaveStorage | null {
+export function browserStorage(): SaveStorage | null {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
     return window.localStorage;
