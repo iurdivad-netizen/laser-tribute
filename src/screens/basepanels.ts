@@ -1,6 +1,7 @@
 import { NO_ART, type Art } from '../art/planetimages';
 import { faceFor, type CampArtId } from './campart';
 import { NAME_W } from './baseinfo';
+import { itemOfNode, type ItemRef } from '../core/world/iteminfo';
 import { rankFor, rankShort } from '../core/ranks';
 import { attachmentPrice, gadgetPrice, throwablePrice, weaponPrice } from '../core/loadout';
 import { BASE_RULES, NODES, bedCount, levelsOf, nodeById, researchDays, type ResearchNode } from '../core/world/base';
@@ -138,6 +139,19 @@ const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
 
 const pages = (count: number): number => Math.max(1, Math.ceil(count / PANEL_PAGE));
 
+/** The item a Market or Lab row shows (its absolute row index), or null for an upgrade row and every other panel. */
+export function panelItem(id: PanelId, index: number): ItemRef | null {
+  if (id === 'market') {
+    const node = NODES.filter(isGear)[index];
+    return node ? itemOfNode(node.id) : null;
+  }
+  if (id === 'lab') {
+    const node = NODES[index];
+    return node ? itemOfNode(node.id) : null;
+  }
+  return null;
+}
+
 /** What a menu-space point is on: a row of the current page, a button, or the pager. The slop widens the buttons. */
 export function panelHit(id: PanelId, px: number, py: number, w: World, page: number, slop = 0): PanelHit | null {
   const count = panelRows(id, w).length;
@@ -145,9 +159,10 @@ export function panelHit(id: PanelId, px: number, py: number, w: World, page: nu
     if (inside(PANEL.rows[i], px, py, 0)) {
       const index = page * PANEL_PAGE + i;
       if (index >= count) return null;
-      // on the soldier lists, the name opens the soldier's card; the rest of the row selects as always
+      // on the soldier lists the name opens the soldier's card, on the Market and Lab gear rows the item's card; the rest of the row selects as always
       const soldierList = id === 'barracks' || id === 'training';
-      return soldierList && px < PANEL.rows[i].x + NAME_W ? { kind: 'name', index } : { kind: 'row', index };
+      const inName = px < PANEL.rows[i].x + NAME_W;
+      return inName && (soldierList || panelItem(id, index) !== null) ? { kind: 'name', index } : { kind: 'row', index };
     }
   }
   if (inside(PANEL.info, px, py, slop)) return { kind: 'info' };
