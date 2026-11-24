@@ -1,3 +1,4 @@
+import type { ItemCard } from '../core/world/iteminfo';
 import type { BuildingInfo } from '../core/world/buildinginfo';
 import type { SoldierStats } from '../core/world/soldierinfo';
 import { VIEW } from '../render/layout';
@@ -59,4 +60,28 @@ export function drawInfoBox(ctx: CanvasRenderingContext2D, info: BuildingInfo): 
     y += 5; // a little air between lines
   }
   drawButton(ctx, INFO_BOX.back, 'BACK', 'raised');
+}
+
+/** The item card: a framed box with the item's numbers, a line on when to pick it, and BACK. Any click closes it. */
+export const ITEM_CARD = {
+  box: { x: 70, y: 20, w: 340, h: 350 },
+  back: { x: 190, y: 326, w: 100, h: 28 },
+} as const satisfies { box: Rect; back: Rect };
+
+export function drawItemCard(ctx: CanvasRenderingContext2D, card: ItemCard): void {
+  dim(ctx);
+  const b = ITEM_CARD.box;
+  drawFrame(ctx, b.x, b.y, b.w, b.h, 'raised');
+  drawText(ctx, clipText(card.title, b.w - 2 * PAD), b.x + PAD, b.y + 12, UI.accent, 'left');
+  card.rows.forEach(([label, value], i) => {
+    const y = b.y + 34 + i * ROW;
+    drawText(ctx, label, b.x + PAD, y, UI.dim, 'left');
+    drawText(ctx, clipText(value, b.w - 2 * PAD - 90), b.x + b.w - PAD, y, UI.text, 'right');
+  });
+  let y = b.y + 34 + card.rows.length * ROW + 8;
+  for (const row of wrapText(card.goodFor, b.w - 2 * PAD)) {
+    drawText(ctx, row, b.x + PAD, y, UI.hint, 'left');
+    y += TEXT_ROW;
+  }
+  drawButton(ctx, ITEM_CARD.back, 'BACK', 'raised');
 }

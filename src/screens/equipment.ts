@@ -8,6 +8,7 @@ import {
 } from '../core/loadout';
 import { coverage, describeStash, emptyStash, throwableKey, type Stash } from '../core/stash';
 import type { GadgetId, ThrowableId, WeaponId } from '../core/types';
+import type { ItemRef } from '../core/world/iteminfo';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type ButtonState } from '../ui/frame';
 import { textWidth } from '../ui/font';
@@ -25,6 +26,8 @@ export interface EquipmentView {
   stash: Stash;
   /** The unlock level, or the story's gear rules: which gear the buttons offer and what it costs (default: the tutorial's). */
   level?: GearArg;
+  /** Draw the small ? buttons that open an item's card (the story's fights); the labels move 6 px right to make room. */
+  infoButtons?: boolean;
 }
 
 export const DEFAULT_VIEW: EquipmentView = {
@@ -212,6 +215,39 @@ export function changeClips(
   return l.map((s, j) => (j === i ? { ...s, clips: s.clips + delta } : s));
 }
 
+/** A ? button's rectangle: the soldier it is for and the kind of item whose card it opens. */
+export interface InfoRect { index: number; kind: ItemRef['kind']; x: number; y: number; w: number; h: number }
+
+/** The ? buttons for the kit: the weapon, the grenade kind, the scope, and the gadget when one is chosen. None overlaps a normal button. */
+export function equipmentInfoRects(l: Loadout): InfoRect[] {
+  const out: InfoRect[] = [];
+  for (let i = 0; i < SQUAD_SIZE; i++) {
+    const y = rowY(i);
+    const cy = y + EQ.clipDy;
+    out.push({ index: i, kind: 'weapon', x: 178, y, w: 14, h: EQ.btnH }, { index: i, kind: 'throwable', x: 246, y, w: 14, h: EQ.btnH });
+    if (l[i]?.gadget) out.push({ index: i, kind: 'gadget', x: 178, y: cy, w: 14, h: EQ.btnH });
+    out.push({ index: i, kind: 'scope', x: 456, y: cy, w: 20, h: EQ.btnH });
+  }
+  return out;
+}
+
+/** The item behind the ? button under the point, as the kit has it now. A touch slop widens the buttons, but never over a real one. */
+export function equipmentInfoHit(px: number, py: number, l: Loadout, slop = 0): ItemRef | null {
+  for (const r of equipmentInfoRects(l)) {
+    const near = px >= r.x - slop && px < r.x + r.w + slop && py >= r.y - slop && py < r.y + r.h + slop;
+    if (!near) continue;
+    if (equipmentHit(px, py, slop) !== null) continue; // a real button, or the one nearest within the slop, owns the tap
+    const s = l[r.index];
+    switch (r.kind) {
+      case 'weapon': return { kind: 'weapon', id: s.weapon };
+      case 'throwable': return { kind: 'throwable', id: s.throwable ?? 'frag' };
+      case 'gadget': return s.gadget ? { kind: 'gadget', id: s.gadget } : null;
+      case 'scope': return { kind: 'scope' };
+    }
+  }
+  return null;
+}
+
 /** Every button of the screen with its rectangle, in the order a click is tested. */
 function equipmentRects(): { hit: EquipmentHit; x: number; y: number; w: number; h: number }[] {
   const s = EQ.start;
@@ -301,6 +337,7 @@ export function drawEquipment(
 
   const level = view.level ?? TUTORIAL_LEVEL;
   const rules = gearRulesOf(level);
+  const labelX = view.infoButtons ? 196 : 190;
   const cost = loadoutCost(l, view.stash, rules);
   drawText(ctx, view.title, 20, 8, UI.accent);
   drawText(ctx, `Credits ${cost}/${view.budget}  (${view.budget - cost} left)`, 20, 22, UI.dim);
@@ -330,7 +367,7 @@ export function drawEquipment(
       THROWABLES[s.throwable ?? 'frag'].name.toUpperCase(),
       buttonState(throwableBlockReason(l, i, view.budget, view.stash, level) === null, hot('throwable')),
     );
-    drawText(ctx, 'Grenades', 190, y + 8, UI.dim);
+    drawText(ctx, 'Grenades', labelX, y + 8, UI.dim);
     drawButton(ctx, { x: EQ.minus.x, y, w: EQ.minus.w, h: EQ.btnH }, '-',
       buttonState(grenadeBlockReason(l, i, -1, view.budget, view.stash, level) === null, hot('minus')));
     drawText(ctx, `${s.grenades}`, 304, y + 8, UI.text, 'center');
@@ -338,7 +375,7 @@ export function drawEquipment(
       buttonState(grenadeBlockReason(l, i, 1, view.budget, view.stash, level) === null, hot('plus')));
 
     const cy = y + EQ.clipDy;
-    drawText(ctx, 'Spare clips', 190, cy + 8, UI.dim);
+    drawText(ctx, 'Spare clips', labelX, cy + 8, UI.dim);
     drawButton(ctx, { x: EQ.minus.x, y: cy, w: EQ.minus.w, h: EQ.btnH }, '-',
       buttonState(clipBlockReason(l, i, -1, view.budget, view.stash, level) === null, hot('clipMinus')));
     drawText(ctx, `${s.clips}`, 304, cy + 8, UI.text, 'center');
@@ -355,6 +392,11 @@ export function drawEquipment(
       s.attachment ? `SCOPE (${cover.attachment ? 'FREE' : attachmentPrice('scope', rules)})` : 'NO SCOPE',
       buttonState(scopeBlockReason(l, i, view.budget, view.stash, level) === null, hot('scope')),
     );
+    if (view.infoButtons) {
+      for (const r of equipmentInfoRects(l)) {
+        if (r.index === i) drawButton(ctx, { x: r.x, y: r.y, w: r.w, h: r.h }, '?', buttonState(true, false));
+      }
+    }
     const net = netSoldierCost(l, i, view.stash, rules);
     drawText(ctx, net === 0 ? 'FREE' : `${net} cr`, 432, y + 8, net === 0 ? UI.green : UI.dim);
   });

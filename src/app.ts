@@ -39,7 +39,7 @@ import { unitAtScreen } from './render/hit';
 import { drawGame } from './render/renderer';
 import { drawCampaignEnd, endHit } from './screens/end';
 import {
-  applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
+  applyEquipmentHit, drawEquipment, equipmentHit, equipmentInfoHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { difficultyHit, drawDifficulty } from './screens/difficulty';
 import { NO_ART, createArt, createPlanetArt, type Art, type PlanetArt } from './art/planetimages';
@@ -48,8 +48,9 @@ import type { CampArtId } from './screens/campart';
 import { PLANET_ART_DATA } from './art/planet.generated';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { baseHit, drawBase } from './screens/base';
-import { drawPanel, panelAction, panelHit, type PanelId } from './screens/basepanels';
-import { drawInfoBox, drawSoldierCard } from './screens/baseinfo';
+import { drawPanel, panelAction, panelHit, panelItem, type PanelId } from './screens/basepanels';
+import { drawInfoBox, drawItemCard, drawSoldierCard } from './screens/baseinfo';
+import { itemCard, type ItemRef } from './core/world/iteminfo';
 import { buildingInfo } from './core/world/buildinginfo';
 import { soldierStats } from './core/world/soldierinfo';
 import { drawSquad, squadHit } from './screens/squad';
@@ -162,6 +163,7 @@ export class App {
   /** The soldier whose card is open in the base (a panel or the squad step), and whether a building's info box is open. */
   private cardName: string | null = null;
   private infoOpen = false;
+  private cardItem: ItemRef | null = null;
   private panelPage = 0;
   private baseNotice = '';
   private squadPicked: string[] = [];
@@ -386,6 +388,7 @@ export class App {
   }
 
   private startMission(): void {
+    this.cardItem = null;
     if (validateLoadout(this.loadout, this.budget(), this.gearStash(), this.gearLevel()) !== null) return;
     if (this.story && this.pendingSpec) {
       this.startStoryMission(this.story, this.pendingSpec);
@@ -518,6 +521,7 @@ export class App {
 
   /** From the story equipment screen: change your mind and return to the planet; nothing is spent. */
   private backToSquad(): void {
+    this.closeInfo();
     this.screen = 'squad';
     this.hover = null;
     this.lock();
@@ -547,11 +551,12 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
-  /** Closes the soldier card or the building info box if one is open; true when something was closed. */
+  /** Closes the soldier card, the item card or the building info box if one is open; true when something was closed. */
   private closeInfo(): boolean {
-    const open = this.cardName !== null || this.infoOpen;
+    const open = this.cardName !== null || this.infoOpen || this.cardItem !== null;
     this.cardName = null;
     this.infoOpen = false;
+    this.cardItem = null;
     if (open) this.sound.play('click', 0.9);
     return open;
   }
@@ -662,7 +667,8 @@ export class App {
   /** The soldier card or the building info box over the panel or the squad step, when one is open. */
   private drawBaseInfo(ctx: CanvasRenderingContext2D, w: World): void {
     const soldier = this.cardName !== null ? w.soldiers.find((x) => x.name === this.cardName) : undefined;
-    if (soldier) drawSoldierCard(ctx, soldierStats(soldier, w));
+    if (this.cardItem) drawItemCard(ctx, itemCard(this.cardItem, w));
+    else if (soldier) drawSoldierCard(ctx, soldierStats(soldier, w));
     else if (this.infoOpen && this.screen === 'panel') drawInfoBox(ctx, buildingInfo(this.panelId, w));
   }
 
@@ -827,6 +833,7 @@ export class App {
   private toTitle(): void {
     this.cardName = null;
     this.infoOpen = false;
+    this.cardItem = null;
     this.controller = null;
     this.result = null;
     this.promoted = [];
@@ -921,13 +928,18 @@ export class App {
       case 'panel': {
         const w = this.story;
         if (!w) return;
-        if (this.closeInfo()) return; // a card or an info box is open: any click closes it
+        if (this.closeInfo()) {
+          this.lock(); // an item card's BACK sits over ACT and BACK: a double-click must not press them
+          return;
+        }
         const hit = panelHit(this.panelId, mp.x, mp.y, w, this.panelPage, pointer === 'touch' ? 5 : 0);
         if (!hit) return;
         if (hit.kind === 'name') {
           this.panelSelected = hit.index;
           this.baseNotice = '';
-          this.cardName = w.soldiers[hit.index]?.name ?? null;
+          const item = panelItem(this.panelId, hit.index);
+          if (item) this.cardItem = item;
+          else this.cardName = w.soldiers[hit.index]?.name ?? null;
           this.lock(); // the second click of a double-click must not close the card it just opened
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'info') {
@@ -974,6 +986,20 @@ export class App {
         return;
       }
       case 'equipment': {
+        const fight = this.story !== null && this.pendingSpec !== null;
+        if (fight && this.closeInfo()) {
+          this.lock(); // the second click of a double-click on BACK must not press START under it
+          return;
+        }
+        if (fight) {
+          const item = equipmentInfoHit(mp.x, mp.y, this.loadout, pointer === 'touch' ? 3 : 0);
+          if (item) {
+            this.cardItem = item;
+            this.lock(); // the second click of a double-click must not close the card it just opened
+            this.sound.play('click', 0.9);
+            return;
+          }
+        }
         if (this.story && this.pendingSpec && storyEquipmentBackHit(mp.x, mp.y, pointer === 'touch' ? TOUCH_SLOP : 0)) {
           this.backToSquad();
           return;
@@ -1118,11 +1144,11 @@ export class App {
         return false;
       case 'equipment':
         if (k === 'Enter') {
-          if (!this.locked()) this.startMission();
+          if (!this.locked() && !(this.cardItem !== null && this.closeInfo())) this.startMission(); // an open item card takes the key
           return true;
         }
         if (k === 'Escape' && this.story && this.pendingSpec) {
-          if (!this.locked()) this.backToSquad();
+          if (!repeat && !this.locked() && !this.closeInfo()) this.backToSquad(); // a held key must not close a card and then leave
           return true;
         }
         return false;
@@ -1277,6 +1303,7 @@ export class App {
         soldiers: squad.roster.map((s) => ({ ...s, rank: rankFor(s.kills + (s.trained ?? 0)).name })),
         stash: w.stash,
         level: storyGearRules(w.research.done),
+        infoButtons: true,
       };
     }
     const c = this.campaign;
@@ -1348,6 +1375,7 @@ export class App {
       this.inMenuSpace(ctx, () => {
         drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
         if (this.story && this.pendingSpec) drawButton(ctx, STORY_EQUIPMENT_BACK, 'BACK (Esc)', 'raised');
+        if (this.story && this.cardItem) drawItemCard(ctx, itemCard(this.cardItem, this.story));
       });
       return;
     }

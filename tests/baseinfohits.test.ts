@@ -24,7 +24,8 @@ describe('the name area of a panel row', () => {
 
   it('never appears on the other panels, and a row with no soldier is nothing', () => {
     const row = PANEL.rows[0];
-    for (const id of ['lab', 'market', 'hospital', 'wait'] as const) {
+    // (the Market and Lab gear rows open an item card from the name; tests/iteminfohits.test.ts)
+    for (const id of ['hospital', 'wait'] as const) {
       expect(panelHit(id, row.x + 10, row.y + 5, fresh(), 0)?.kind, id).toBe('row');
     }
     expect(panelHit('barracks', PANEL.rows[9].x + 10, PANEL.rows[9].y + 5, fresh(), 0)).toBeNull();
