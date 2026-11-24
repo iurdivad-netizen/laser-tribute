@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { App } from '../src/app';
-import { CALM_DELAY_MS, Music, MoodTracker, type Mood } from '../src/audio/music';
+import { CALM_DELAY_MS, DUCK_DEPTH, DUCK_RECOVER, MOODS, MUSIC_GAIN, Music, MoodTracker, type Mood } from '../src/audio/music';
 import { Sound, type AudioContextLike, type SoundPlayer } from '../src/audio/sound';
 import { corridorRows, makeState } from './helpers';
 
@@ -204,5 +204,150 @@ describe('the app chooses the mood', () => {
     expect(app.screen).toBe('title');
     app.key('t');
     expect(app.screen).not.toBe('title');
+  });
+});
+
+/** A context that records every oscillator (wave and first frequency) and each gain's calls, in creation order. */
+function recordingContext() {
+  type Call = [string, number, number];
+  const gains: { calls: Call[] }[] = [];
+  const oscs: { type: string; freq: number }[] = [];
+  const ctx = {
+    currentTime: 0, sampleRate: 8000, destination: {}, state: 'running',
+    createOscillator() {
+      const rec = { type: '', freq: 0 };
+      oscs.push(rec);
+      return {
+        get type() { return rec.type; },
+        set type(v: string) { rec.type = v; },
+        frequency: { setValueAtTime(v: number) { if (!rec.freq) rec.freq = v; }, exponentialRampToValueAtTime() {} },
+        connect() {}, start() {}, stop() {},
+      };
+    },
+    createGain() {
+      const g = { calls: [] as Call[] };
+      gains.push(g);
+      return {
+        gain: {
+          setValueAtTime(v: number, t: number) { g.calls.push(['set', v, t]); },
+          exponentialRampToValueAtTime(v: number, t: number) { g.calls.push(['ramp', v, t]); },
+        },
+        connect() {},
+      };
+    },
+    createBuffer: (_c: number, n: number) => ({ getChannelData: () => new Float32Array(n) }),
+    createBufferSource: () => ({ buffer: null, connect() {}, start() {}, stop() {} }),
+  };
+  return { ctx, gains, oscs, at: (t: number) => { ctx.currentTime = t; } };
+}
+
+describe('the story themes in the engine', () => {
+  const make = (random: () => number) => {
+    const f = recordingContext();
+    const timer = manualTimer();
+    const music = new Music(f.ctx as unknown as AudioContextLike, {}, () => null, random, timer.schedule);
+    music.start();
+    music.setLevel(0.5);
+    return { ...f, timer, music };
+  };
+
+  it('does not leak at startup: only the calm drone is scheduled, and the other layers begin silent', () => {
+    const { gains, oscs, timer } = make(() => 0.99);
+    timer.tick();
+    expect(oscs).toHaveLength(4);
+    expect([gains[1], gains[2], gains[3], gains[4]].map((g) => g.calls[0][1])).toEqual([1, 0.0001, 0.0001, 0.0001]);
+  });
+
+  it('plays the planet theme with soft waves only, once calm has faded out', () => {
+    const { oscs, timer, music, at } = make(() => 0.99);
+    music.setMood('planet');
+    at(3.1);
+    timer.tick();
+    expect(oscs).toHaveLength(4); // the pad: three swells and a slightly off triangle, no plucked notes at random 0.99
+    for (const o of oscs) expect(['sine', 'triangle']).toContain(o.type);
+    expect(oscs.map((o) => o.freq)).toContain(220);
+    expect(oscs.map((o) => o.freq)).not.toContain(73.42);
+  });
+
+  it('adds plucked notes and their echoes to the planet theme when the dice allow', () => {
+    const { oscs, timer, music, at } = make(() => 0.34);
+    music.setMood('planet');
+    at(3.1);
+    timer.tick();
+    expect(oscs.filter((o) => o.freq === 369.99).length).toBeGreaterThanOrEqual(3); // F sharp: only the planet scale has it
+    for (const o of oscs) expect(['sine', 'triangle']).toContain(o.type);
+  });
+
+  it('plays the base theme: a deep drone and four heartbeat pulses, soft waves only', () => {
+    const { oscs, timer, music, at } = make(() => 0.99);
+    music.setMood('base');
+    at(3.1);
+    timer.tick();
+    for (const o of oscs) expect(['sine', 'triangle']).toContain(o.type);
+    expect(oscs.map((o) => o.freq)).toContain(36.71);
+    expect(oscs.filter((o) => o.freq === 60)).toHaveLength(4);
+    expect(oscs.length).toBeGreaterThanOrEqual(7);
+    expect(oscs.some((o) => o.freq > 1000)).toBe(false); // no metallic ping at random 0.99
+  });
+
+  it('adds a metallic ping to the base theme when the dice allow', () => {
+    const { oscs, timer, music, at } = make(() => 0);
+    music.setMood('base');
+    at(3.1);
+    timer.tick();
+    expect(oscs.some((o) => Math.abs(o.freq - 1656) < 0.01)).toBe(true); // 600 Hz times 2.76
+  });
+
+  it('goes back to calm cleanly: the planet parts stop once calm has faded in', () => {
+    const { oscs, timer, music, at } = make(() => 0.99);
+    music.setMood('planet');
+    at(3.1);
+    timer.tick();
+    music.setMood('calm');
+    at(6.3);
+    oscs.length = 0;
+    timer.tick();
+    expect(oscs).toHaveLength(4);
+    expect(oscs.map((o) => o.freq)).toContain(73.42);
+    expect(oscs.map((o) => o.freq)).not.toContain(220);
+  });
+
+  it('schedules nothing in any mood while the level is zero', () => {
+    for (const mood of MOODS) {
+      const { oscs, timer, music, at } = make(() => 0.3);
+      music.setLevel(0);
+      music.setMood(mood);
+      at(3.1);
+      timer.tick();
+      expect(oscs, mood).toHaveLength(0);
+    }
+  });
+
+  it('ducks the music for a stinger and brings it back', () => {
+    const { gains, music, at } = make(() => 0.3);
+    const out = gains[0];
+    at(10);
+    out.calls.length = 0;
+    music.duck(3);
+    const level = 0.5 * MUSIC_GAIN;
+    const [a, b, c, d] = out.calls;
+    expect(out.calls).toHaveLength(4);
+    expect(a).toEqual(['set', level, 10]);
+    expect(b[0]).toBe('ramp');
+    expect(b[1]).toBeCloseTo(level * DUCK_DEPTH, 6);
+    expect(b[2]).toBeCloseTo(10.15, 6);
+    expect(c[0]).toBe('set');
+    expect(c[2]).toBeCloseTo(13, 6);
+    expect(d[0]).toBe('ramp');
+    expect(d[1]).toBeCloseTo(level, 6);
+    expect(d[2]).toBeCloseTo(13 + DUCK_RECOVER, 6);
+  });
+
+  it('does not duck a silent music', () => {
+    const { gains, music } = make(() => 0.3);
+    music.setLevel(0);
+    gains[0].calls.length = 0;
+    music.duck(3);
+    expect(gains[0].calls).toHaveLength(0);
   });
 });
