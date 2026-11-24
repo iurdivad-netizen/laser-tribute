@@ -928,9 +928,11 @@ export class App {
           this.panelSelected = hit.index;
           this.baseNotice = '';
           this.cardName = w.soldiers[hit.index]?.name ?? null;
+          this.lock(); // the second click of a double-click must not close the card it just opened
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'info') {
           this.infoOpen = true;
+          this.lock();
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'row') {
           this.panelSelected = hit.index;
@@ -959,6 +961,7 @@ export class App {
         if (!hit) return;
         if (hit.kind === 'card') {
           this.cardName = hit.name;
+          this.lock();
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'soldier') {
           this.squadPicked = this.squadPicked.includes(hit.name)
@@ -1135,7 +1138,7 @@ export class App {
         return k === ' ' || k === 'Enter';
       case 'squad':
         if (k === 'Escape') {
-          if (!this.locked() && !this.closeInfo()) this.backToPlanet();
+          if (!repeat && !this.locked() && !this.closeInfo()) this.backToPlanet(); // a held key must not close a card and then leave
           return true;
         }
         return false;
@@ -1147,7 +1150,7 @@ export class App {
         return false;
       case 'panel':
         if (k === 'Escape') {
-          if (!this.locked() && !this.closeInfo()) this.backToBase();
+          if (!repeat && !this.locked() && !this.closeInfo()) this.backToBase();
           return true;
         }
         return false;
