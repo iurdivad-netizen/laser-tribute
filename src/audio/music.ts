@@ -1,17 +1,20 @@
 import type { AudioContextLike } from './sound';
 
-/** The soundtrack has two moods: a slow mystery while the squad explores, and a driving beat while an enemy is in sight. */
-export type Mood = 'calm' | 'action';
+/** The moods a fight can have: a slow mystery while the squad explores, and a driving beat while an enemy is in sight. */
+export type FightMood = 'calm' | 'action';
+/** The soundtrack's moods: the two fight moods, and the story's calm planet theme and dark base theme. */
+export type Mood = FightMood | 'planet' | 'base';
+export const MOODS: readonly Mood[] = ['calm', 'action', 'planet', 'base'];
 
 /** How long the squad must go without seeing an enemy before the music relaxes, so an enemy ducking in and out of view does not flicker it. */
 export const CALM_DELAY_MS = 4000;
 
 /** Decides the mood from whether any enemy is visible, with a delay before the way back to calm. */
 export class MoodTracker {
-  mood: Mood = 'calm';
+  mood: FightMood = 'calm';
   private lastSeen = -Infinity;
 
-  update(enemyVisible: boolean, now: number): Mood {
+  update(enemyVisible: boolean, now: number): FightMood {
     if (enemyVisible) {
       this.lastSeen = now;
       this.mood = 'action';
@@ -39,6 +42,13 @@ const LOOKAHEAD = 0.6;
 const SILENT = 0.0001;
 export const FADE_TO_ACTION = 1;
 export const FADE_TO_CALM = 2.5;
+/** The story themes ease in and out slowly. */
+export const FADE_TO_PLANET = 2.5;
+export const FADE_TO_BASE = 2.5;
+/** A stinger dips the music to this fraction of its level for the stinger's length, then it recovers over `DUCK_RECOVER` seconds. */
+export const DUCK_DEPTH = 0.3;
+export const DUCK_RECOVER = 1;
+const DUCK_DIP = 0.15;
 /** The music sits under the sound effects: this scales the player's volume setting. */
 export const MUSIC_GAIN = 0.5;
 
@@ -54,6 +64,34 @@ const LEAD: [number, number][][] = [
   [[0, 587.33], [3, 622.25], [6, 587.33], [8, 523.25], [10, 466.16], [12, 440], [14, 392]],
 ];
 const STEP = 60 / 138 / 4; // sixteenth notes at 138 bpm
+
+// The planet theme: slow and open, D dorian, no drums. A pad of open fifths, a few plucked notes with long echoes, a breath of wind.
+const PLANET_PAD = [146.83, 220, 293.66];
+const PLANET_PAD_PEAK = 0.08;
+const PLANET_PAD_LEN = 10;
+const PLANET_PAD_EDGE = 3;
+const PLANET_BAR = 8; // the next 10 s pad starts before this one ends
+const PLANET_SCALE = [293.66, 329.63, 369.99, 440, 493.88, 587.33];
+const PLANET_PLUCK_CHANCE = 0.6;
+const PLANET_PLUCK_PEAK = 0.09;
+const PLANET_WIND_BURSTS = 8;
+const PLANET_WIND_PEAK = 0.012;
+
+// The base theme: low, close and a little menacing. A deep drone, a minor second now and then, a slow pulse, distant metal. No melody.
+const BASE_DRONE = [36.71, 73.42];
+const BASE_DRONE_PEAKS = [0.12, 0.09];
+const BASE_DRONE_LEN = 9;
+const BASE_DRONE_EDGE = 3;
+const BASE_BAR = 7.2;
+const BASE_PULSE_GAP = 1.8;
+const BASE_PULSES = 4;
+const BASE_PULSE_PEAK = 0.3;
+const BASE_CLASH = [73.42, 77.78]; // D and E flat
+const BASE_CLASH_PEAK = 0.05;
+const BASE_CLASH_LEN = 6;
+const BASE_PING_CHANCE = 0.4;
+const BASE_PING_PARTIALS: [number, number][] = [[1, 0.05], [2.76, 0.03], [5.4, 0.015]];
+const BASE_PING_LEN = 3;
 const STEPS_PER_LOOP = 32;
 
 interface Dest {
@@ -80,6 +118,9 @@ interface Layer {
 
 export class Music {
   private readonly layers: Record<Mood, Layer>;
+  private bars = 0;
+  /** When the duck now playing stops holding the music low (audio clock); -Infinity when there is none. */
+  private duckUntil = -Infinity;
   private readonly out: Gain;
   private mood: Mood = 'calm';
   private level = 0;
@@ -102,7 +143,7 @@ export class Music {
       gain.connect(this.out);
       return { gain, from: v, to: v, t0: -Infinity, t1: -Infinity, next: 0, step: 0 };
     };
-    this.layers = { calm: make(true), action: make(false) };
+    this.layers = { calm: make(true), action: make(false), planet: make(false), base: make(false) };
   }
 
   start(): void {
@@ -117,15 +158,26 @@ export class Music {
   /** 0 silences the music (mute); otherwise the player's volume setting. */
   setLevel(volume: number): void {
     this.level = volume * MUSIC_GAIN;
-    this.out.gain.setValueAtTime(Math.max(SILENT, this.level), this.ctx.currentTime);
+    const now = this.ctx.currentTime;
+    const p = this.out.gain;
+    p.cancelScheduledValues?.(now); // a duck in progress must not bring the music back to the old level
+    if (this.level > 0 && now < this.duckUntil) {
+      // the duck is still holding: keep its shape, at the new level
+      const low = Math.max(SILENT, this.level * DUCK_DEPTH);
+      p.setValueAtTime(low, now);
+      p.setValueAtTime(low, this.duckUntil);
+      p.exponentialRampToValueAtTime(Math.max(SILENT, this.level), this.duckUntil + DUCK_RECOVER);
+    } else {
+      p.setValueAtTime(Math.max(SILENT, this.level), now);
+    }
   }
 
   setMood(mood: Mood): void {
     if (mood === this.mood) return;
     this.mood = mood;
     const now = this.ctx.currentTime;
-    const dur = mood === 'action' ? FADE_TO_ACTION : FADE_TO_CALM;
-    for (const m of ['calm', 'action'] as const) this.fade(this.layers[m], m === mood ? 1 : SILENT, now, dur);
+    const dur = { calm: FADE_TO_CALM, action: FADE_TO_ACTION, planet: FADE_TO_PLANET, base: FADE_TO_BASE }[mood];
+    for (const m of MOODS) this.fade(this.layers[m], m === mood ? 1 : SILENT, now, dur);
   }
 
   private fade(layer: Layer, to: number, now: number, dur: number): void {
@@ -152,7 +204,7 @@ export class Music {
   private tick(): void {
     const now = this.ctx.currentTime;
     const horizon = now + LOOKAHEAD;
-    for (const m of ['calm', 'action'] as const) {
+    for (const m of MOODS) {
       const layer = this.layers[m];
       if (this.level <= 0 || !this.audible(layer, now)) {
         layer.next = 0; // resume in time with the clock when it becomes audible again
@@ -163,7 +215,17 @@ export class Music {
         layer.next = now + 0.05;
         layer.step = 0;
       }
-      while (layer.next < horizon) layer.next = m === 'calm' ? this.calmBar(layer, layer.next) : this.actionStep(layer);
+      while (layer.next < horizon) layer.next = this.generate(m, layer);
+    }
+  }
+
+  /** The next phrase of a mood's layer; returns where the one after it starts. */
+  private generate(mood: Mood, layer: Layer): number {
+    switch (mood) {
+      case 'calm': return this.calmBar(layer, layer.next);
+      case 'action': return this.actionStep(layer);
+      case 'planet': return this.planetBar(layer, layer.next);
+      case 'base': return this.baseBar(layer, layer.next);
     }
   }
 
@@ -180,6 +242,56 @@ export class Music {
       this.ping(layer, f, at + 0.9, 0.02);
     }
     return t + 6;
+  }
+
+  /** One slow bar of the planet theme: an open-fifth pad, a few plucked notes with long echoes, and a faint wind. */
+  private planetBar(layer: Layer, t: number): number {
+    for (const f of PLANET_PAD) this.swell(layer, 'sine', f, t, PLANET_PAD_LEN, PLANET_PAD_PEAK, PLANET_PAD_EDGE);
+    this.swell(layer, 'triangle', PLANET_PAD[1] * 1.003, t, PLANET_PAD_LEN, 0.03, PLANET_PAD_EDGE); // slightly off: slow beating
+    for (let i = 0; i < PLANET_WIND_BURSTS; i++) {
+      const at = t + i * 1.1;
+      const env = Math.sin(((i + 0.5) / PLANET_WIND_BURSTS) * Math.PI); // the breath swells and falls over the bar
+      this.hat(layer, at, 1.2, PLANET_WIND_PEAK * env);
+    }
+    for (let i = 0; i < 3; i++) {
+      if (this.random() > PLANET_PLUCK_CHANCE) continue;
+      const f = PLANET_SCALE[Math.floor(this.random() * PLANET_SCALE.length)];
+      const at = t + 0.5 + this.random() * 6;
+      this.ping(layer, f, at, PLANET_PLUCK_PEAK);
+      this.ping(layer, f, at + 0.7, PLANET_PLUCK_PEAK * 0.45);
+      this.ping(layer, f, at + 1.4, PLANET_PLUCK_PEAK * 0.2);
+    }
+    return t + PLANET_BAR;
+  }
+
+  /** One bar of the base theme: a deep drone, now and then a minor second, a slow pulse, and sometimes a distant metallic ping. */
+  private baseBar(layer: Layer, t: number): number {
+    BASE_DRONE.forEach((f, i) => this.swell(layer, 'sine', f, t, BASE_DRONE_LEN, BASE_DRONE_PEAKS[i], BASE_DRONE_EDGE));
+    this.swell(layer, 'triangle', BASE_DRONE[1] * 1.006, t, BASE_DRONE_LEN, 0.04, BASE_DRONE_EDGE);
+    if (this.bars++ % 2 === 1) {
+      for (const f of BASE_CLASH) this.swell(layer, 'sine', f, t + 0.5, BASE_CLASH_LEN, BASE_CLASH_PEAK, 2);
+    }
+    for (let i = 0; i < BASE_PULSES; i++) this.blip(layer, 'sine', 60, 38, t + i * BASE_PULSE_GAP, 0.35, BASE_PULSE_PEAK);
+    if (this.random() < BASE_PING_CHANCE) {
+      const f = 600 + this.random() * 300;
+      const at = t + 0.5 + this.random() * 5;
+      for (const [ratio, peak] of BASE_PING_PARTIALS) this.blip(layer, 'sine', f * ratio, f * ratio, at, BASE_PING_LEN, peak);
+    }
+    return t + BASE_BAR;
+  }
+
+  /** Dips the music under a stinger of `seconds` seconds and brings it back. */
+  duck(seconds: number): void {
+    if (this.level <= 0) return;
+    const now = this.ctx.currentTime;
+    const p = this.out.gain;
+    const low = Math.max(SILENT, this.level * DUCK_DEPTH);
+    this.duckUntil = now + seconds;
+    p.cancelScheduledValues?.(now);
+    p.setValueAtTime(Math.max(SILENT, this.level), now);
+    p.exponentialRampToValueAtTime(low, now + DUCK_DIP);
+    p.setValueAtTime(low, now + seconds);
+    p.exponentialRampToValueAtTime(Math.max(SILENT, this.level), now + seconds + DUCK_RECOVER);
   }
 
   /** One sixteenth of the action loop: kick, snare, hats, a driving bass with a sub, power-chord stabs, an arpeggio and a lead line. */

@@ -1,4 +1,5 @@
-import { MoodTracker } from './audio/music';
+import { MoodTracker, type Mood } from './audio/music';
+import { moodFor } from './audio/moodfor';
 import { Sound, type SoundPlayer } from './audio/sound';
 import { Controller } from './controller';
 import {
@@ -170,7 +171,7 @@ export class App {
   private readonly createMission: NonNullable<AppOptions['createMission']>;
   readonly sound: SoundPlayer;
   private readonly mood = new MoodTracker();
-  private soundMood = 'calm';
+  private soundMood: Mood = 'calm';
 
   constructor(opts: AppOptions = {}) {
     this.clock = opts.clock ?? (() => performance.now());
@@ -573,6 +574,7 @@ export class App {
     }
     this.scenesThisStop += 1;
     this.scenePlay = startPlay(next);
+    if (next.id === 'victory' || next.id === 'defeat') this.sound.stinger?.(next.id);
     this.screen = 'scene';
     this.hover = null;
     this.lock();
@@ -1188,7 +1190,10 @@ export class App {
     }
   }
 
-  /** The soundtrack plays action on the title screen, and in a mission turns to action while the squad can see an enemy, and back to mystery a few seconds after the last one is out of sight. */
+  /**
+   * The soundtrack: action on the title, the planet theme on the story's map and the base theme on its base side (moodFor), and in a
+   * mission action while the squad can see an enemy and mystery a few seconds after the last one is out of sight.
+   */
   private updateMusic(now: number): void {
     const c = this.controller;
     let seen = false;
@@ -1196,7 +1201,9 @@ export class App {
       const grid = visibleGrid(c.state, 'player');
       seen = c.state.units.some((u) => u.alive && u.side === 'enemy' && grid[u.pos.y]?.[u.pos.x]);
     }
-    const mood = this.screen === 'title' ? 'action' : this.mood.update(seen, now); // the title screen gets the driving beat
+    const tracked = this.mood.update(seen, now);
+    const story = { active: this.story !== null, fight: this.story !== null && this.pendingSpec !== null };
+    const mood = moodFor(this.screen, story, tracked, this.soundMood); // see moodfor.ts: the title, the story's map and base, scenes
     if (mood !== this.soundMood) {
       this.soundMood = mood;
       this.sound.setMood?.(mood);
