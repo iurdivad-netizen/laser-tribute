@@ -58,7 +58,8 @@ function setup(storage = memory(), opts: AppOptions = {}) {
     }
     return ids;
   };
-  return { app, storage, click, press, newStory, playing, drain };
+  const tick = (ms: number) => { t += ms; };
+  return { app, storage, click, press, newStory, playing, drain, tick };
 }
 
 const hold = (w: World, ids: number[], holder: Holder = 'player'): World => ({
@@ -196,5 +197,67 @@ describe('scenes in the app', () => {
     newStory();
     drain();
     expect(storage.data.has(CAMPAIGN_SAVE_KEY)).toBe(false);
+  });
+});
+
+describe('scene input safety', () => {
+  const offerStop = () => {
+    const h = setup();
+    h.newStory();
+    h.drain();
+    const w = hold(h.app.story!, [1, 2, 4, 6, 7]);
+    h.app.story = { ...w, day: 20, seen: ALL_BUT('offer') };
+    h.click(region(5));
+    h.click(mid(PLANET.act));
+    return h;
+  };
+
+  it('does not let a fast click after the last scene reach the planet', () => {
+    const { app, click, newStory, tick } = setup();
+    newStory();
+    click(NEXT);
+    click(NEXT);
+    click(NEXT);
+    click(NEXT); // the last line: the scene ends and the planet shows
+    expect(app.screen).toBe('planet');
+    tick(50);
+    app.click(region(5));
+    expect((app as unknown as { selectedRegion: number | null }).selectedRegion).toBeNull();
+  });
+
+  it('does not let a double-click on the last line pick a choice', () => {
+    const { app, click, tick, playing } = offerStop();
+    click(NEXT);
+    click(NEXT);
+    click(NEXT); // the last line: the choice buttons come up
+    expect(playing()?.phase).toBe('choice');
+    tick(50);
+    app.click(mid(SCENE.choices[0]));
+    expect(app.story?.chosen).toEqual({});
+    tick(500);
+    app.click(mid(SCENE.choices[0]));
+    expect(app.story?.chosen).toEqual({ offer: 0 });
+  });
+
+  it('ignores a held Escape: it skips once, and the repeat does not leave the planet', () => {
+    const { app, press, newStory, tick } = setup();
+    newStory();
+    press('Escape');
+    expect(app.screen).toBe('planet');
+    tick(30);
+    app.key('Escape', true);
+    tick(30);
+    app.key('Escape', true);
+    expect(app.screen).toBe('planet');
+  });
+
+  it('shows a scene cut off by a reload when the story is continued', () => {
+    const first = setup();
+    first.newStory();
+    expect(first.playing()?.scene.id).toBe('landing');
+    const again = setup(first.storage);
+    again.click(mid(TITLE.story));
+    expect(again.app.screen).toBe('scene');
+    expect(again.playing()?.scene.id).toBe('landing');
   });
 });

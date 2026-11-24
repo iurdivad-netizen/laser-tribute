@@ -449,7 +449,7 @@ export class App {
       this.selectedRegion = null;
       this.planetNotice = '';
       this.pendingSpec = null;
-      this.screen = 'planet';
+      this.showScenes('planet'); // a scene cut off by a reload plays now
     } else {
       this.screen = 'difficulty';
     }
@@ -553,6 +553,8 @@ export class App {
     const w = this.story;
     const next = this.sceneOn && w && this.scenesThisStop < 3 ? nextScene(w) : null;
     if (!next) {
+      // a fast click that ended the last scene must not fall through to the screen behind it
+      if (this.scenesThisStop > 0) this.lock();
       this.scenePlay = null;
       this.screen = this.sceneThen;
       return;
@@ -576,12 +578,18 @@ export class App {
     this.nextSceneOrLeave();
   }
 
+  /** Moves on inside a scene; the choice buttons come up where the clicks were landing, so they get an input lock. */
+  private enterPlay(from: ScenePlay, to: ScenePlay): void {
+    this.scenePlay = to;
+    if (to.phase === 'choice' && from.phase !== 'choice') this.lock();
+  }
+
   private sceneForward(): void {
     const p = this.scenePlay;
     if (!p) return;
     const next = forward(p);
     if (next === 'done') this.finishScene();
-    else this.scenePlay = next;
+    else this.enterPlay(p, next);
     this.sound.play('click', 0.9);
   }
 
@@ -590,7 +598,7 @@ export class App {
     if (!p) return;
     const next = skip(p);
     if (next === 'done') this.finishScene();
-    else this.scenePlay = next;
+    else this.enterPlay(p, next);
     this.sound.play('click', 0.9);
   }
 
@@ -1066,7 +1074,7 @@ export class App {
           return true;
         }
         if (k === 'Escape') {
-          if (!this.locked()) this.sceneSkip();
+          if (!repeat && !this.locked()) this.sceneSkip();
           return true;
         }
         return k === ' ' || k === 'Enter';
