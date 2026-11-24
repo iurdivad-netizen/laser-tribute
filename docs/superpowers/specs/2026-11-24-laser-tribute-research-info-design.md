@@ -7,7 +7,7 @@ A Lab upgrade row (Barracks I-III, Labs I-II, Supply contracts I-III, Field hosp
 
 ## Design
 - `nodeCard(nodeId, w): ItemCard | null` in `src/core/world/iteminfo.ts` (same `ItemCard` shape, so `drawItemCard` and ITEM_CARD are reused). Null for gear nodes and unknown ids.
-- Rows (all values from `NODES` / `BASE_RULES` / `levelsOf`, never literals): EFFECT (per track: beds `+2 BEDS (TOTAL n)`, labs `RESEARCH n% OF DAYS`, contracts `+1 CREDIT/DAY/REGION`, hospital `n% SECOND CHANCE`, training `CAP n (RANK)`), COST, DAYS (with the current labs level), NEEDS (previous level, omitted for level I), STATUS (RESEARCHED / IN PROGRESS / AVAILABLE / LOCKED: NEEDS <name>). Title is the node name uppercased. goodFor: one number-free sentence per track.
+- Rows (all values from `NODES` / `BASE_RULES` / `levelsOf`, never literals): EFFECT (per track: beds `+2 BEDS (TOTAL n)`, labs `RESEARCH n% OF DAYS`, contracts `+1 CREDIT/DAY/REGION`, hospital `n% SECOND CHANCE`, training `CAP n (RANK)`), COST, DAYS (with the current labs level), NEEDS (previous level, omitted for level I), STATUS (RESEARCHED / IN PROGRESS / AVAILABLE / LOCKED; the NEEDS row carries the missing level's name). Title is the node name uppercased. goodFor: one number-free sentence per track.
 - Lab rows: `panelHit` gives `{kind:'name'}` for the name area of every Lab row (gear rows already do). App opens the card for upgrade rows; the item-card modal, lock-on-open and lock-on-close behaviour is reused.
 - Out of scope: Tutorial, Campaign, equipment screen, other panels, balance numbers.
 
