@@ -52,6 +52,10 @@ export interface World {
   fallen: RosterSoldier[];
   namesUsed: number;
   stash: Stash;
+  /** Ids of the story scenes already shown (each plays once). */
+  seen: string[];
+  /** The option taken (0 or 1) in each scene that had a choice. */
+  chosen: Record<string, 0 | 1>;
 }
 
 /** What the tactical game needs to play one region fight. */
@@ -90,6 +94,8 @@ export function newWorld(seed: number, difficulty: DifficultyId): World {
     fallen: [],
     namesUsed: CAMPAIGN.rosterSize,
     stash: emptyStash(),
+    seen: [],
+    chosen: {},
   };
 }
 
@@ -221,6 +227,8 @@ const clone = (w: World): World => ({
   squad: [...w.squad],
   fallen: w.fallen.map((r) => ({ ...r })),
   stash: { ...w.stash },
+  seen: [...w.seen],
+  chosen: { ...w.chosen },
 });
 
 const LOOT_BY_REGION = ['rifle', 'pistol', 'clip'] as const;

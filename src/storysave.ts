@@ -135,6 +135,8 @@ export function parseStory(text: string | null): StorySave | null {
     fallen,
     namesUsed: w.namesUsed,
     stash: gear,
+    seen: [],
+    chosen: {},
   };
   return { world, loadout: loadout(raw.loadout) };
 }
