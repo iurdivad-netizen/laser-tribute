@@ -49,6 +49,9 @@ import { PLANET_ART_DATA } from './art/planet.generated';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { baseHit, drawBase } from './screens/base';
 import { drawPanel, panelAction, panelHit, type PanelId } from './screens/basepanels';
+import { drawInfoBox, drawSoldierCard } from './screens/baseinfo';
+import { buildingInfo } from './core/world/buildinginfo';
+import { soldierStats } from './core/world/soldierinfo';
 import { drawSquad, squadHit } from './screens/squad';
 import { drawScene, sceneHit, type SceneView } from './screens/scene';
 import { forward, pick, shownLine, skip, startPlay, type ScenePlay } from './sceneplay';
@@ -156,6 +159,9 @@ export class App {
   private planetNotice = '';
   private panelId: PanelId = 'lab';
   private panelSelected: number | null = null;
+  /** The soldier whose card is open in the base (a panel or the squad step), and whether a building's info box is open. */
+  private cardName: string | null = null;
+  private infoOpen = false;
   private panelPage = 0;
   private baseNotice = '';
   private squadPicked: string[] = [];
@@ -520,6 +526,7 @@ export class App {
 
   /** Leaves the squad step (or a panel's parent): no fight is started and nothing is spent. */
   private backToPlanet(): void {
+    this.closeInfo();
     this.pendingSpec = null;
     this.screen = 'planet';
     this.hover = null;
@@ -531,6 +538,7 @@ export class App {
   private confirmSquad(): void {
     const w = this.story;
     if (!w) return;
+    this.closeInfo();
     this.story = setSquad(w, this.squadPicked.filter((n) => w.soldiers.some((s) => s.name === n && s.status === 'ready')));
     this.loadout = fitLoadout(this.loadout, kitBudget(this.story), this.story.stash, storyGearRules(this.story.research.done));
     this.screen = 'equipment';
@@ -539,7 +547,17 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /** Closes the soldier card or the building info box if one is open; true when something was closed. */
+  private closeInfo(): boolean {
+    const open = this.cardName !== null || this.infoOpen;
+    this.cardName = null;
+    this.infoOpen = false;
+    if (open) this.sound.play('click', 0.9);
+    return open;
+  }
+
   private openPanel(id: PanelId): void {
+    this.closeInfo();
     this.panelId = id;
     this.panelSelected = null;
     this.panelPage = 0;
@@ -550,6 +568,7 @@ export class App {
   }
 
   private backToBase(): void {
+    this.closeInfo();
     this.screen = 'base';
     this.lock();
     this.sound.play('click', 0.9);
@@ -638,6 +657,13 @@ export class App {
     const last = p.scene.lines[p.scene.lines.length - 1];
     const choice = p.scene.choice;
     return { speaker: speakerFor(w, last), text: '', choices: choice ? [choice[0].label, choice[1].label] : null, skippable: false };
+  }
+
+  /** The soldier card or the building info box over the panel or the squad step, when one is open. */
+  private drawBaseInfo(ctx: CanvasRenderingContext2D, w: World): void {
+    const soldier = this.cardName !== null ? w.soldiers.find((x) => x.name === this.cardName) : undefined;
+    if (soldier) drawSoldierCard(ctx, soldierStats(soldier, w));
+    else if (this.infoOpen && this.screen === 'panel') drawInfoBox(ctx, buildingInfo(this.panelId, w));
   }
 
   /** Time passed outside a fight (a visit, a wait): if the planet fell in the meantime the story is over. */
@@ -799,6 +825,8 @@ export class App {
 
   /** Back to the title from the end screen, where either mode can be started again. */
   private toTitle(): void {
+    this.cardName = null;
+    this.infoOpen = false;
     this.controller = null;
     this.result = null;
     this.promoted = [];
@@ -893,9 +921,18 @@ export class App {
       case 'panel': {
         const w = this.story;
         if (!w) return;
+        if (this.closeInfo()) return; // a card or an info box is open: any click closes it
         const hit = panelHit(this.panelId, mp.x, mp.y, w, this.panelPage, pointer === 'touch' ? 5 : 0);
         if (!hit) return;
-        if (hit.kind === 'row') {
+        if (hit.kind === 'name') {
+          this.panelSelected = hit.index;
+          this.baseNotice = '';
+          this.cardName = w.soldiers[hit.index]?.name ?? null;
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'info') {
+          this.infoOpen = true;
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'row') {
           this.panelSelected = hit.index;
           this.baseNotice = '';
           this.sound.play('click', 0.9);
@@ -917,9 +954,13 @@ export class App {
       case 'squad': {
         const w = this.story;
         if (!w) return;
+        if (this.closeInfo()) return;
         const hit = squadHit(mp.x, mp.y, w, pointer === 'touch' ? 5 : 0);
         if (!hit) return;
-        if (hit.kind === 'soldier') {
+        if (hit.kind === 'card') {
+          this.cardName = hit.name;
+          this.sound.play('click', 0.9);
+        } else if (hit.kind === 'soldier') {
           this.squadPicked = this.squadPicked.includes(hit.name)
             ? this.squadPicked.filter((n) => n !== hit.name)
             : this.squadPicked.length < 4 ? [...this.squadPicked, hit.name] : this.squadPicked;
@@ -1094,7 +1135,7 @@ export class App {
         return k === ' ' || k === 'Enter';
       case 'squad':
         if (k === 'Escape') {
-          if (!this.locked()) this.backToPlanet();
+          if (!this.locked() && !this.closeInfo()) this.backToPlanet();
           return true;
         }
         return false;
@@ -1106,7 +1147,7 @@ export class App {
         return false;
       case 'panel':
         if (k === 'Escape') {
-          if (!this.locked()) this.backToBase();
+          if (!this.locked() && !this.closeInfo()) this.backToBase();
           return true;
         }
         return false;
@@ -1323,12 +1364,18 @@ export class App {
     }
     if (this.screen === 'panel' && this.story) {
       const w = this.story;
-      this.inMenuSpace(ctx, () => drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice, this.campArt));
+      this.inMenuSpace(ctx, () => {
+        drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice, this.campArt);
+        this.drawBaseInfo(ctx, w);
+      });
       return;
     }
     if (this.screen === 'squad' && this.story) {
       const w = this.story;
-      this.inMenuSpace(ctx, () => drawSquad(ctx, w, this.squadPicked));
+      this.inMenuSpace(ctx, () => {
+        drawSquad(ctx, w, this.squadPicked);
+        this.drawBaseInfo(ctx, w);
+      });
       return;
     }
     if (this.screen === 'planet' && this.story) {
