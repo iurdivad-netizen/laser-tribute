@@ -1,7 +1,9 @@
+import { NO_ART, type Art } from '../art/planetimages';
 import { VIEW } from '../render/layout';
 import { textWidth } from '../ui/font';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { drawText } from '../ui/text';
+import { faceFor, type CampArtId } from './campart';
 
 /** What the scene screen shows: who speaks, the line (empty while the choice is up), and the two choice labels if any. */
 export interface SceneView {
@@ -53,14 +55,22 @@ export function sceneHit(px: number, py: number, view: Pick<SceneView, 'choices'
   return 'next';
 }
 
-export function drawScene(ctx: CanvasRenderingContext2D, v: SceneView): void {
+export function drawScene(ctx: CanvasRenderingContext2D, v: SceneView, art: Art<CampArtId> = NO_ART): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   const b = SCENE.box;
   drawFrame(ctx, b.x, b.y, b.w, b.h, 'raised');
   const p = SCENE.portrait;
   drawFrame(ctx, p.x, p.y, p.w, p.h, 'inset');
-  drawText(ctx, v.speaker.charAt(0), p.x + p.w / 2, p.y + Math.floor((p.h - 21) / 2), UI.accent, 'center', undefined, 3);
+  const face = art.image(faceFor(v.speaker));
+  if (face) {
+    ctx.drawImage(face, p.x, p.y, p.w, p.h);
+    ctx.strokeStyle = UI.dark;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1);
+  } else {
+    drawText(ctx, v.speaker.charAt(0), p.x + p.w / 2, p.y + Math.floor((p.h - 21) / 2), UI.accent, 'center', undefined, 3);
+  }
   drawText(ctx, v.speaker, TEXT_X, b.y + 14, UI.accent);
   if (v.choices) {
     drawButton(ctx, SCENE.choices[0], v.choices[0]);

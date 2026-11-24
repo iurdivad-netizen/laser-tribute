@@ -1,3 +1,5 @@
+import { NO_ART, type Art } from '../art/planetimages';
+import { faceFor, type CampArtId } from './campart';
 import { rankFor, rankShort } from '../core/ranks';
 import { attachmentPrice, gadgetPrice, throwablePrice, weaponPrice } from '../core/loadout';
 import { BASE_RULES, NODES, bedCount, levelsOf, nodeById, researchDays, type ResearchNode } from '../core/world/base';
@@ -149,12 +151,16 @@ export function panelHit(id: PanelId, px: number, py: number, w: World, page: nu
   return null;
 }
 
-export function drawPanel(ctx: CanvasRenderingContext2D, id: PanelId, w: World, selected: number | null, page: number, notice: string): void {
+export function drawPanel(
+  ctx: CanvasRenderingContext2D, id: PanelId, w: World, selected: number | null, page: number, notice: string, art: Art<CampArtId> = NO_ART,
+): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   drawText(ctx, TITLE[id], 18, 12, UI.accent, 'left');
   drawText(ctx, `${w.credits} CR`, 462, 12, UI.text, 'right');
   const rows = panelRows(id, w);
+  // rows line up: when any soldier has a face, every barracks row leaves room for one
+  const gutter = id === 'barracks' && w.soldiers.some((s) => art.image(`${faceFor(s.name)}_s`) !== null);
   for (let i = 0; i < PANEL_PAGE; i++) {
     const index = page * PANEL_PAGE + i;
     const row = rows[index];
@@ -162,7 +168,11 @@ export function drawPanel(ctx: CanvasRenderingContext2D, id: PanelId, w: World, 
     const r = PANEL.rows[i];
     drawFrame(ctx, r.x, r.y, r.w, r.h, index === selected ? 'hover' : 'raised');
     const colour = row.enabled ? UI.text : UI.disabledText;
-    drawText(ctx, clipText(row.label, 190), r.x + 8, r.y + 7, colour, 'left');
+    // a soldier's small painted face, with the label moved right to make room
+    const soldier = id === 'barracks' ? w.soldiers[index] : undefined;
+    const face = soldier ? art.image(`${faceFor(soldier.name)}_s`) : null;
+    if (face) ctx.drawImage(face, r.x + 3, r.y + 2, 16, 16);
+    drawText(ctx, clipText(row.label, gutter ? 172 : 190), r.x + (gutter ? 26 : 8), r.y + 7, colour, 'left');
     drawText(ctx, clipText(row.detail, 230), r.x + r.w - 8, r.y + 7, row.enabled ? UI.dim : UI.disabledText, 'right');
   }
   if (pages(rows.length) > 1) {

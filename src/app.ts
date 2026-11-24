@@ -41,7 +41,9 @@ import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { difficultyHit, drawDifficulty } from './screens/difficulty';
-import { NO_ART, createPlanetArt, type PlanetArt } from './art/planetimages';
+import { NO_ART, createArt, createPlanetArt, type Art, type PlanetArt } from './art/planetimages';
+import { CAMP_ART_DATA } from './art/camp.generated';
+import type { CampArtId } from './screens/campart';
 import { PLANET_ART_DATA } from './art/planet.generated';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { baseHit, drawBase } from './screens/base';
@@ -105,6 +107,8 @@ export interface AppOptions {
   scenes?: boolean;
   /** The painted planet map images (default: the baked art in the real game, none in tests that pass their own stores). */
   planetArt?: PlanetArt;
+  /** The painted camp and face images (same rule as `planetArt`). */
+  campArt?: Art<CampArtId>;
 }
 
 export class App {
@@ -130,6 +134,7 @@ export class App {
   private lockedUntil = -Infinity;
   private readonly sceneOn: boolean;
   private readonly planetArt: PlanetArt;
+  private readonly campArt: Art<CampArtId>;
   private scenePlay: ScenePlay | null = null;
   private sceneThen: Screen = 'planet';
   private scenesThisStop = 0;
@@ -187,6 +192,7 @@ export class App {
     this.campaignStore = opts.campaignStore !== undefined ? opts.campaignStore : real ? defaultCampaignStore() : null;
     this.sceneOn = opts.scenes ?? true;
     this.planetArt = opts.planetArt ?? (real ? createPlanetArt(PLANET_ART_DATA, () => this.wake()) : NO_ART);
+    this.campArt = opts.campArt ?? (real ? createArt<CampArtId>(CAMP_ART_DATA, () => this.wake()) : NO_ART);
     this.lastMode = opts.last !== undefined ? opts.last : real ? defaultLastMode() : null;
     this.storyStore = opts.storyStore !== undefined ? opts.storyStore : real ? defaultStoryStore() : null;
     this.storySave = this.storyStore?.load() ?? null;
@@ -1296,7 +1302,7 @@ export class App {
     }
     if (this.screen === 'scene') {
       const v = this.sceneView();
-      if (v) this.inMenuSpace(ctx, () => drawScene(ctx, v));
+      if (v) this.inMenuSpace(ctx, () => drawScene(ctx, v, this.campArt));
       return;
     }
     if (this.screen === 'difficulty') {
@@ -1305,12 +1311,12 @@ export class App {
     }
     if (this.screen === 'base' && this.story) {
       const w = this.story;
-      this.inMenuSpace(ctx, () => drawBase(ctx, w, this.baseNotice));
+      this.inMenuSpace(ctx, () => drawBase(ctx, w, this.baseNotice, this.campArt));
       return;
     }
     if (this.screen === 'panel' && this.story) {
       const w = this.story;
-      this.inMenuSpace(ctx, () => drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice));
+      this.inMenuSpace(ctx, () => drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice, this.campArt));
       return;
     }
     if (this.screen === 'squad' && this.story) {

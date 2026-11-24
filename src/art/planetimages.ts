@@ -1,9 +1,11 @@
 import type { PlanetArtId } from '../screens/planetart';
 
-/** Hands out the painted planet images once they have decoded; until then, `null`. */
-export interface PlanetArt {
-  image(id: PlanetArtId): CanvasImageSource | null;
+/** Hands out painted images once they have decoded; until then, `null`. */
+export interface Art<Id extends string> {
+  image(id: Id): CanvasImageSource | null;
 }
+
+export type PlanetArt = Art<PlanetArtId>;
 
 interface Loadable {
   src: string;
@@ -13,7 +15,8 @@ interface Loadable {
   naturalWidth: number;
 }
 
-export const NO_ART: PlanetArt = { image: () => null };
+/** No art at all: every image is missing, so every screen draws its plain fallback. Fits any set of ids. */
+export const NO_ART: Art<never> & { image(id: string): null } = { image: () => null };
 
 const defaultMake = (): Loadable | null => (typeof Image === 'undefined' ? null : (new Image() as unknown as Loadable));
 
@@ -21,13 +24,13 @@ const defaultMake = (): Loadable | null => (typeof Image === 'undefined' ? null 
  * Decodes each image on first request. `onLoad` fires once per image that finishes, so the screen can redraw.
  * A failed decode stays null and is not retried; without `Image` (node tests) nothing loads.
  */
-export function createPlanetArt(
-  data: Partial<Record<PlanetArtId, string>>,
+export function createArt<Id extends string>(
+  data: Partial<Record<Id, string>>,
   onLoad: () => void,
   make: () => Loadable | null = defaultMake,
-): PlanetArt {
-  const images = new Map<PlanetArtId, Loadable | null>();
-  const load = (id: PlanetArtId): Loadable | null => {
+): Art<Id> {
+  const images = new Map<Id, Loadable | null>();
+  const load = (id: Id): Loadable | null => {
     if (!images.has(id)) {
       const uri = data[id];
       const img = uri ? make() : null;
@@ -41,7 +44,7 @@ export function createPlanetArt(
     return images.get(id) ?? null;
   };
   // every image starts decoding now, so the first frame of the screen and a place changing hands never wait for one
-  for (const id of Object.keys(data) as PlanetArtId[]) load(id);
+  for (const id of Object.keys(data) as Id[]) load(id);
   return {
     image(id) {
       const img = load(id);
@@ -49,3 +52,6 @@ export function createPlanetArt(
     },
   };
 }
+
+/** The planet's painted images (see `createArt`). */
+export const createPlanetArt = createArt<PlanetArtId>;
