@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NO_ART, createPlanetArt } from '../src/art/planetimages';
+import { NO_ART, createArt, createPlanetArt } from '../src/art/planetimages';
 
 interface Fake { src: string; onload: (() => void) | null; onerror: (() => void) | null; complete: boolean; naturalWidth: number }
 const factory = () => {
@@ -45,5 +45,19 @@ describe('the planet art loader', () => {
   it('has no art at all in a node test, and NO_ART is always empty', () => {
     expect(createPlanetArt(data, () => undefined).image('backdrop')).toBeNull();
     expect(NO_ART.image('backdrop')).toBeNull();
+  });
+
+  it('has one generic loader for any set of ids, and keeps createPlanetArt', () => {
+    const { made, make } = factory();
+    let loaded = 0;
+    const art = createArt<'a' | 'b' | 'c'>({ a: 'data:image/png;base64,AA', b: 'data:image/png;base64,BB' }, () => { loaded += 1; }, make);
+    expect(made).toHaveLength(2);
+    expect(art.image('c')).toBeNull();
+    made[0].complete = true;
+    made[0].naturalWidth = 1;
+    made[0].onload?.();
+    expect(art.image('a')).toBe(made[0]);
+    expect(loaded).toBe(1);
+    expect(createPlanetArt).toBeTypeOf('function');
   });
 });
