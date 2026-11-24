@@ -20,11 +20,12 @@ describe('panelItem', () => {
     expect(panelItem('market', 9)).toBeNull();
   });
 
-  it('is the item of a Lab row when its node gives gear, null for upgrades, and follows the page', () => {
-    NODES.forEach((n, i) => expect(panelItem('lab', i), n.id).toEqual(itemOfNode(n.id)));
-    expect(panelItem('lab', 9)).toBeNull(); // beds1
+  it('is the item of a Lab row when its node gives gear, the node itself for upgrades, and follows the page', () => {
+    NODES.forEach((n, i) => expect(panelItem('lab', i), n.id).toEqual(itemOfNode(n.id) ?? { kind: 'node', id: n.id }));
+    expect(panelItem('lab', 9)).toEqual({ kind: 'node', id: 'beds1' });
+    expect(panelItem('lab', NODES.length)).toBeNull();
     // the same absolute index whatever the page the row is drawn on
-    expect(panelItem('lab', PANEL_PAGE)).toEqual(itemOfNode(NODES[PANEL_PAGE].id));
+    expect(panelItem('lab', PANEL_PAGE)).toEqual(itemOfNode(NODES[PANEL_PAGE].id) ?? { kind: 'node', id: NODES[PANEL_PAGE].id });
   });
 
   it('is null for every other panel', () => {
@@ -41,9 +42,10 @@ describe('the name area of Market and Lab gear rows', () => {
     expect(panelHit('lab', row.x + 200, row.y + 5, fresh(), 0)).toEqual({ kind: 'row', index: 0 });
   });
 
-  it('never gives a name hit to a Lab upgrade row', () => {
+  it('gives a name hit to a Lab upgrade row too, and the rest of the row stays a row', () => {
     const upgrade = PANEL.rows[9]; // beds1 on page 0
-    expect(panelHit('lab', upgrade.x + 10, upgrade.y + 5, fresh(), 0)).toEqual({ kind: 'row', index: 9 });
+    expect(panelHit('lab', upgrade.x + 10, upgrade.y + 5, fresh(), 0)).toEqual({ kind: 'name', index: 9 });
+    expect(panelHit('lab', upgrade.x + NAME_W + 1, upgrade.y + 5, fresh(), 0)).toEqual({ kind: 'row', index: 9 });
   });
 
   it('follows the second page of the Lab', () => {
@@ -51,7 +53,7 @@ describe('the name area of Market and Lab gear rows', () => {
       const row = PANEL.rows[i];
       const hit = panelHit('lab', row.x + 10, row.y + 5, fresh(), 1);
       const node = NODES[PANEL_PAGE + i];
-      expect(hit, node.id).toEqual({ kind: itemOfNode(node.id) ? 'name' : 'row', index: PANEL_PAGE + i });
+      expect(hit, node.id).toEqual({ kind: 'name', index: PANEL_PAGE + i });
     }
   });
 
