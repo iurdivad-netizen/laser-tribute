@@ -90,16 +90,16 @@ export const STINGER_LEVEL = 0.9;
 export const STINGERS: Record<StingerName, Segment[]> = {
   // Four rising notes that land on a held D major chord, over a low drum blip.
   victory: [
-    tone('triangle', 293.66, 293.66, 0, 0.5, 0.32),
-    tone('triangle', 440, 440, 0.22, 0.5, 0.32),
-    tone('triangle', 587.33, 587.33, 0.44, 0.5, 0.32),
-    tone('triangle', 739.99, 739.99, 0.66, 1.0, 0.32),
-    tone('triangle', 140, 45, 0, 0.35, 0.5),
-    tone('triangle', 587.33, 587.33, 1.0, 2.2, 0.22),
-    tone('triangle', 739.99, 739.99, 1.0, 2.2, 0.22),
-    tone('triangle', 880, 880, 1.0, 2.2, 0.22),
-    tone('triangle', 293.66, 293.66, 1.0, 2.2, 0.22),
-    tone('sawtooth', 146.83, 146.83, 1.0, 2.2, 0.12),
+    tone('triangle', 293.66, 293.66, 0, 0.5, 0.22),
+    tone('triangle', 440, 440, 0.22, 0.5, 0.22),
+    tone('triangle', 587.33, 587.33, 0.44, 0.5, 0.22),
+    tone('triangle', 739.99, 739.99, 0.66, 1.0, 0.22),
+    tone('triangle', 140, 45, 0, 0.35, 0.3),
+    tone('triangle', 587.33, 587.33, 1.0, 2.2, 0.14),
+    tone('triangle', 739.99, 739.99, 1.0, 2.2, 0.14),
+    tone('triangle', 880, 880, 1.0, 2.2, 0.14),
+    tone('triangle', 293.66, 293.66, 1.0, 2.2, 0.14),
+    tone('sawtooth', 146.83, 146.83, 1.0, 2.2, 0.07),
   ],
   // A falling D minor line that settles into a low tone that fades away, with a muted noise sweep under the end.
   defeat: [

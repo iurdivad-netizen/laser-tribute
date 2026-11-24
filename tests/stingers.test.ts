@@ -48,10 +48,11 @@ describe('the stinger table', () => {
   });
 
   it('victory climbs through four notes, and defeat falls through four', () => {
-    const notes = (name: 'victory' | 'defeat', gain: number, until: number) =>
-      STINGERS[name].filter((s) => s.wave === 'triangle' && s.gain === gain && s.start <= until).sort((a, b) => a.start - b.start).map((s) => s.from);
-    expect(notes('victory', 0.32, 1)).toEqual([293.66, 440, 587.33, 739.99]);
-    expect(notes('defeat', 0.3, 1.5)).toEqual([440, 349.23, 293.66, 220]);
+    // the melody notes: triangles above 200 Hz that start before the chord (victory) or the low tone (defeat)
+    const notes = (name: 'victory' | 'defeat', until: number) =>
+      STINGERS[name].filter((s) => s.wave === 'triangle' && s.from > 200 && s.start <= until).sort((a, b) => a.start - b.start).map((s) => s.from);
+    expect(notes('victory', 0.7)).toEqual([293.66, 440, 587.33, 739.99]);
+    expect(notes('defeat', 1.55)).toEqual([440, 349.23, 293.66, 220]);
   });
 
   it('sits on the interface bus and is not a mission effect', () => {
