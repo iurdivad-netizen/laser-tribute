@@ -3,11 +3,12 @@ import { BASE_RULES, bedCount, nodeById } from './core/world/base';
 import type { Loadout } from './core/loadout';
 import { DIFFICULTY_IDS, type DifficultyId } from './core/world/difficulty';
 import { CAPITAL_REGION, PLANET_VERSION, REGIONS } from './core/world/planet';
+import { nextScene, see, sceneById } from './core/world/story';
 import type { Holder, PoolSoldier, RegionState, World, WorldStatus } from './core/world/world';
 import { browserStorage, isInt, isObj, loadout, soldiers, stash, type SaveStorage } from './save';
 
 export const STORY_SAVE_KEY = 'laser-tribute-story';
-export const STORY_SAVE_VERSION = 2;
+export const STORY_SAVE_VERSION = 3;
 
 export interface StorySave {
   world: World;
@@ -70,6 +71,29 @@ function researchState(v: unknown): World['research'] | null {
   return { done, active: { node: node.id, daysLeft: v.active.daysLeft } };
 }
 
+/** The scene record: known unique ids seen, and a 0 or 1 for each seen scene that has a choice. */
+function sceneRecord(seen: unknown, chosen: unknown): Pick<World, 'seen' | 'chosen'> | null {
+  if (!Array.isArray(seen) || !isObj(chosen) || Array.isArray(chosen)) return null;
+  const ids: string[] = [];
+  for (const id of seen) {
+    if (typeof id !== 'string' || !sceneById(id) || ids.includes(id)) return null;
+    ids.push(id);
+  }
+  const out: Record<string, 0 | 1> = {};
+  for (const [id, option] of Object.entries(chosen)) {
+    if (!ids.includes(id) || !sceneById(id)?.choice || (option !== 0 && option !== 1)) return null;
+    out[id] = option;
+  }
+  return { seen: ids, chosen: out };
+}
+
+/** An older save has no scene record: every scene whose trigger already holds counts as seen, so the past is not replayed. */
+function markPastSeen(w: World): World {
+  let next = w;
+  for (let s = nextScene(next); s; s = nextScene(next)) next = see(next, s.id);
+  return next;
+}
+
 /** The saved story and loadout, or null when the text is missing or any part of it is inconsistent. */
 export function parseStory(text: string | null): StorySave | null {
   if (text === null) return null;
@@ -79,7 +103,7 @@ export function parseStory(text: string | null): StorySave | null {
   } catch {
     return null;
   }
-  if (!isObj(raw) || (raw.version !== 1 && raw.version !== STORY_SAVE_VERSION) || !isObj(raw.world)) return null;
+  if (!isObj(raw) || (raw.version !== 1 && raw.version !== 2 && raw.version !== STORY_SAVE_VERSION) || !isObj(raw.world)) return null;
   const w = raw.world;
   if (w.planetVersion !== PLANET_VERSION) return null;
   if (!DIFFICULTY_IDS.includes(w.difficulty as DifficultyId)) return null;
@@ -121,7 +145,13 @@ export function parseStory(text: string | null): StorySave | null {
     squad = w.squad as string[];
   }
   if (!isInt(w.namesUsed, CAMPAIGN.rosterSize, 9999) || w.namesUsed < fallen.length + pool.length) return null;
-  const world: World = {
+  let record: Pick<World, 'seen' | 'chosen'> = { seen: [], chosen: {} };
+  if (raw.version === STORY_SAVE_VERSION) {
+    const r = sceneRecord(w.seen, w.chosen);
+    if (!r) return null;
+    record = r;
+  }
+  let world: World = {
     planetVersion: PLANET_VERSION,
     seed: w.seed,
     difficulty: w.difficulty as DifficultyId,
@@ -135,7 +165,9 @@ export function parseStory(text: string | null): StorySave | null {
     fallen,
     namesUsed: w.namesUsed,
     stash: gear,
+    ...record,
   };
+  if (raw.version !== STORY_SAVE_VERSION) world = markPastSeen(world);
   return { world, loadout: loadout(raw.loadout) };
 }
 
