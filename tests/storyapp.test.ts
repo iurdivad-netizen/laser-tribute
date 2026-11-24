@@ -39,6 +39,7 @@ function setup(storage = memory(), opts: AppOptions = {}) {
     store: new SaveStore(storage, 3),
     campaignStore: new SaveStore(storage, CAMPAIGN_LENGTH, 'campaign'),
     storyStore: new StoryStore(storage),
+    scenes: false,
     last: new LastMode(storage),
     createMission: (_def, seed, roster, _loadout, budget, _stash, level, enemyLevel) => {
       calls.push({ seed, roster, budget, level, enemyLevel });

@@ -45,6 +45,9 @@ import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } fr
 import { baseHit, drawBase } from './screens/base';
 import { drawPanel, panelAction, panelHit, type PanelId } from './screens/basepanels';
 import { drawSquad, squadHit } from './screens/squad';
+import { drawScene, sceneHit, type SceneView } from './screens/scene';
+import { forward, pick, shownLine, skip, startPlay, type ScenePlay } from './sceneplay';
+import { choose, nextScene, see, speakerFor } from './core/world/story';
 import { drawResult, resultHit } from './screens/result';
 import { LEGACY_SIZE, computeLayout, type Layout } from './ui/layout';
 import { drawTitle, titleHit, type TitleView } from './screens/title';
@@ -54,7 +57,7 @@ import { textWidth } from './ui/font';
 import { UI, drawButton, drawFrame } from './ui/frame';
 import { drawText } from './ui/text';
 
-export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty' | 'base' | 'panel' | 'squad';
+export type Screen = 'title' | 'equipment' | 'mission' | 'result' | 'end' | 'planet' | 'difficulty' | 'base' | 'panel' | 'squad' | 'scene';
 
 /** Menu pixels (of 480x400) around a small equipment button within which a touch still counts as a tap on it. */
 const TOUCH_SLOP = 9;
@@ -96,6 +99,8 @@ export interface AppOptions {
   storyStore?: StoryStore | null;
   /** With no save to continue, start on the tutorial's equipment screen instead of the title (tests and tools). */
   skipTitle?: boolean;
+  /** Show the story's scenes (default true; tests that click through the story turn them off). */
+  scenes?: boolean;
 }
 
 export class App {
@@ -119,6 +124,10 @@ export class App {
   private hover: EquipmentHit | null = null;
   private endedAt: number | null = null;
   private lockedUntil = -Infinity;
+  private readonly sceneOn: boolean;
+  private scenePlay: ScenePlay | null = null;
+  private sceneThen: Screen = 'planet';
+  private scenesThisStop = 0;
   private fallenNow: string[] = [];
   private playedName = '';
   private noticeText = '';
@@ -171,6 +180,7 @@ export class App {
     const real = opts.store === undefined; // the real game; tests pass their own stores
     this.store = real ? defaultSaveStore(this.missions.length) : (opts.store ?? null);
     this.campaignStore = opts.campaignStore !== undefined ? opts.campaignStore : real ? defaultCampaignStore() : null;
+    this.sceneOn = opts.scenes ?? true;
     this.lastMode = opts.last !== undefined ? opts.last : real ? defaultLastMode() : null;
     this.storyStore = opts.storyStore !== undefined ? opts.storyStore : real ? defaultStoryStore() : null;
     this.storySave = this.storyStore?.load() ?? null;
@@ -455,7 +465,7 @@ export class App {
     this.planetNotice = '';
     this.pendingSpec = null;
     this.saveStory();
-    this.screen = 'planet';
+    this.showScenes('planet');
     this.lock();
     this.sound.play('click', 0.9);
   }
@@ -481,6 +491,7 @@ export class App {
       this.story = next;
       this.saveStory();
       this.afterTimePassed();
+      this.showScenes(this.screen);
       this.lock();
       this.sound.play('click', 0.9);
     }
@@ -531,6 +542,82 @@ export class App {
     this.sound.play('click', 0.9);
   }
 
+  /** Plays the scenes now pending (at most 3 per stop), then goes on to `then`. */
+  private showScenes(then: Screen): void {
+    this.sceneThen = then;
+    this.scenesThisStop = 0;
+    this.nextSceneOrLeave();
+  }
+
+  private nextSceneOrLeave(): void {
+    const w = this.story;
+    const next = this.sceneOn && w && this.scenesThisStop < 3 ? nextScene(w) : null;
+    if (!next) {
+      this.scenePlay = null;
+      this.screen = this.sceneThen;
+      return;
+    }
+    this.scenesThisStop += 1;
+    this.scenePlay = startPlay(next);
+    this.screen = 'scene';
+    this.hover = null;
+    this.lock();
+  }
+
+  /** A scene without a choice ends: it is now seen and saved. A choice scene was recorded when the player picked. */
+  private finishScene(): void {
+    const p = this.scenePlay;
+    const w = this.story;
+    if (p && w && !w.seen.includes(p.scene.id)) {
+      this.story = see(w, p.scene.id);
+      this.saveStory();
+    }
+    this.scenePlay = null;
+    this.nextSceneOrLeave();
+  }
+
+  private sceneForward(): void {
+    const p = this.scenePlay;
+    if (!p) return;
+    const next = forward(p);
+    if (next === 'done') this.finishScene();
+    else this.scenePlay = next;
+    this.sound.play('click', 0.9);
+  }
+
+  private sceneSkip(): void {
+    const p = this.scenePlay;
+    if (!p) return;
+    const next = skip(p);
+    if (next === 'done') this.finishScene();
+    else this.scenePlay = next;
+    this.sound.play('click', 0.9);
+  }
+
+  /** The player takes an option: the effect is applied and saved at once, then the reply plays. */
+  private scenePick(index: 0 | 1): void {
+    const p = this.scenePlay;
+    const w = this.story;
+    if (!p || !w || p.phase !== 'choice') return;
+    this.story = choose(w, p.scene, index);
+    this.saveStory();
+    // days passing can end the story: then only the ending scene is left to show
+    if (this.story.status !== 'active') this.sceneThen = 'end';
+    this.scenePlay = pick(p, index);
+    this.sound.play('click', 0.9);
+  }
+
+  private sceneView(): SceneView | null {
+    const p = this.scenePlay;
+    const w = this.story;
+    if (!p || !w) return null;
+    const line = shownLine(p);
+    if (line) return { speaker: speakerFor(w, line), text: line.text, choices: null, skippable: true };
+    const last = p.scene.lines[p.scene.lines.length - 1];
+    const choice = p.scene.choice;
+    return { speaker: speakerFor(w, last), text: '', choices: choice ? [choice[0].label, choice[1].label] : null, skippable: false };
+  }
+
   /** Time passed outside a fight (a visit, a wait): if the planet fell in the meantime the story is over. */
   private afterTimePassed(): void {
     if (this.story && this.story.status !== 'active') {
@@ -570,6 +657,7 @@ export class App {
     this.baseNotice = notice;
     this.saveStory();
     this.afterTimePassed();
+    this.showScenes(this.screen);
     this.lock();
     this.sound.play('click', 0.9);
   }
@@ -595,7 +683,7 @@ export class App {
   /** From the result screen: the next mission's equipment while the campaign is active, else the end screen. */
   private continueFromResult(): void {
     if (this.story) {
-      this.screen = this.story.status === 'active' ? 'planet' : 'end';
+      this.showScenes(this.story.status === 'active' ? 'planet' : 'end');
       this.pendingSpec = null;
       this.controller = null;
       this.endedAt = null;
@@ -695,6 +783,7 @@ export class App {
     this.endedAt = null;
     this.hover = null;
     this.newArmedUntil = 0;
+    this.scenePlay = null;
     this.screen = 'title';
     this.lock();
     this.sound.play('click', 0.9);
@@ -792,6 +881,15 @@ export class App {
         else if (hit.kind === 'back') this.backToBase();
         else if (hit.kind === 'next') this.panelPage += 1;
         else this.panelPage = Math.max(0, this.panelPage - 1);
+        return;
+      }
+      case 'scene': {
+        const view = this.sceneView();
+        if (!view) return;
+        const hit = sceneHit(mp.x, mp.y, view, pointer === 'touch' ? 5 : 0);
+        if (hit === 'next') this.sceneForward();
+        else if (hit === 'skip') this.sceneSkip();
+        else if (hit) this.scenePick(hit.index);
         return;
       }
       case 'squad': {
@@ -962,6 +1060,16 @@ export class App {
           return true;
         }
         return false;
+      case 'scene':
+        if ((k === ' ' || k === 'Enter') && !repeat) {
+          if (!this.locked()) this.sceneForward();
+          return true;
+        }
+        if (k === 'Escape') {
+          if (!this.locked()) this.sceneSkip();
+          return true;
+        }
+        return k === ' ' || k === 'Enter';
       case 'squad':
         if (k === 'Escape') {
           if (!this.locked()) this.backToPlanet();
@@ -1119,7 +1227,7 @@ export class App {
     this.drawScreen(ctx, now);
     const menu = this.screen === 'title' || this.screen === 'equipment' || this.screen === 'end' ||
       this.screen === 'planet' || this.screen === 'difficulty' || this.screen === 'base' || this.screen === 'panel' ||
-      this.screen === 'squad';
+      this.screen === 'squad' || this.screen === 'scene';
     if (menu) {
       this.inMenuSpace(ctx, () => this.drawSoundHint(ctx, VIEW.width, true));
       this.drawRotateHint(ctx);
@@ -1170,6 +1278,11 @@ export class App {
         drawEquipment(ctx, this.loadout, this.hover, this.equipmentView());
         if (this.story && this.pendingSpec) drawButton(ctx, STORY_EQUIPMENT_BACK, 'BACK (Esc)', 'raised');
       });
+      return;
+    }
+    if (this.screen === 'scene') {
+      const v = this.sceneView();
+      if (v) this.inMenuSpace(ctx, () => drawScene(ctx, v));
       return;
     }
     if (this.screen === 'difficulty') {
