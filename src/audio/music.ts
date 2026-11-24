@@ -1,17 +1,20 @@
 import type { AudioContextLike } from './sound';
 
-/** The soundtrack has two moods: a slow mystery while the squad explores, and a driving beat while an enemy is in sight. */
-export type Mood = 'calm' | 'action';
+/** The moods a fight can have: a slow mystery while the squad explores, and a driving beat while an enemy is in sight. */
+export type FightMood = 'calm' | 'action';
+/** The soundtrack's moods: the two fight moods, and the story's calm planet theme and dark base theme. */
+export type Mood = FightMood | 'planet' | 'base';
+export const MOODS: readonly Mood[] = ['calm', 'action', 'planet', 'base'];
 
 /** How long the squad must go without seeing an enemy before the music relaxes, so an enemy ducking in and out of view does not flicker it. */
 export const CALM_DELAY_MS = 4000;
 
 /** Decides the mood from whether any enemy is visible, with a delay before the way back to calm. */
 export class MoodTracker {
-  mood: Mood = 'calm';
+  mood: FightMood = 'calm';
   private lastSeen = -Infinity;
 
-  update(enemyVisible: boolean, now: number): Mood {
+  update(enemyVisible: boolean, now: number): FightMood {
     if (enemyVisible) {
       this.lastSeen = now;
       this.mood = 'action';
@@ -79,7 +82,7 @@ interface Layer {
 }
 
 export class Music {
-  private readonly layers: Record<Mood, Layer>;
+  private readonly layers: Record<FightMood, Layer>;
   private readonly out: Gain;
   private mood: Mood = 'calm';
   private level = 0;
@@ -123,9 +126,10 @@ export class Music {
   setMood(mood: Mood): void {
     if (mood === this.mood) return;
     this.mood = mood;
+    const fight: FightMood = mood === 'action' ? 'action' : 'calm'; // the story themes get their own layers in the next change
     const now = this.ctx.currentTime;
-    const dur = mood === 'action' ? FADE_TO_ACTION : FADE_TO_CALM;
-    for (const m of ['calm', 'action'] as const) this.fade(this.layers[m], m === mood ? 1 : SILENT, now, dur);
+    const dur = fight === 'action' ? FADE_TO_ACTION : FADE_TO_CALM;
+    for (const m of ['calm', 'action'] as const) this.fade(this.layers[m], m === fight ? 1 : SILENT, now, dur);
   }
 
   private fade(layer: Layer, to: number, now: number, dur: number): void {
