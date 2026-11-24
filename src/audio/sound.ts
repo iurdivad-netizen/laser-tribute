@@ -1,5 +1,8 @@
 import { Music, browserScheduler, type Mood, type Scheduler } from './music';
-import { BUSES, BUS_GAIN, BUS_OF, EFFECTS, PITCH_SPREAD_CENTS, type Bus, type Segment, type SoundName, effectDuration } from './effects';
+import {
+  BUSES, BUS_GAIN, BUS_OF, EFFECTS, PITCH_SPREAD_CENTS, STINGERS, STINGER_BUS, STINGER_LEVEL,
+  type Bus, type Segment, type SoundName, type StingerName, effectDuration, stingerDuration,
+} from './effects';
 
 export const SETTINGS_KEY = 'laser-tribute-sound';
 export const MAX_VOICES = 12;
@@ -11,8 +14,10 @@ export interface SoundPlayer {
   unlock(): void;
   toggleMute(): string;
   changeVolume(delta: number): string;
-  /** Switches the soundtrack between its calm and action moods. */
+  /** Switches the soundtrack between its moods. */
   setMood?(mood: Mood): void;
+  /** Plays the story's victory or defeat stinger, dipping the music under it. */
+  stinger?(name: StingerName): void;
   /** True until a click or key press has unlocked the audio, and only where music can play at all. */
   readonly waiting?: boolean;
   readonly muted: boolean;
@@ -88,6 +93,8 @@ export class Sound implements SoundPlayer {
   private music: Music | null = null;
   private mood: Mood = 'calm';
   private gestured = false;
+  /** When the stinger now playing is over (audio clock): a second one waits for it. */
+  private stingerEnd = -Infinity;
 
   constructor(
     private readonly createContext: () => AudioContextLike | null = browserContext,
@@ -157,6 +164,19 @@ export class Sound implements SoundPlayer {
     const detune = 2 ** (((this.random() * 2 - 1) * spread) / 1200); // one factor per play: the sound stays in tune with itself
     const bus = this.buses?.[BUS_OF[name]];
     for (const seg of EFFECTS[name]) this.segment(ctx, seg, now, level, detune, bus);
+  }
+
+  /** Plays the story's victory or defeat stinger and dips the music under it; one at a time, and silent when muted. */
+  stinger(name: StingerName): void {
+    const ctx = this.ctx;
+    if (!ctx || this.muted || this.volume <= 0) return;
+    const now = ctx.currentTime;
+    if (now < this.stingerEnd) return;
+    const length = stingerDuration(name);
+    this.stingerEnd = now + length;
+    const bus = this.buses?.[STINGER_BUS];
+    for (const seg of STINGERS[name]) this.segment(ctx, seg, now, this.volume * STINGER_LEVEL, 1, bus);
+    this.music?.duck(length);
   }
 
   private makeBuses(ctx: AudioContextLike): Record<Bus, NodeLike> {

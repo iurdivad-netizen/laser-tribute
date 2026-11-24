@@ -77,3 +77,41 @@ export const PITCH_SPREAD_CENTS: Partial<Record<SoundName, number>> = {
 export function effectDuration(name: SoundName): number {
   return Math.max(...EFFECTS[name].map((s) => s.start + s.dur));
 }
+
+// ---- Stingers: the story's two endings. Longer than an effect (EFFECTS are limited to 1.5 s), so they have their own table. ----
+
+export const STINGER_NAMES = ['victory', 'defeat'] as const;
+export type StingerName = (typeof STINGER_NAMES)[number];
+
+/** Stingers sit on the interface bus with the jingles, and scale with the player's volume. */
+export const STINGER_BUS: Bus = 'ui';
+export const STINGER_LEVEL = 0.9;
+
+export const STINGERS: Record<StingerName, Segment[]> = {
+  // Four rising notes that land on a held D major chord, over a low drum blip.
+  victory: [
+    tone('triangle', 293.66, 293.66, 0, 0.5, 0.32),
+    tone('triangle', 440, 440, 0.22, 0.5, 0.32),
+    tone('triangle', 587.33, 587.33, 0.44, 0.5, 0.32),
+    tone('triangle', 739.99, 739.99, 0.66, 1.0, 0.32),
+    tone('triangle', 140, 45, 0, 0.35, 0.5),
+    tone('triangle', 587.33, 587.33, 1.0, 2.2, 0.22),
+    tone('triangle', 739.99, 739.99, 1.0, 2.2, 0.22),
+    tone('triangle', 880, 880, 1.0, 2.2, 0.22),
+    tone('triangle', 293.66, 293.66, 1.0, 2.2, 0.22),
+    tone('sawtooth', 146.83, 146.83, 1.0, 2.2, 0.12),
+  ],
+  // A falling D minor line that settles into a low tone that fades away, with a muted noise sweep under the end.
+  defeat: [
+    tone('triangle', 440, 440, 0, 0.5, 0.3),
+    tone('triangle', 349.23, 349.23, 0.5, 0.5, 0.3),
+    tone('triangle', 293.66, 293.66, 1.0, 0.5, 0.3),
+    tone('triangle', 220, 220, 1.5, 0.8, 0.3),
+    tone('triangle', 73.42, 55, 1.6, 2.0, 0.3),
+    noise(1.5, 1.8, 0.12),
+  ],
+};
+
+export function stingerDuration(name: StingerName): number {
+  return Math.max(...STINGERS[name].map((s) => s.start + s.dur));
+}
