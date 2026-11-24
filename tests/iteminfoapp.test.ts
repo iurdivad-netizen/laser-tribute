@@ -76,7 +76,7 @@ describe('the item card from the Market and the Lab', () => {
     expect(s.app.screen).toBe('panel');
   });
 
-  it('leaves the rest of the row selecting, and the Lab upgrade rows without a card', () => {
+  it('leaves the rest of the row selecting, and a Lab upgrade row opens its own card', () => {
     const s = setup();
     s.openPanel('market');
     s.click(s.restOf(1));
@@ -84,6 +84,8 @@ describe('the item card from the Market and the Lab', () => {
     expect(s.priv().cardItem).toBeNull();
     s.priv().openPanel('lab');
     s.click(s.nameOf(9)); // beds1, an upgrade
+    expect(s.priv().cardItem).toEqual({ kind: 'node', id: 'beds1' });
+    s.click(s.nameOf(9)); // any click closes it
     expect(s.priv().cardItem).toBeNull();
     s.click(s.nameOf(0));
     expect(s.texts()).toContain(SHOTGUN);

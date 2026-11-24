@@ -139,7 +139,7 @@ const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
 
 const pages = (count: number): number => Math.max(1, Math.ceil(count / PANEL_PAGE));
 
-/** The item a Market or Lab row shows (its absolute row index), or null for an upgrade row and every other panel. */
+/** The item a Market or Lab row shows (its absolute row index), the research node for a Lab upgrade row, or null past the last row and on every other panel. */
 export function panelItem(id: PanelId, index: number): ItemRef | null {
   if (id === 'market') {
     const node = NODES.filter(isGear)[index];
@@ -147,7 +147,7 @@ export function panelItem(id: PanelId, index: number): ItemRef | null {
   }
   if (id === 'lab') {
     const node = NODES[index];
-    return node ? itemOfNode(node.id) : null;
+    return node ? (itemOfNode(node.id) ?? { kind: 'node', id: node.id }) : null;
   }
   return null;
 }
