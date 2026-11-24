@@ -19,7 +19,7 @@ describe('the planet art loader', () => {
     let loaded = 0;
     const art = createPlanetArt(data, () => { loaded += 1; }, make);
     expect(art.image('backdrop')).toBeNull();
-    expect(made).toHaveLength(1);
+    expect(made).toHaveLength(2); // every image starts decoding at once, before it is first asked for
     expect(made[0].src).toBe(data.backdrop);
     made[0].complete = true;
     made[0].naturalWidth = 1;
@@ -34,11 +34,11 @@ describe('the planet art loader', () => {
     const art = createPlanetArt(data, () => { loaded += 1; }, make);
     art.image('stamp_scorch');
     art.image('stamp_scorch');
-    expect(made).toHaveLength(1);
-    made[0].onerror?.();
+    expect(made).toHaveLength(2);
+    made[1].onerror?.();
     expect(art.image('stamp_scorch')).toBeNull();
     expect(art.image('wild_a')).toBeNull();
-    expect(made).toHaveLength(1);
+    expect(made).toHaveLength(2);
     expect(loaded).toBe(0);
   });
 

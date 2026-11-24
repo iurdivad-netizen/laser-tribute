@@ -27,19 +27,24 @@ export function createPlanetArt(
   make: () => Loadable | null = defaultMake,
 ): PlanetArt {
   const images = new Map<PlanetArtId, Loadable | null>();
+  const load = (id: PlanetArtId): Loadable | null => {
+    if (!images.has(id)) {
+      const uri = data[id];
+      const img = uri ? make() : null;
+      if (img && uri) {
+        img.onload = () => onLoad();
+        img.onerror = () => undefined;
+        img.src = uri;
+      }
+      images.set(id, img);
+    }
+    return images.get(id) ?? null;
+  };
+  // every image starts decoding now, so the first frame of the screen and a place changing hands never wait for one
+  for (const id of Object.keys(data) as PlanetArtId[]) load(id);
   return {
     image(id) {
-      if (!images.has(id)) {
-        const uri = data[id];
-        const img = uri ? make() : null;
-        if (img && uri) {
-          img.onload = () => onLoad();
-          img.onerror = () => undefined;
-          img.src = uri;
-        }
-        images.set(id, img);
-      }
-      const img = images.get(id);
+      const img = load(id);
       return img && img.complete && img.naturalWidth > 0 ? (img as unknown as CanvasImageSource) : null;
     },
   };

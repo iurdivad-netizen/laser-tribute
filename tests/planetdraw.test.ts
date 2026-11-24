@@ -119,6 +119,45 @@ describe('the painted map', () => {
     const rect = calls.slice(0, clip).filter((c) => c.name === 'rect').pop();
     expect(rect?.args).toEqual([PLANET.map.x, PLANET.map.y, PLANET.map.w, PLANET.map.h]);
     expect(names.lastIndexOf('restore')).toBeGreaterThan(names.lastIndexOf('drawImage'));
+    expect(names.filter((n) => n === 'save')).toHaveLength(names.filter((n) => n === 'restore').length);
+  });
+
+  it('draws the selection frame after the clip ends, so it is never cut', () => {
+    const { ctx, calls } = recorder();
+    drawPlanet(ctx, view(fresh(), CAPITAL_REGION), ALL);
+    const names = calls.map((c) => c.name);
+    expect(names.lastIndexOf('strokeRect')).toBeGreaterThan(names.lastIndexOf('restore'));
+  });
+
+  it('still shows each owner when only the emblems loaded, not the backdrop', () => {
+    const w = fresh();
+    const { ctx, stops } = recorder();
+    drawPlanet(ctx, view(w), artWith(EMBLEM_IDS));
+    expect(stops).toHaveLength(REGIONS.filter((r) => r.kind !== 'wild').length);
+  });
+
+  it('draws no glow behind a plain square, even with the backdrop loaded', () => {
+    const { ctx, stops, calls } = recorder();
+    drawPlanet(ctx, view(fresh()), artWith(['backdrop']));
+    expect(stops).toHaveLength(0);
+    expect(squares(calls)).toHaveLength(REGIONS.length);
+  });
+
+  it('draws the plain backdrop specks after the frame, so they show', () => {
+    const { ctx, calls } = recorder();
+    drawPlanet(ctx, view(fresh()), NO_ART);
+    const inner = calls.findIndex((c) => c.name === 'fillRect' && c.args[0] === PLANET.map.x - 2 && c.args[1] === PLANET.map.y - 2);
+    const speck = calls.findIndex((c) => c.name === 'fillRect' && c.args[2] === 2 && c.args[3] === 1 && c.fill === '#13243a');
+    expect(inner).toBeGreaterThan(-1);
+    expect(speck).toBeGreaterThan(inner);
+  });
+
+  it('sizes the selection frame of a plain square to the square', () => {
+    const { ctx, calls } = recorder();
+    drawPlanet(ctx, view(fresh(), CAPITAL_REGION), NO_ART);
+    const p = where(CAPITAL_REGION);
+    const stroke = calls.filter((c) => c.name === 'strokeRect').pop();
+    expect(stroke?.args).toEqual([p.x - 19 / 2, p.y - 19 / 2, 19, 19]);
   });
 
   it('sizes the selection frame to the emblem', () => {
