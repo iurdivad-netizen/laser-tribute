@@ -17,10 +17,10 @@ export const PLANET_ART_IDS: readonly PlanetArtId[] = [
   'backdrop', ...EMBLEM_IDS, ...STAMP_IDS.map((s) => `stamp_${s}` as const),
 ];
 
-/** Pixel size of each emblem on the map: places 20, the landing ship 26, the citadels 32. */
+/** Pixel size of each emblem on the map: places 20, the landing ship 24, the citadels 32. */
 export const FOOTPRINT: Record<EmblemId, number> = {
   outpost_enemy: 20, outpost_taken: 20, settlement_neutral: 20, settlement_allied: 20,
-  wild_a: 20, wild_b: 20, wild_visited: 20, start_ship: 26, citadel_enemy: 32, citadel_taken: 32,
+  wild_a: 20, wild_b: 20, wild_visited: 20, start_ship: 24, citadel_enemy: 32, citadel_taken: 32,
 };
 
 export interface RegionLook {
