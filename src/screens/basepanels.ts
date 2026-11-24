@@ -1,5 +1,6 @@
 import { NO_ART, type Art } from '../art/planetimages';
 import { faceFor, type CampArtId } from './campart';
+import { NAME_W } from './baseinfo';
 import { rankFor, rankShort } from '../core/ranks';
 import { attachmentPrice, gadgetPrice, throwablePrice, weaponPrice } from '../core/loadout';
 import { BASE_RULES, NODES, bedCount, levelsOf, nodeById, researchDays, type ResearchNode } from '../core/world/base';
@@ -27,9 +28,11 @@ export const PANEL = {
   next: { x: 96, y: 292, w: 70, h: 20 },
   act: { x: 18, y: 340, w: 200, h: 28 },
   back: { x: 262, y: 340, w: 200, h: 28 },
+  /** The INFO button in the header: it explains the building. */
+  info: { x: 326, y: 5, w: 70, h: 20 },
 } as const;
 
-export type PanelHit = { kind: 'row'; index: number } | { kind: 'act' } | { kind: 'back' } | { kind: 'prev' } | { kind: 'next' };
+export type PanelHit = { kind: 'row'; index: number } | { kind: 'name'; index: number } | { kind: 'info' } | { kind: 'act' } | { kind: 'back' } | { kind: 'prev' } | { kind: 'next' };
 
 const TITLE: Record<PanelId, string> = {
   lab: 'LAB: RESEARCH', market: 'MARKET: WHAT GEAR COSTS', barracks: 'BARRACKS', training: 'TRAINING', hospital: 'FIELD HOSPITAL', wait: 'WAIT',
@@ -141,9 +144,13 @@ export function panelHit(id: PanelId, px: number, py: number, w: World, page: nu
   for (let i = 0; i < PANEL_PAGE; i++) {
     if (inside(PANEL.rows[i], px, py, 0)) {
       const index = page * PANEL_PAGE + i;
-      return index < count ? { kind: 'row', index } : null;
+      if (index >= count) return null;
+      // on the soldier lists, the name opens the soldier's card; the rest of the row selects as always
+      const soldierList = id === 'barracks' || id === 'training';
+      return soldierList && px < PANEL.rows[i].x + NAME_W ? { kind: 'name', index } : { kind: 'row', index };
     }
   }
+  if (inside(PANEL.info, px, py, slop)) return { kind: 'info' };
   if (inside(PANEL.act, px, py, slop)) return { kind: 'act' };
   if (inside(PANEL.back, px, py, slop)) return { kind: 'back' };
   if (page + 1 < pages(count) && inside(PANEL.next, px, py, slop)) return { kind: 'next' };
@@ -189,4 +196,5 @@ export function drawPanel(
   const label = panelAction(id, w, selected);
   drawButton(ctx, PANEL.act, label ?? 'NO ACTION', label ? 'raised' : 'disabled');
   drawButton(ctx, PANEL.back, 'BACK', 'raised');
+  drawButton(ctx, PANEL.info, 'INFO', 'raised');
 }

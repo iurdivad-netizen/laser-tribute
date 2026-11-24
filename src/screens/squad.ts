@@ -4,6 +4,7 @@ import type { World } from '../core/world/world';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
+import { NAME_W } from './baseinfo';
 
 /** The squad step: the barracks as a list (up to 12 beds), tap the ready soldiers you want, then START. */
 export const SQUAD = {
@@ -13,7 +14,7 @@ export const SQUAD = {
   back: { x: 332, y: 340, w: 130, h: 30 },
 } as const;
 
-export type SquadHit = { kind: 'soldier'; name: string } | { kind: 'auto' } | { kind: 'start' } | { kind: 'back' };
+export type SquadHit = { kind: 'soldier'; name: string } | { kind: 'card'; name: string } | { kind: 'auto' } | { kind: 'start' } | { kind: 'back' };
 
 const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
   px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop;
@@ -23,6 +24,7 @@ export function squadHit(px: number, py: number, w: World, slop = 0): SquadHit |
   for (let i = 0; i < SQUAD.rows.length; i++) {
     if (inside(SQUAD.rows[i], px, py, 0)) {
       const s = w.soldiers[i];
+      if (s && px < SQUAD.rows[i].x + NAME_W) return { kind: 'card', name: s.name }; // the name opens the soldier's card, whatever the status
       return s && s.status === 'ready' ? { kind: 'soldier', name: s.name } : null;
     }
   }
