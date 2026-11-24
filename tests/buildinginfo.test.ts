@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildingInfo, type InfoId } from '../src/core/world/buildinginfo';
-import { incomePerDay, newWorld, type World } from '../src/core/world/world';
+import { rankFor } from '../src/core/ranks';
+import { startTraining } from '../src/core/world/barracks';
+import { advance, incomePerDay, newWorld, type World } from '../src/core/world/world';
 import { unsupportedChars } from '../src/ui/font';
 
 const IDS: InfoId[] = ['lab', 'market', 'barracks', 'training', 'hospital', 'wait'];
@@ -66,8 +68,24 @@ describe('buildingInfo reads the live rules', () => {
     expect(text('training', withResearch(['training1', 'training2']))).toContain('UP TO 5 POINTS');
   });
 
+  it('training: says a stint lifts the soldier to the next rank, and matches what training really does', () => {
+    for (const [done, cap] of [[['training1'], 2], [['training1', 'training2'], 5], [['training1', 'training2', 'training3'], 9]] as const) {
+      const w = withResearch([...done]);
+      const t = text('training', w);
+      expect(t).toContain('NEXT RANK');
+      expect(t).not.toContain('RANK POINT');
+      expect(t).toContain(`UP TO ${cap} POINTS (${rankFor(cap).name.toUpperCase()})`);
+    }
+    // a rookie trained at level 1 really does reach the rank the text names for the cap
+    const w = withResearch(['training1']);
+    const trained = advance(startTraining(w, 'Alvarez'), 4);
+    const s = trained.soldiers.find((x) => x.name === 'Alvarez')!;
+    expect(rankFor(s.kills + s.trained).name).toBe('Private');
+    expect(text('training', w)).toContain('(PRIVATE)');
+  });
+
   it('hospital: the second chance by level and the wounded days', () => {
-    expect(text('hospital', fresh())).toContain('0%');
+    expect(text('hospital', fresh())).toMatch(/(^|[^0-9])0%/); // 0%, not 50% or 100%
     expect(text('hospital', withResearch(['hospital1']))).toContain('25%');
     expect(text('hospital', withResearch(['hospital1', 'hospital2']))).toContain('50%');
     expect(text('hospital', fresh())).toContain('6 DAYS');

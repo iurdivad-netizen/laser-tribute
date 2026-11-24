@@ -10,6 +10,7 @@ import { PLANET } from '../src/screens/planet';
 import { SQUAD } from '../src/screens/squad';
 import { TITLE } from '../src/screens/title';
 import { STORY_SAVE_KEY, StoryStore } from '../src/storysave';
+import { buildingInfo } from '../src/core/world/buildinginfo';
 import { onText } from '../src/ui/text';
 import { corridorRows, makeState } from './helpers';
 
@@ -118,14 +119,20 @@ describe('the building info boxes', () => {
     const s = setup();
     s.openPanel(id);
     const world = JSON.stringify(s.app.story);
+    // the first words of the explanation: text that only the open box draws (the panel header already says the title)
+    const first = buildingInfo(id as 'lab', s.app.story!).lines[0].slice(0, 24).toLowerCase();
+    const shown = () => s.texts().some((t) => t.toLowerCase().includes(first));
+    expect(shown(), id).toBe(false);
     s.click(mid(PANEL.info));
+    expect(shown(), id).toBe(true);
     expect(s.texts(), id).toContain(title);
-    expect(s.texts(), id).toContain('BACK');
     s.click(NOWHERE);
     expect(s.app.screen).toBe('panel');
-    expect(s.texts(), id).not.toContain('KIT');
+    expect(shown(), id).toBe(false); // a click closed it
     s.click(mid(PANEL.info));
+    expect(shown(), id).toBe(true);
     s.press('Escape');
+    expect(shown(), id).toBe(false); // Escape closed it
     expect(s.app.screen).toBe('panel');
     expect(JSON.stringify(s.app.story)).toBe(world);
   });
@@ -136,6 +143,28 @@ describe('the building info boxes', () => {
     s.openPanel('lab');
     s.click(mid(PANEL.info));
     expect(s.texts().join(' ')).toContain('75%');
+  });
+});
+
+describe('opening and closing safely', () => {
+  it('does not close a card with the second click of a double-click', () => {
+    const s = setup();
+    s.openPanel('barracks');
+    s.click(s.nameOf(0));
+    expect(s.texts()).toContain(KIT);
+    s.app.click(s.nameOf(0)); // the second click of a double-click, a few milliseconds later: no time passes
+    expect(s.texts()).toContain(KIT);
+  });
+
+  it('does not leave the panel when Escape is held down after it closed the card', () => {
+    const s = setup();
+    s.openPanel('barracks');
+    s.click(s.nameOf(0));
+    s.press('Escape');
+    expect(s.texts()).not.toContain(KIT);
+    s.app.key('Escape', true);
+    s.app.key('Escape', true);
+    expect(s.app.screen).toBe('panel');
   });
 });
 
