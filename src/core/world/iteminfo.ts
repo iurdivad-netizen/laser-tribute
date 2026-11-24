@@ -3,14 +3,17 @@ import type { GearKind } from '../gear';
 import { unlocked } from '../gear';
 import { attachmentPrice, gadgetPrice, throwablePrice, weaponPrice } from '../loadout';
 import type { GadgetId, ThrowableId, WeaponId } from '../types';
-import { NODES, storyGearRules } from './base';
+import { BASE_RULES, NODES, nodeById, researchDays, storyGearRules } from './base';
+import { rankFor } from '../ranks';
 import type { World } from './world';
 
 export type ItemRef =
   | { kind: 'weapon'; id: WeaponId }
   | { kind: 'throwable'; id: ThrowableId }
   | { kind: 'gadget'; id: GadgetId }
-  | { kind: 'scope' };
+  | { kind: 'scope' }
+  /** A research upgrade (a base level), by node id. */
+  | { kind: 'node'; id: string };
 
 export interface ItemCard {
   title: string;
@@ -55,11 +58,17 @@ function throwableEffect(id: ThrowableId): string {
   }
 }
 
-const gearKind = (ref: ItemRef): GearKind => (ref.kind === 'scope' ? 'attachment' : ref.kind);
-const idOf = (ref: ItemRef): string => (ref.kind === 'scope' ? 'scope' : ref.id);
+type GearRef = Exclude<ItemRef, { kind: 'node' }>;
+const gearKind = (ref: GearRef): GearKind => (ref.kind === 'scope' ? 'attachment' : ref.kind);
+const idOf = (ref: GearRef): string => (ref.kind === 'scope' ? 'scope' : ref.id);
 
 /** The card for an item: its numbers from the config tables, its price, and (given the story world) whether it is owned or costs the premium. */
 export function itemCard(ref: ItemRef, w: World | null): ItemCard {
+  if (ref.kind === 'node') {
+    const card = nodeCard(ref.id, w);
+    if (!card) throw new Error(`no upgrade node ${ref.id}`);
+    return card;
+  }
   const rows: [string, string][] = [];
   let title: string;
   let base: number;
@@ -128,4 +137,46 @@ export function itemOfNode(nodeId: string): ItemRef | null {
   if (g.gadget) return { kind: 'gadget', id: g.gadget };
   if (g.attachment) return { kind: 'scope' };
   return null;
+}
+
+const TRACK_GOOD_FOR: Record<string, string> = {
+  beds: 'More beds let you keep more soldiers on the roster.',
+  labs: 'Research finishes sooner, so new gear arrives earlier.',
+  contracts: 'More credits every day from the regions you hold.',
+  hospital: 'A better chance to save a soldier who falls in a won fight.',
+  training: 'Raises how far a soldier can be trained between fights.',
+};
+
+/** The card for a research upgrade (a base level), or null for a gear node or an unknown id. */
+export function nodeCard(nodeId: string, w: World | null): ItemCard | null {
+  const n = nodeById(nodeId);
+  if (!n || itemOfNode(nodeId) !== null) return null;
+  const g = n.gives;
+  const done = w ? w.research.done : [];
+  let track: string;
+  let effect: string;
+  if (g.beds !== undefined) {
+    track = 'beds';
+    effect = `+${BASE_RULES.bedsPerLevel} BEDS (TOTAL ${BASE_RULES.startBeds + BASE_RULES.bedsPerLevel * g.beds})`;
+  } else if (g.labs !== undefined) {
+    track = 'labs';
+    effect = `RESEARCH ${pct(BASE_RULES.labFactor[g.labs])} OF DAYS`;
+  } else if (g.contracts !== undefined) {
+    track = 'contracts';
+    effect = '+1 CREDIT/DAY/REGION';
+  } else if (g.hospital !== undefined) {
+    track = 'hospital';
+    effect = `${pct(BASE_RULES.hospitalChance[g.hospital])} SECOND CHANCE`;
+  } else {
+    const cap = BASE_RULES.trainCaps[(g.training ?? 1) - 1];
+    track = 'training';
+    effect = `CAP ${cap} (${rankFor(cap).name.toUpperCase()})`;
+  }
+  const rows: [string, string][] = [['EFFECT', effect], ['COST', `${n.cost}`], ['DAYS', `${researchDays(n, done)}`]];
+  if (n.needs.length > 0) rows.push(['NEEDS', n.needs.map((id) => nodeById(id)?.name.toUpperCase() ?? id).join(', ')]);
+  if (w) {
+    const status = done.includes(n.id) ? 'RESEARCHED' : w.research.active?.node === n.id ? 'IN PROGRESS' : n.needs.every((id) => done.includes(id)) ? 'AVAILABLE' : 'LOCKED';
+    rows.push(['STATUS', status]);
+  }
+  return { title: n.name.toUpperCase(), rows, goodFor: TRACK_GOOD_FOR[track] };
 }
