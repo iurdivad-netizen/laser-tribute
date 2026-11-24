@@ -27,8 +27,8 @@ describe('the planet art files', () => {
     }
   });
 
-  it('stays under 250 KB in all', () => {
-    const total = PLANET_ART_IDS.reduce((sum, id) => sum + sizeOf(byId(id)!).bytes, 0);
+  it('stays under 250 KB in all, as it ships (base64 text in the bundle)', () => {
+    const total = PLANET_ART_IDS.reduce((sum, id) => sum + byId(id)!.length, 0);
     expect(total).toBeLessThan(250_000);
   });
 });

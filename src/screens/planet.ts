@@ -1,5 +1,5 @@
 import { NO_ART, type PlanetArt } from '../art/planetimages';
-import { CAPITAL_REGION, REGIONS } from '../core/world/planet';
+import { CAPITAL_REGION, REGIONS, START_REGION } from '../core/world/planet';
 import { RECIPES } from '../core/gen';
 import { DAYS, DIFFICULTIES } from '../core/world/difficulty';
 import {
@@ -38,8 +38,9 @@ export interface PlanetView {
 export type PlanetHit = { kind: 'region'; id: number } | { kind: 'act' } | { kind: 'base' } | { kind: 'abandon' } | { kind: 'back' };
 
 const REGION_HIT = 10;
-/** The citadel's emblem is bigger, so it is easier to hit. */
-const CAPITAL_HIT = 14;
+/** The landing ship (24 px) and the citadel (32 px) are bigger, so their reach is half their art. */
+const START_HIT = 12;
+const CAPITAL_HIT = 16;
 
 const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
   px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop;
@@ -50,7 +51,7 @@ export function planetHit(px: number, py: number, slop = 0): PlanetHit | null {
   let bestDist = Infinity;
   for (const r of REGIONS) {
     const d = Math.hypot(px - (PLANET.map.x + r.x), py - (PLANET.map.y + r.y));
-    const reach = (r.id === CAPITAL_REGION ? CAPITAL_HIT : REGION_HIT) + slop;
+    const reach = (r.id === CAPITAL_REGION ? CAPITAL_HIT : r.id === START_REGION ? START_HIT : REGION_HIT) + slop;
     if (d <= reach && d <= bestDist) { best = r.id; bestDist = d; }
   }
   if (best !== null) return { kind: 'region', id: best };
@@ -94,13 +95,23 @@ function drawBackdrop(ctx: CanvasRenderingContext2D): void {
 const rgba = (hex: string, alpha: number): string =>
   `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${alpha})`;
 
+const glowStops = new Map<string, [string, string]>();
+/** The two colour stops of an owner's glow, built once per colour. */
+function stopsFor(tint: string): [string, string] {
+  let stops = glowStops.get(tint);
+  if (!stops) {
+    stops = [rgba(tint, 0.45), rgba(tint, 0)];
+    glowStops.set(tint, stops);
+  }
+  return stops;
+}
+
 export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView, art: PlanetArt = NO_ART): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   const w = v.world;
   drawText(ctx, `STORY: ${DIFFICULTIES[w.difficulty].name}`, 8, 8, UI.accent, 'left');
   const backdrop = art.image('backdrop');
-  if (!backdrop) drawBackdrop(ctx);
   drawFrame(ctx, PLANET.map.x - 2, PLANET.map.y - 2, PLANET.map.w + 4, PLANET.map.h + 4, 'inset');
   const m = PLANET.map;
   const pos = (id: number) => ({ x: m.x + REGIONS[id].x, y: m.y + REGIONS[id].y });
@@ -111,60 +122,63 @@ export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView, art: Pl
   ctx.beginPath();
   ctx.rect(m.x, m.y, m.w, m.h);
   ctx.clip();
-  if (backdrop) ctx.drawImage(backdrop, m.x, m.y, m.w, m.h);
-  for (const r of REGIONS) {
-    const stamp = looks[r.id].stamp;
-    const image = stamp ? art.image(`stamp_${stamp}`) : null;
-    if (!image) continue;
-    const p = pos(r.id);
-    ctx.drawImage(image, p.x - 24, p.y - 24, 48, 48);
-  }
-  if (backdrop) {
-    // the owner's colour as a soft glow, so ownership reads on any ground
+  const reach: number[] = [];
+  try {
+    if (backdrop) ctx.drawImage(backdrop, m.x, m.y, m.w, m.h);
+    else drawBackdrop(ctx);
     for (const r of REGIONS) {
-      if (r.kind === 'wild') continue;
+      const stamp = looks[r.id].stamp;
+      const image = stamp ? art.image(`stamp_${stamp}`) : null;
+      if (!image) continue;
+      const p = pos(r.id);
+      ctx.drawImage(image, p.x - 24, p.y - 24, 48, 48);
+    }
+    // the owner's colour as a soft glow behind each painted emblem, so ownership reads on any ground
+    for (const r of REGIONS) {
+      if (r.kind === 'wild' || !art.image(looks[r.id].emblem)) continue;
       const p = pos(r.id);
       const radius = r.id === CAPITAL_REGION ? 28 : 22;
       const glow = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, radius);
-      glow.addColorStop(0, rgba(looks[r.id].tint, 0.45));
-      glow.addColorStop(1, rgba(looks[r.id].tint, 0));
+      const [inner, outer] = stopsFor(looks[r.id].tint);
+      glow.addColorStop(0, inner);
+      glow.addColorStop(1, outer);
       ctx.fillStyle = glow;
       ctx.fillRect(p.x - radius, p.y - radius, radius * 2, radius * 2);
     }
-  }
-  for (const r of REGIONS) {
-    for (const l of r.links) {
-      if (l < r.id) continue;
-      const a = pos(r.id);
-      const b = pos(l);
-      const friendly = ['player', 'allied'].includes(w.regions[r.id].holder) && ['player', 'allied'].includes(w.regions[l].holder);
-      ctx.strokeStyle = friendly ? UI.green : UI.hint;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
+    for (const r of REGIONS) {
+      for (const l of r.links) {
+        if (l < r.id) continue;
+        const a = pos(r.id);
+        const b = pos(l);
+        const friendly = ['player', 'allied'].includes(w.regions[r.id].holder) && ['player', 'allied'].includes(w.regions[l].holder);
+        ctx.strokeStyle = friendly ? UI.green : UI.hint;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
     }
-  }
-  const reach: number[] = [];
-  for (const r of REGIONS) {
-    const p = pos(r.id);
-    const look = looks[r.id];
-    const image = art.image(look.emblem);
-    if (image) {
-      const f = FOOTPRINT[look.emblem];
-      ctx.drawImage(image, p.x - f / 2, p.y - f / 2, f, f);
-      reach[r.id] = f;
-    } else {
-      const size = r.id === CAPITAL_REGION ? 13 : 9;
-      ctx.fillStyle = UI.black;
-      ctx.fillRect(p.x - size / 2 - 1, p.y - size / 2 - 1, size + 2, size + 2);
-      ctx.fillStyle = HOLDER_COLOUR[w.regions[r.id].holder];
-      ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
-      reach[r.id] = size;
+    for (const r of REGIONS) {
+      const p = pos(r.id);
+      const look = looks[r.id];
+      const image = art.image(look.emblem);
+      if (image) {
+        const f = FOOTPRINT[look.emblem];
+        ctx.drawImage(image, p.x - f / 2, p.y - f / 2, f, f);
+        reach[r.id] = f;
+      } else {
+        const size = r.id === CAPITAL_REGION ? 13 : 9;
+        ctx.fillStyle = UI.black;
+        ctx.fillRect(p.x - size / 2 - 1, p.y - size / 2 - 1, size + 2, size + 2);
+        ctx.fillStyle = HOLDER_COLOUR[w.regions[r.id].holder];
+        ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+        reach[r.id] = size;
+      }
     }
+  } finally {
+    ctx.restore();
   }
-  ctx.restore();
   if (v.selected !== null) {
     const p = pos(v.selected);
     const size = reach[v.selected];
