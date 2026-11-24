@@ -15,7 +15,7 @@ function memory(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-const good = () => JSON.parse(JSON.stringify({ version: 2, world: newWorld(3, 'standard'), loadout: defaultLoadout() }));
+const good = () => JSON.parse(JSON.stringify({ version: 3, world: newWorld(3, 'standard'), loadout: defaultLoadout() }));
 const reject = (mutate: (o: any) => void) => {
   const o = good();
   mutate(o);
@@ -68,10 +68,32 @@ describe('parseStory', () => {
   });
 
   it('rejects the wrong version, planet version, difficulty or status', () => {
-    reject((o) => { o.version = 3; });
+    reject((o) => { o.version = 4; });
     reject((o) => { o.world.planetVersion = 99; });
     reject((o) => { o.world.difficulty = 'iron'; });
     reject((o) => { o.world.status = 'paused'; });
+  });
+
+  it('round-trips the scene record', () => {
+    const w = { ...newWorld(3, 'standard'), seen: ['landing', 'offer'], chosen: { offer: 1 as const } };
+    const store = new StoryStore(memory());
+    store.save(w, defaultLoadout());
+    expect(store.load()?.world).toEqual(w);
+  });
+
+  it('rejects a bad scene record', () => {
+    reject((o) => { o.world.seen = 'landing'; });
+    reject((o) => { o.world.seen = ['no-such-scene']; });
+    reject((o) => { o.world.seen = ['landing', 'landing']; });
+    reject((o) => { o.world.chosen = []; });
+    reject((o) => { o.world.seen = ['offer']; o.world.chosen = { landing: 0 }; }); // landing has no choice
+    reject((o) => { o.world.chosen = { offer: 0 }; }); // chosen but not seen
+    reject((o) => { o.world.seen = ['offer']; o.world.chosen = { offer: 2 }; });
+  });
+
+  it('still parses an ended story', () => {
+    const w = { ...newWorld(3, 'standard'), status: 'lost' as const, seen: ['defeat'] };
+    expect(parseStory(JSON.stringify({ version: 3, world: w, loadout: defaultLoadout() }))?.world.seen).toEqual(['defeat']);
   });
 
   it('rejects bad numbers', () => {
