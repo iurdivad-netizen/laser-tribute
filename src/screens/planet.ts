@@ -1,3 +1,4 @@
+import { NO_ART, type PlanetArt } from '../art/planetimages';
 import { CAPITAL_REGION, REGIONS } from '../core/world/planet';
 import { RECIPES } from '../core/gen';
 import { DAYS, DIFFICULTIES } from '../core/world/difficulty';
@@ -7,6 +8,7 @@ import {
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
+import { FOOTPRINT, regionLook } from './planetart';
 
 /** Where things are on the planet screen, in the 480x400 menu space. Region positions are relative to `map`. */
 export const PLANET = {
@@ -36,6 +38,8 @@ export interface PlanetView {
 export type PlanetHit = { kind: 'region'; id: number } | { kind: 'act' } | { kind: 'base' } | { kind: 'abandon' } | { kind: 'back' };
 
 const REGION_HIT = 10;
+/** The citadel's emblem is bigger, so it is easier to hit. */
+const CAPITAL_HIT = 14;
 
 const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
   px >= b.x - slop && px < b.x + b.w + slop && py >= b.y - slop && py < b.y + b.h + slop;
@@ -43,10 +47,11 @@ const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
 /** What a menu-space point is on: the nearest region within reach, or a button. The slop widens everything for a finger. */
 export function planetHit(px: number, py: number, slop = 0): PlanetHit | null {
   let best: number | null = null;
-  let bestDist = REGION_HIT + slop;
+  let bestDist = Infinity;
   for (const r of REGIONS) {
     const d = Math.hypot(px - (PLANET.map.x + r.x), py - (PLANET.map.y + r.y));
-    if (d <= bestDist) { best = r.id; bestDist = d; }
+    const reach = (r.id === CAPITAL_REGION ? CAPITAL_HIT : REGION_HIT) + slop;
+    if (d <= reach && d <= bestDist) { best = r.id; bestDist = d; }
   }
   if (best !== null) return { kind: 'region', id: best };
   if (inside(PLANET.act, px, py, slop)) return { kind: 'act' };
@@ -86,15 +91,47 @@ function drawBackdrop(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView): void {
+const rgba = (hex: string, alpha: number): string =>
+  `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${alpha})`;
+
+export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView, art: PlanetArt = NO_ART): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   const w = v.world;
   drawText(ctx, `STORY: ${DIFFICULTIES[w.difficulty].name}`, 8, 8, UI.accent, 'left');
-  drawBackdrop(ctx);
+  const backdrop = art.image('backdrop');
+  if (!backdrop) drawBackdrop(ctx);
   drawFrame(ctx, PLANET.map.x - 2, PLANET.map.y - 2, PLANET.map.w + 4, PLANET.map.h + 4, 'inset');
-  const pos = (id: number) => ({ x: PLANET.map.x + REGIONS[id].x, y: PLANET.map.y + REGIONS[id].y });
+  const m = PLANET.map;
+  const pos = (id: number) => ({ x: m.x + REGIONS[id].x, y: m.y + REGIONS[id].y });
+  const looks = REGIONS.map((r) => regionLook(w, r.id));
 
+  // everything painted stays inside the map, whatever sticks out of it (the citadel, the edge places)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m.x, m.y, m.w, m.h);
+  ctx.clip();
+  if (backdrop) ctx.drawImage(backdrop, m.x, m.y, m.w, m.h);
+  for (const r of REGIONS) {
+    const stamp = looks[r.id].stamp;
+    const image = stamp ? art.image(`stamp_${stamp}`) : null;
+    if (!image) continue;
+    const p = pos(r.id);
+    ctx.drawImage(image, p.x - 24, p.y - 24, 48, 48);
+  }
+  if (backdrop) {
+    // the owner's colour as a soft glow, so ownership reads on any ground
+    for (const r of REGIONS) {
+      if (r.kind === 'wild') continue;
+      const p = pos(r.id);
+      const radius = r.id === CAPITAL_REGION ? 28 : 22;
+      const glow = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, radius);
+      glow.addColorStop(0, rgba(looks[r.id].tint, 0.45));
+      glow.addColorStop(1, rgba(looks[r.id].tint, 0));
+      ctx.fillStyle = glow;
+      ctx.fillRect(p.x - radius, p.y - radius, radius * 2, radius * 2);
+    }
+  }
   for (const r of REGIONS) {
     for (const l of r.links) {
       if (l < r.id) continue;
@@ -109,18 +146,31 @@ export function drawPlanet(ctx: CanvasRenderingContext2D, v: PlanetView): void {
       ctx.stroke();
     }
   }
+  const reach: number[] = [];
   for (const r of REGIONS) {
     const p = pos(r.id);
-    const size = r.id === CAPITAL_REGION ? 13 : 9;
-    ctx.fillStyle = UI.black;
-    ctx.fillRect(p.x - size / 2 - 1, p.y - size / 2 - 1, size + 2, size + 2);
-    ctx.fillStyle = HOLDER_COLOUR[w.regions[r.id].holder];
-    ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
-    if (r.id === v.selected) {
-      ctx.strokeStyle = UI.text;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(p.x - size / 2 - 3, p.y - size / 2 - 3, size + 6, size + 6);
+    const look = looks[r.id];
+    const image = art.image(look.emblem);
+    if (image) {
+      const f = FOOTPRINT[look.emblem];
+      ctx.drawImage(image, p.x - f / 2, p.y - f / 2, f, f);
+      reach[r.id] = f;
+    } else {
+      const size = r.id === CAPITAL_REGION ? 13 : 9;
+      ctx.fillStyle = UI.black;
+      ctx.fillRect(p.x - size / 2 - 1, p.y - size / 2 - 1, size + 2, size + 2);
+      ctx.fillStyle = HOLDER_COLOUR[w.regions[r.id].holder];
+      ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+      reach[r.id] = size;
     }
+  }
+  ctx.restore();
+  if (v.selected !== null) {
+    const p = pos(v.selected);
+    const size = reach[v.selected];
+    ctx.strokeStyle = UI.text;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p.x - size / 2 - 3, p.y - size / 2 - 3, size + 6, size + 6);
   }
 
   const P = PLANET.panel;

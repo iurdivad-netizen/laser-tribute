@@ -56,6 +56,24 @@ describe('planetHit', () => {
   });
 });
 
+describe('region hit areas', () => {
+  it('give the citadel a 14 px reach and every other place 10 px', () => {
+    for (const r of REGIONS) {
+      const p = at(r.id);
+      const reach = r.id === CAPITAL_REGION ? 14 : 10;
+      expect(planetHit(p.x + reach - 1, p.y), r.name).toEqual({ kind: 'region', id: r.id });
+      expect(planetHit(p.x + reach + 1, p.y), r.name).toBeNull();
+    }
+  });
+
+  it('never overlap between two regions', () => {
+    const reach = (id: number) => (id === CAPITAL_REGION ? 14 : 10);
+    for (const a of REGIONS) for (const b of REGIONS) {
+      if (a.id < b.id) expect(Math.hypot(a.x - b.x, a.y - b.y), `${a.name} ${b.name}`).toBeGreaterThan(reach(a.id) + reach(b.id));
+    }
+  });
+});
+
 describe('actLabel', () => {
   it('says what the action button does', () => {
     expect(actLabel(view(null))).toBeNull();
