@@ -21,7 +21,8 @@ describe('base hub layout', () => {
     expect(BUILDINGS.map((b) => b.id)).toEqual(['lab', 'barracks', 'market', 'training', 'hospital', 'wait', 'planet']);
     for (const b of BUILDINGS) {
       expect(b.x).toBeGreaterThanOrEqual(0);
-      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect(b.y).toBeGreaterThanOrEqual(28); // the header line stays free
+      expect(Math.min(b.w, b.h)).toBeGreaterThanOrEqual(44); // a finger can hit it
       expect(b.x + b.w).toBeLessThanOrEqual(480);
       expect(b.y + b.h).toBeLessThanOrEqual(400);
     }
@@ -36,7 +37,7 @@ describe('base hub layout', () => {
   it('hits each building at its centre, and nothing on empty ground', () => {
     for (const b of BUILDINGS) expect(baseHit(centre(b).x, centre(b).y)).toBe(b.id);
     expect(baseHit(1, 1)).toBeNull();
-    expect(baseHit(240, 395)).toBeNull();
+    expect(baseHit(10, 395)).toBeNull();
   });
 
   it('widens for touch without reaching a neighbour', () => {
@@ -91,6 +92,11 @@ describe('drawBase', () => {
   it('draws a new and a played world within the screen using supported characters', () => {
     const played = { ...newWorld(3, 'pressure'), credits: 12345, day: 77, research: { done: ['beds1'], active: { node: 'smg', daysLeft: 2 } } };
     for (const w of [newWorld(1, 'calm'), played]) {
+      for (const r of runs((ctx) => drawBase(ctx, w, 'Hired Eriksen.', { image: () => ({}) as CanvasImageSource }))) {
+        expect(unsupportedChars(r.text), r.text).toEqual([]);
+        expect(left(r), r.text).toBeGreaterThanOrEqual(0);
+        expect(left(r) + r.width, r.text).toBeLessThanOrEqual(480);
+      }
       for (const r of runs((ctx) => drawBase(ctx, w, 'Hired Eriksen.'))) {
         expect(unsupportedChars(r.text), r.text).toEqual([]);
         expect(left(r), r.text).toBeGreaterThanOrEqual(0);
