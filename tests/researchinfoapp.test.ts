@@ -75,14 +75,17 @@ describe('the research upgrade card in the Lab', () => {
   });
 
   it('a double-click on BACK neither starts research nor leaves the Lab', () => {
-    const s = setup();
-    s.click(s.nameOf(9));
-    const credits = s.app.story!.credits;
-    s.click({ x: 240, y: 340 });
-    s.app.click({ x: 240, y: 340 }); // the second click of the double-click, no time passed
-    expect(s.app.story!.credits).toBe(credits);
-    expect(s.app.story!.research.active).toBeNull();
-    expect(s.app.screen).toBe('panel');
+    // the card's BACK (x 190-290) sits over the Lab's ACT (x 18-218) on its left part and over the Lab's BACK (x 262-462) on its right
+    for (const x of [200, 280]) {
+      const s = setup();
+      s.click(s.nameOf(9)); // beds1, which a pressed ACT would start
+      const credits = s.app.story!.credits;
+      s.click({ x, y: 345 });
+      s.app.click({ x, y: 345 }); // the second click of the double-click, no time passed
+      expect(s.app.story!.credits, `x ${x}`).toBe(credits);
+      expect(s.app.story!.research.active, `x ${x}`).toBeNull();
+      expect(s.app.screen, `x ${x}`).toBe('panel');
+    }
   });
 
   it('a click right of the name still selects the row, and a later page opens the right card', () => {
