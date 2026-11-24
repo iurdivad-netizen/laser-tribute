@@ -166,3 +166,29 @@ describe('the item card on the equipment screen', () => {
     expect(s.texts()).not.toContain('?');
   });
 });
+
+describe('review fixes', () => {
+  it('a double-click on BACK of the item card closes it and does not press what is under it', () => {
+    const s = setup();
+    s.click(region(1));
+    s.click(mid(PLANET.act));
+    s.click(mid(SQUAD.start));
+    const loadout = (s.app as unknown as { loadout: Parameters<typeof equipmentInfoRects>[0] }).loadout;
+    s.click(mid(equipmentInfoRects(loadout).find((r) => r.kind === 'weapon')!));
+    const back = { x: 240, y: 340 }; // the card's BACK, over START
+    s.click(back); // closes the card
+    s.app.click(back); // the second click of the double-click, no time passed
+    expect(s.app.screen).toBe('equipment');
+  });
+
+  it('a double-click on BACK of the item card in the Lab does not start research', () => {
+    const s = setup();
+    s.openPanel('lab');
+    s.click(s.nameOf(0));
+    const credits = s.app.story!.credits;
+    s.click({ x: 200, y: 345 });
+    s.app.click({ x: 200, y: 345 });
+    expect(s.app.story!.credits).toBe(credits);
+  });
+
+});

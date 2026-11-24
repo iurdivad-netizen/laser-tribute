@@ -928,7 +928,10 @@ export class App {
       case 'panel': {
         const w = this.story;
         if (!w) return;
-        if (this.closeInfo()) return; // a card or an info box is open: any click closes it
+        if (this.closeInfo()) {
+          this.lock(); // an item card's BACK sits over ACT and BACK: a double-click must not press them
+          return;
+        }
         const hit = panelHit(this.panelId, mp.x, mp.y, w, this.panelPage, pointer === 'touch' ? 5 : 0);
         if (!hit) return;
         if (hit.kind === 'name') {
@@ -984,7 +987,10 @@ export class App {
       }
       case 'equipment': {
         const fight = this.story !== null && this.pendingSpec !== null;
-        if (fight && this.closeInfo()) return; // an item card is open: any click closes it
+        if (fight && this.closeInfo()) {
+          this.lock(); // the second click of a double-click on BACK must not press START under it
+          return;
+        }
         if (fight) {
           const item = equipmentInfoHit(mp.x, mp.y, this.loadout, pointer === 'touch' ? 3 : 0);
           if (item) {

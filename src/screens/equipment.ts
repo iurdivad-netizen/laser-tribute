@@ -236,7 +236,7 @@ export function equipmentInfoHit(px: number, py: number, l: Loadout, slop = 0): 
   for (const r of equipmentInfoRects(l)) {
     const near = px >= r.x - slop && px < r.x + r.w + slop && py >= r.y - slop && py < r.y + r.h + slop;
     if (!near) continue;
-    if (equipmentHit(px, py) !== null) continue; // a real button owns its pixels
+    if (equipmentHit(px, py, slop) !== null) continue; // a real button, or the one nearest within the slop, owns the tap
     const s = l[r.index];
     switch (r.kind) {
       case 'weapon': return { kind: 'weapon', id: s.weapon };

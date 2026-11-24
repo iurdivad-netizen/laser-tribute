@@ -116,7 +116,7 @@ describe('the ? buttons on the equipment screen', () => {
     expect(equipmentInfoRects(noGadget).some((r) => r.index === 0 && r.kind === 'gadget')).toBe(false);
     const weapon0 = equipmentInfoRects(kit).find((r) => r.index === 0 && r.kind === 'weapon')!;
     // a point just outside the ? and not on any button counts with slop 3, not without
-    const px = weapon0.x - 2;
+    const px = weapon0.x + weapon0.w + 2; // right of the ?, far from any button
     const py = weapon0.y + 12;
     expect(equipmentHit(px, py)).toBeNull();
     expect(equipmentInfoHit(px, py, kit, 0)).toBeNull();
@@ -125,5 +125,10 @@ describe('the ? buttons on the equipment screen', () => {
     const onButton = { x: EQ.weapon.x + EQ.weapon.w - 2, y: weapon0.y + 12 };
     expect(equipmentHit(onButton.x, onButton.y)?.kind).toBe('weapon');
     expect(equipmentInfoHit(onButton.x, onButton.y, kit, 3)).toBeNull();
+    // a gap point nearer to a real button than to the ? goes to the real button
+    const gap = { x: EQ.weapon.x + EQ.weapon.w, y: weapon0.y + 12 }; // 1 px from the weapon button, 2 from the ?
+    expect(equipmentHit(gap.x, gap.y)).toBeNull();
+    expect(equipmentHit(gap.x, gap.y, 9)?.kind).toBe('weapon');
+    expect(equipmentInfoHit(gap.x, gap.y, kit, 3)).toBeNull();
   });
 });
