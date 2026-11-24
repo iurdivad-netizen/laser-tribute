@@ -41,6 +41,8 @@ import {
   applyEquipmentHit, drawEquipment, equipmentHit, type EquipmentHit, type EquipmentView,
 } from './screens/equipment';
 import { difficultyHit, drawDifficulty } from './screens/difficulty';
+import { NO_ART, createPlanetArt, type PlanetArt } from './art/planetimages';
+import { PLANET_ART_DATA } from './art/planet.generated';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { baseHit, drawBase } from './screens/base';
 import { drawPanel, panelAction, panelHit, type PanelId } from './screens/basepanels';
@@ -101,6 +103,8 @@ export interface AppOptions {
   skipTitle?: boolean;
   /** Show the story's scenes (default true; tests that click through the story turn them off). */
   scenes?: boolean;
+  /** The painted planet map images (default: the baked art in the real game, none in tests that pass their own stores). */
+  planetArt?: PlanetArt;
 }
 
 export class App {
@@ -125,6 +129,7 @@ export class App {
   private endedAt: number | null = null;
   private lockedUntil = -Infinity;
   private readonly sceneOn: boolean;
+  private readonly planetArt: PlanetArt;
   private scenePlay: ScenePlay | null = null;
   private sceneThen: Screen = 'planet';
   private scenesThisStop = 0;
@@ -181,6 +186,7 @@ export class App {
     this.store = real ? defaultSaveStore(this.missions.length) : (opts.store ?? null);
     this.campaignStore = opts.campaignStore !== undefined ? opts.campaignStore : real ? defaultCampaignStore() : null;
     this.sceneOn = opts.scenes ?? true;
+    this.planetArt = opts.planetArt ?? (real ? createPlanetArt(PLANET_ART_DATA, () => this.wake()) : NO_ART);
     this.lastMode = opts.last !== undefined ? opts.last : real ? defaultLastMode() : null;
     this.storyStore = opts.storyStore !== undefined ? opts.storyStore : real ? defaultStoryStore() : null;
     this.storySave = this.storyStore?.load() ?? null;
@@ -1316,7 +1322,7 @@ export class App {
       const w = this.story;
       this.inMenuSpace(ctx, () => drawPlanet(ctx, {
         world: w, selected: this.selectedRegion, armedAbandon: this.clock() < this.abandonUntil, notice: this.planetNotice,
-      }));
+      }, this.planetArt));
       return;
     }
     if (this.screen === 'end' && this.story) {
