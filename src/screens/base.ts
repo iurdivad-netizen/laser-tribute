@@ -136,7 +136,14 @@ export function drawBase(ctx: CanvasRenderingContext2D, w: World, notice: string
       drawTile(ctx, b, lines);
     }
   }
-  if (notice) drawText(ctx, clipText(notice.toUpperCase(), 160), 20, 316, UI.accent, 'left');
+  // the notice and the hint live in the free band under the buildings, each on a dark strip over the painting
+  if (notice) {
+    if (backdrop) {
+      ctx.fillStyle = CHIP;
+      ctx.fillRect(12, 348, 228, 15);
+    }
+    drawText(ctx, clipText(notice.toUpperCase(), 220), 16, 352, UI.accent, 'left');
+  }
   if (backdrop) {
     ctx.fillStyle = CHIP; // keep the hint readable over the fence
     ctx.fillRect(14, 380, 160, 15);

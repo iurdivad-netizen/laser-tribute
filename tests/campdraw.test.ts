@@ -47,6 +47,43 @@ function texts(draw: (ctx: CanvasRenderingContext2D) => void): string[] {
   return out;
 }
 
+/** Where a text run lands: its left edge, top and width (glyphs are 7 px tall). */
+function noticeBox(draw: (ctx: CanvasRenderingContext2D) => void, text: string) {
+  let box: { x: number; y: number; w: number; h: number } | null = null;
+  const stop = onText((r) => {
+    if (r.text !== text) return;
+    const left = r.align === 'left' ? r.x : r.align === 'right' ? r.x - r.width : r.x - Math.floor(r.width / 2);
+    box = { x: left, y: r.y, w: r.width, h: 7 };
+  });
+  draw(recorder().ctx);
+  stop();
+  return box as { x: number; y: number; w: number; h: number } | null;
+}
+const meets = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+  !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+
+describe('the notice line', () => {
+  it.each([['no art', NO_ART], ['all art', ALL]] as const)('stays clear of every building, in full, with %s', (_name, art) => {
+    for (const notice of ['Hired Eriksen.', 'Researching Field Hospital 2.']) {
+      const shown = notice.toUpperCase();
+      const box = noticeBox((ctx) => drawBase(ctx, fresh(), notice, art), shown);
+      expect(box, notice).not.toBeNull(); // drawn whole, not cut to dots
+      for (const b of BUILDINGS) expect(meets(box!, b), `${notice} over ${b.id}`).toBe(false);
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.w).toBeLessThanOrEqual(480);
+    }
+  });
+
+  it('sits on a dark strip over the painting', () => {
+    const { ctx, calls } = recorder();
+    drawBase(ctx, fresh(), 'Hired Eriksen.', ALL);
+    const box = noticeBox((c) => drawBase(c, fresh(), 'Hired Eriksen.', ALL), 'HIRED ERIKSEN.')!;
+    const behind = chips(calls).some((c) => (c.args[0] as number) <= box.x && (c.args[1] as number) <= box.y
+      && (c.args[0] as number) + (c.args[2] as number) >= box.x + box.w && (c.args[1] as number) + (c.args[3] as number) >= box.y + box.h);
+    expect(behind).toBe(true);
+  });
+});
+
 describe('the camp without art', () => {
   it('draws no image and a tile for every building', () => {
     const { ctx, calls } = recorder();
