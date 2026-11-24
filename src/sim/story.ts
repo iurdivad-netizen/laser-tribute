@@ -12,6 +12,7 @@ import { storyGearRules } from '../core/world/base';
 import { autoSquad, canHire, canTrain, deployed, hire, kitBudget, setSquad, startTraining } from '../core/world/barracks';
 import { NODES } from '../core/world/base';
 import { researchOptions, startResearch } from '../core/world/research';
+import { choose, nextScene, see } from '../core/world/story';
 import { botTurn, type BotMode } from './bot';
 import { TURN_LIMIT, chooseLoadout } from './campaign';
 
@@ -46,7 +47,19 @@ export interface StoryRun {
   /** Research projects finished, and soldiers hired, over the run. */
   researched: number;
   hired: number;
+  /** The ids of the story scenes seen, in order (every choice takes option 0). */
+  scenes: string[];
   final: World;
+}
+
+/** Plays every scene now pending: the bot takes the first option of every choice. */
+function playScenes(w: World, seen: string[]): World {
+  let next = w;
+  for (let s = nextScene(next); s; s = nextScene(next)) {
+    next = s.choice ? choose(next, s, 0) : see(next, s.id);
+    seen.push(s.id);
+  }
+  return next;
 }
 
 const costOf = (id: string): number => NODES.find((n) => n.id === id)!.cost;
@@ -74,7 +87,8 @@ function tendBase(w: World, counters: { hired: number }): World {
  * when nothing can be done, or after `maxSteps` actions.
  */
 export function runStory(seed: number, difficulty: DifficultyId, play: PlayMission, maxSteps = 300): StoryRun {
-  let w = newWorld(seed, difficulty);
+  const scenes: string[] = [];
+  let w = playScenes(newWorld(seed, difficulty), scenes);
   let steps = 0;
   let losses = 0;
   const counters = { hired: 0 };
@@ -82,21 +96,21 @@ export function runStory(seed: number, difficulty: DifficultyId, play: PlayMissi
     const targets = attackable(w);
     const target = targets.includes(CAPITAL_REGION) ? CAPITAL_REGION : targets[0];
     if (target !== undefined) {
-      w = tendBase(w, counters);
+      w = playScenes(tendBase(w, counters), scenes);
       const spec = missionFor(w, target);
       const rules = storyGearRules(w.research.done);
       const loadout = chooseLoadout(kitBudget(w), w.stash, rules);
       const finished = play(spec, w, loadout);
       if (finished.status === 'lost') losses += 1;
-      w = resolve(w, spec, finished, loadout, loadoutCost(loadout, w.stash, rules));
+      w = playScenes(resolve(w, spec, finished, loadout, loadoutCost(loadout, w.stash, rules)), scenes);
     } else {
       const place = REGIONS.find((r) => canVisit(w, r.id));
       if (!place) break;
-      w = visit(w, place.id);
+      w = playScenes(visit(w, place.id), scenes);
     }
     steps += 1;
   }
   return {
-    status: w.status, steps, day: w.day, held: regionsHeld(w), losses, researched: w.research.done.length, hired: counters.hired, final: w,
+    status: w.status, steps, day: w.day, held: regionsHeld(w), losses, researched: w.research.done.length, hired: counters.hired, scenes, final: w,
   };
 }
