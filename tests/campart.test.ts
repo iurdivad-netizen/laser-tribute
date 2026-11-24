@@ -13,7 +13,7 @@ const IDS: BuildingId[] = ['lab', 'barracks', 'market', 'training', 'hospital', 
 describe('campLook', () => {
   it('shows plots and an idle lab on a new world', () => {
     expect(campLook(fresh())).toEqual({
-      lab: 'lab_idle', barracks: 'barracks', market: 'market', training: 'training_plot', hospital: 'hospital_plot', wait: null, planet: 'gate',
+      lab: 'lab_idle', barracks: 'barracks', market: 'market', training: 'training_plot', hospital: 'hospital_plot', wait: null, planet: null,
     });
   });
 
@@ -59,9 +59,9 @@ describe('faceFor', () => {
 });
 
 describe('the camp art ids', () => {
-  it('are the backdrop, 11 sprites, 5 faces and 5 small faces with no duplicates', () => {
-    expect(CAMP_ART_IDS).toHaveLength(22);
-    expect(new Set(CAMP_ART_IDS).size).toBe(22);
+  it('are the backdrop, 10 sprites, 5 faces and 5 small faces with no duplicates', () => {
+    expect(CAMP_ART_IDS).toHaveLength(21);
+    expect(new Set(CAMP_ART_IDS).size).toBe(21);
     expect(CAMP_ART_IDS[0]).toBe('camp_backdrop');
     expect(CAMP_ART_IDS).toContain('face_recruit_s');
   });
@@ -74,6 +74,5 @@ describe('the camp art ids', () => {
     expect(SPRITE_SIZE.lab_idle).toEqual({ w: 120, h: 72 });
     expect(SPRITE_SIZE.hospital_busy).toEqual({ w: 120, h: 72 });
     expect(SPRITE_SIZE.training_built).toEqual({ w: 64, h: 64 });
-    expect(SPRITE_SIZE.gate).toEqual({ w: 96, h: 48 });
   });
 });

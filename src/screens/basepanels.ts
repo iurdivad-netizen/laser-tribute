@@ -159,6 +159,8 @@ export function drawPanel(
   drawText(ctx, TITLE[id], 18, 12, UI.accent, 'left');
   drawText(ctx, `${w.credits} CR`, 462, 12, UI.text, 'right');
   const rows = panelRows(id, w);
+  // rows line up: when any soldier has a face, every barracks row leaves room for one
+  const gutter = id === 'barracks' && w.soldiers.some((s) => art.image(`${faceFor(s.name)}_s`) !== null);
   for (let i = 0; i < PANEL_PAGE; i++) {
     const index = page * PANEL_PAGE + i;
     const row = rows[index];
@@ -170,7 +172,7 @@ export function drawPanel(
     const soldier = id === 'barracks' ? w.soldiers[index] : undefined;
     const face = soldier ? art.image(`${faceFor(soldier.name)}_s`) : null;
     if (face) ctx.drawImage(face, r.x + 3, r.y + 2, 16, 16);
-    drawText(ctx, clipText(row.label, face ? 172 : 190), r.x + (face ? 26 : 8), r.y + 7, colour, 'left');
+    drawText(ctx, clipText(row.label, gutter ? 172 : 190), r.x + (gutter ? 26 : 8), r.y + 7, colour, 'left');
     drawText(ctx, clipText(row.detail, 230), r.x + r.w - 8, r.y + 7, row.enabled ? UI.dim : UI.disabledText, 'right');
   }
   if (pages(rows.length) > 1) {

@@ -6,7 +6,7 @@ import type { BuildingId } from './base';
 export type CampSpriteId =
   | 'lab_idle' | 'lab_busy' | 'barracks' | 'market'
   | 'training_plot' | 'training_built' | 'training_busy'
-  | 'hospital_plot' | 'hospital_built' | 'hospital_busy' | 'gate';
+  | 'hospital_plot' | 'hospital_built' | 'hospital_busy';
 export type FaceId = 'face_alvarez' | 'face_brandt' | 'face_chen' | 'face_dubois' | 'face_recruit';
 /** Every image of the camp set: the backdrop, the building sprites, the faces and their small versions. */
 export type CampArtId = 'camp_backdrop' | CampSpriteId | FaceId | `${FaceId}_s`;
@@ -14,7 +14,7 @@ export type CampArtId = 'camp_backdrop' | CampSpriteId | FaceId | `${FaceId}_s`;
 export const CAMP_SPRITE_IDS: readonly CampSpriteId[] = [
   'lab_idle', 'lab_busy', 'barracks', 'market',
   'training_plot', 'training_built', 'training_busy',
-  'hospital_plot', 'hospital_built', 'hospital_busy', 'gate',
+  'hospital_plot', 'hospital_built', 'hospital_busy',
 ];
 export const FACE_IDS: readonly FaceId[] = ['face_alvarez', 'face_brandt', 'face_chen', 'face_dubois', 'face_recruit'];
 export const CAMP_ART_IDS: readonly CampArtId[] = [
@@ -26,7 +26,6 @@ export const SPRITE_SIZE: Record<CampSpriteId, { w: number; h: number }> = {
   lab_idle: { w: 120, h: 72 }, lab_busy: { w: 120, h: 72 }, barracks: { w: 120, h: 72 }, market: { w: 120, h: 72 },
   training_plot: { w: 64, h: 64 }, training_built: { w: 64, h: 64 }, training_busy: { w: 64, h: 64 },
   hospital_plot: { w: 120, h: 72 }, hospital_built: { w: 120, h: 72 }, hospital_busy: { w: 120, h: 72 },
-  gate: { w: 96, h: 48 },
 };
 
 /** Which sprite each building shows now: a plot until the facility is researched, then built, busy while it is in use. */
@@ -40,8 +39,8 @@ export function campLook(w: World): Record<BuildingId, CampSpriteId | null> {
     market: 'market',
     training: facility(levels.training, 'training', 'training_plot', 'training_built', 'training_busy'),
     hospital: facility(levels.hospital, 'wounded', 'hospital_plot', 'hospital_built', 'hospital_busy'),
-    wait: null,
-    planet: 'gate',
+    wait: null, // the fire pit and the gate are painted into the backdrop
+    planet: null,
   };
 }
 

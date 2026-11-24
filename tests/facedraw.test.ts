@@ -77,6 +77,17 @@ describe('faces in the barracks list', () => {
     expect(labels.filter((t) => t.align === 'left' && t.x === rowsOf()[0].x + 26).map((t) => t.text)[0]).toMatch(/^ALVAREZ/);
   });
 
+  it('lines the rows up when only some faces are painted', () => {
+    const w = newWorld(1, 'calm');
+    const art = artWith(['face_alvarez_s']);
+    const { ctx, calls } = recorder();
+    drawPanel(ctx, 'barracks', w, null, 0, '', art);
+    expect(images(calls).map(idOf)).toEqual(['face_alvarez_s']);
+    const labels = textRuns((c) => drawPanel(c, 'barracks', w, null, 0, '', art)).filter((t) => t.align === 'left' && /^(ALVAREZ|BRANDT|CHEN|DUBOIS)/.test(t.text));
+    expect(labels).toHaveLength(4);
+    for (const l of labels) expect(l.x).toBe(rowsOf()[0].x + 26);
+  });
+
   it('gives hires, including a name like Alvarez 2, the recruit face', () => {
     const w = hired(hired(newWorld(1, 'calm'), 'Eriksen'), 'Alvarez 2');
     const { ctx, calls } = recorder();

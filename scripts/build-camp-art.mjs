@@ -9,7 +9,7 @@ export const CAMP_ART_NAMES = [
   'camp_backdrop',
   'lab_idle', 'lab_busy', 'barracks', 'market',
   'training_plot', 'training_built', 'training_busy',
-  'hospital_plot', 'hospital_built', 'hospital_busy', 'gate',
+  'hospital_plot', 'hospital_built', 'hospital_busy',
   ...FACES, ...FACES.map((f) => `${f}_s`),
 ];
 

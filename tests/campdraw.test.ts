@@ -78,9 +78,9 @@ describe('the painted camp', () => {
       expect(call.args[2] as number, id).toBeGreaterThanOrEqual(b.y);
       expect((call.args[2] as number) + size.h, id).toBeLessThanOrEqual(b.y + b.h);
     }
-    expect(frames(calls)).toEqual(BUILDINGS.map(() => 0)); // no tile where a sprite is
+    expect(frames(calls)).toEqual(BUILDINGS.map(() => 0)); // no tile where a sprite is, nor at the fire or the gate
     // a chip for every building, the fire (no sprite) included
-    expect(chips(calls)).toHaveLength(BUILDINGS.length);
+    expect(chips(calls)).toHaveLength(BUILDINGS.length + 1); // and one behind the hint line
     for (const b of BUILDINGS) expect(chips(calls).some((c) => c.args[0] === b.x && c.args[2] === b.w), b.id).toBe(true);
   });
 
@@ -93,7 +93,7 @@ describe('the painted camp', () => {
     const only = recorder();
     drawBase(only.ctx, fresh(), '', artWith(['camp_backdrop']));
     expect(images(only.calls)).toHaveLength(1);
-    expect(frames(only.calls).filter((n) => n === 1)).toHaveLength(BUILDINGS.length - 1); // the fire has no tile with a backdrop
+    expect(frames(only.calls).filter((n) => n === 1)).toHaveLength(BUILDINGS.length - 2); // the fire and the gate are painted into the backdrop: a label, no tile
   });
 
   it('shows the state: built facilities and a hospital with patients', () => {

@@ -19,13 +19,13 @@ export interface Building extends Rect {
  * with no sprite draws a status tile there instead.
  */
 export const BUILDINGS: readonly Building[] = [
-  { id: 'lab', name: 'LAB', x: 46, y: 40, w: 130, h: 106 },
-  { id: 'barracks', name: 'BARRACKS', x: 300, y: 40, w: 130, h: 106 },
-  { id: 'market', name: 'MARKET', x: 46, y: 200, w: 130, h: 106 },
-  { id: 'training', name: 'TRAINING', x: 206, y: 226, w: 68, h: 88 },
-  { id: 'hospital', name: 'HOSPITAL', x: 300, y: 200, w: 130, h: 106 },
-  { id: 'wait', name: 'WAIT', x: 206, y: 150, w: 68, h: 58 },
-  { id: 'planet', name: 'BACK TO THE PLANET', x: 190, y: 326, w: 100, h: 72 },
+  { id: 'lab', name: 'LAB', x: 45, y: 50, w: 130, h: 106 },
+  { id: 'barracks', name: 'BARRACKS', x: 320, y: 50, w: 130, h: 106 },
+  { id: 'market', name: 'MARKET', x: 45, y: 230, w: 130, h: 106 },
+  { id: 'training', name: 'TRAINING', x: 222, y: 248, w: 68, h: 88 },
+  { id: 'hospital', name: 'HOSPITAL', x: 326, y: 230, w: 130, h: 106 },
+  { id: 'wait', name: 'WAIT', x: 258, y: 176, w: 56, h: 60 },
+  { id: 'planet', name: 'BACK TO THE PLANET', x: 245, y: 348, w: 90, h: 50 },
 ];
 
 const inside = (b: Rect, px: number, py: number, slop: number): boolean =>
@@ -74,6 +74,7 @@ const CHIP = 'rgba(8,10,18,0.85)';
 /** Chip heights: three lines for the big buildings, two for the small ones. */
 const CHIP_BIG = 34;
 const CHIP_SMALL = 24;
+const CHIP_GATE = 15;
 const isSmall = (b: Building): boolean => b.w < 100 || b.id === 'planet';
 const labelOf = (b: Building): string => (b.id === 'planet' ? 'PLANET' : b.name);
 
@@ -95,13 +96,21 @@ function drawTile(ctx: CanvasRenderingContext2D, b: Building, lines: string[]): 
 /** A dark label across the foot of a painted building, so its name and status read on any painting. */
 function drawChip(ctx: CanvasRenderingContext2D, b: Building, lines: string[]): void {
   const small = isSmall(b);
+  if (b.id === 'planet') {
+    // the gate is painted into the backdrop: just say where it leads (the day and credits are in the header)
+    const y = b.y; // the top of the gate area, clear of the sound hint along the bottom edge
+    ctx.fillStyle = CHIP;
+    ctx.fillRect(b.x, y, b.w, CHIP_GATE);
+    drawText(ctx, 'TO THE PLANET', b.x + b.w / 2, y + 4, UI.accent, 'center');
+    return;
+  }
   const h = small ? CHIP_SMALL : CHIP_BIG;
   const y = b.y + b.h - h;
   ctx.fillStyle = CHIP;
   ctx.fillRect(b.x, y, b.w, h);
   drawText(ctx, labelOf(b), b.x + 4, y + 3, UI.accent, 'left');
   const [first, second] = lines;
-  drawText(ctx, clipText(b.id === 'planet' ? `${first}  ${second}` : first, b.w - 8), b.x + 4, y + 13, UI.text, 'left');
+  drawText(ctx, clipText(first, b.w - 8), b.x + 4, y + 13, UI.text, 'left');
   if (!small) drawText(ctx, clipText(second, b.w - 8), b.x + 4, y + 23, UI.dim, 'left');
 }
 
@@ -128,5 +137,9 @@ export function drawBase(ctx: CanvasRenderingContext2D, w: World, notice: string
     }
   }
   if (notice) drawText(ctx, clipText(notice.toUpperCase(), 160), 20, 316, UI.accent, 'left');
-  drawText(ctx, 'TAP A BUILDING TO OPEN IT', 20, 386, UI.hint, 'left');
+  if (backdrop) {
+    ctx.fillStyle = CHIP; // keep the hint readable over the fence
+    ctx.fillRect(14, 380, 160, 15);
+  }
+  drawText(ctx, 'TAP A BUILDING TO OPEN IT', 20, 384, UI.hint, 'left');
 }

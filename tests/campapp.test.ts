@@ -62,7 +62,6 @@ describe('the camp and faces in the app', () => {
     const names = drawn(app);
     expect(names).toContain('camp_backdrop');
     expect(names).toContain('lab_idle');
-    expect(names).toContain('gate');
     for (const n of names) expect(CAMP_ART_IDS as readonly string[]).toContain(n);
   });
 
