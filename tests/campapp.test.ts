@@ -84,7 +84,10 @@ describe('the camp and faces in the app', () => {
     click(mid(PLANET.base));
     click(building('lab'));
     expect(app.screen).toBe('panel');
-    click(mid({ x: 18, y: 360, w: 80, h: 24 })); // away from everything: nothing happens
+    const empty = setup({ campArt: every, scenes: false });
+    empty.click(mid(PLANET.base));
+    empty.click({ x: 10, y: 395 }); // empty ground on the base: nothing happens
+    expect(empty.app.screen).toBe('base');
     const back = setup({ campArt: every, scenes: false });
     back.click(mid(PLANET.base));
     back.click(building('planet'));

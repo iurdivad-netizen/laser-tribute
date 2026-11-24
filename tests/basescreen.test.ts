@@ -44,9 +44,15 @@ describe('base hub layout', () => {
     const lab = BUILDINGS[0];
     expect(baseHit(lab.x - 3, centre(lab).y)).toBeNull();
     expect(baseHit(lab.x - 3, centre(lab).y, 5)).toBe('lab');
+    for (const b of BUILDINGS) expect(baseHit(b.x + b.w / 2, b.y + b.h / 2, 5)).toBe(b.id);
+    // widened by the slop on every side, no two rectangles meet
+    const wide = (b: { x: number; y: number; w: number; h: number }) => ({ x: b.x - 5, y: b.y - 5, w: b.w + 10, h: b.h + 10 });
     for (const a of BUILDINGS) for (const b of BUILDINGS) {
-      if (a.id === b.id) continue;
-      expect(baseHit(b.x + b.w / 2, b.y + b.h / 2, 5)).toBe(b.id);
+      if (a.id >= b.id) continue;
+      const p = wide(a);
+      const q = wide(b);
+      const apart = p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y;
+      expect(apart, `${a.id} ${b.id}`).toBe(true);
     }
   });
 });
