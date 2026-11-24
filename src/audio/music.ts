@@ -119,6 +119,8 @@ interface Layer {
 export class Music {
   private readonly layers: Record<Mood, Layer>;
   private bars = 0;
+  /** When the duck now playing stops holding the music low (audio clock); -Infinity when there is none. */
+  private duckUntil = -Infinity;
   private readonly out: Gain;
   private mood: Mood = 'calm';
   private level = 0;
@@ -156,7 +158,18 @@ export class Music {
   /** 0 silences the music (mute); otherwise the player's volume setting. */
   setLevel(volume: number): void {
     this.level = volume * MUSIC_GAIN;
-    this.out.gain.setValueAtTime(Math.max(SILENT, this.level), this.ctx.currentTime);
+    const now = this.ctx.currentTime;
+    const p = this.out.gain;
+    p.cancelScheduledValues?.(now); // a duck in progress must not bring the music back to the old level
+    if (this.level > 0 && now < this.duckUntil) {
+      // the duck is still holding: keep its shape, at the new level
+      const low = Math.max(SILENT, this.level * DUCK_DEPTH);
+      p.setValueAtTime(low, now);
+      p.setValueAtTime(low, this.duckUntil);
+      p.exponentialRampToValueAtTime(Math.max(SILENT, this.level), this.duckUntil + DUCK_RECOVER);
+    } else {
+      p.setValueAtTime(Math.max(SILENT, this.level), now);
+    }
   }
 
   setMood(mood: Mood): void {
@@ -273,6 +286,7 @@ export class Music {
     const now = this.ctx.currentTime;
     const p = this.out.gain;
     const low = Math.max(SILENT, this.level * DUCK_DEPTH);
+    this.duckUntil = now + seconds;
     p.cancelScheduledValues?.(now);
     p.setValueAtTime(Math.max(SILENT, this.level), now);
     p.exponentialRampToValueAtTime(low, now + DUCK_DIP);
