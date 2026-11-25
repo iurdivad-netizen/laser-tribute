@@ -18,7 +18,7 @@ const withSoldiers = (w: World, patch: Partial<PoolSoldier>[]): World => ({
 
 /** A finished fight for the deployed squad: `dead` and `kills` by unit index. */
 function finished(w: World, spec: MissionSpec, status: 'won' | 'lost', dead: number[] = [], kills: number[] = []): GameState {
-  const def = generateMission(spec.type, spec.variation, spec.difficulty);
+  const def = generateMission(spec.type, spec.variation, spec.difficulty, true);
   const rules = storyGearRules(w.research.done);
   const s = createMission(def, spec.seed, deployed(w).roster, defaultLoadout(), 999, w.stash, rules, spec.enemyLevel);
   s.units.filter((u) => u.side === 'player').forEach((u, i) => {

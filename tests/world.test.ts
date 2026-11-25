@@ -92,7 +92,7 @@ describe('missionFor', () => {
     expect(missionFor(w, id).seed).toBe(spec.seed);
     const again = { ...w, regions: w.regions.map((s, i) => (i === id ? { ...s, attempts: 1 } : s)) };
     expect(missionFor(again, id).seed).not.toBe(spec.seed);
-    expect(() => generateMission(spec.type, spec.variation, spec.difficulty)).not.toThrow();
+    expect(() => generateMission(spec.type, spec.variation, spec.difficulty, true)).not.toThrow();
   });
 
   it('follows the garrison into the difficulty', () => {

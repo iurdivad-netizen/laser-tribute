@@ -3,7 +3,7 @@ import { blank, fill, ri, type Grid, type Rnd } from './grid';
 import type { Recipe } from './recipes';
 
 /** A piece of the map; the coordinates are wall lines, so the room inside is x0+1..x1-1 by y0+1..y1-1. */
-interface Rect { x0: number; y0: number; x1: number; y1: number }
+export interface Rect { x0: number; y0: number; x1: number; y1: number }
 /** A wall line cutting a piece in two. `vertical` means the wall is a column at x = `at`. */
 interface Split { vertical: boolean; at: number; a: Rect; b: Rect }
 
@@ -123,11 +123,11 @@ function hash(...n: number[]): number {
 
 /**
  * Puts a premade block of furniture in some rooms: a block that suits the recipe, in a random orientation, where it and a
- * ring of floor round it all lie on open floor (so doors, archways and the way round are untouched).
+ * ring of floor round it all lie on open floor. `salt` (one draw from the map's seed) keeps two maps with a room in the same place from choosing alike (so doors, archways and the way round are untouched).
  */
-function stampBlocks(g: Grid, r: Recipe, leaves: Rect[]): void {
+export function stampBlocks(g: Grid, r: Recipe, leaves: Rect[], salt: number): void {
   for (const l of leaves) {
-    const h = hash(l.x0, l.y0, l.x1, l.y1);
+    const h = hash(salt, l.x0, l.y0, l.x1, l.y1);
     if ((h % 1000) / 1000 >= r.blocks.chance) continue;
     const w = l.x1 - l.x0 - 1;
     const rh = l.y1 - l.y0 - 1;
@@ -157,7 +157,7 @@ export function buildLayout(r: Recipe, rnd: Rnd, blocks = false): Grid {
     fill(g, Math.floor((r.width - r.yard.w) / 2), Math.floor((r.height - r.yard.h) / 2), r.yard.w, r.yard.h, '.');
   }
   tidyDoors(g);
-  if (blocks) stampBlocks(g, r, leaves);
+  if (blocks) stampBlocks(g, r, leaves, Math.floor(rnd() * 0x100000000));
   scatterCover(g, rnd, r.cover);
   return g;
 }

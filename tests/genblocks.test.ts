@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CAMPAIGN_LENGTH, VARIATIONS, generateMission } from '../src/core/gen';
 import { BLOCKS, BLOCK_TAGS, orientations } from '../src/core/gen/blocks';
 import { distances, isSolid, toRows } from '../src/core/gen/grid';
-import { buildLayout } from '../src/core/gen/layout';
+import { buildLayout, stampBlocks } from '../src/core/gen/layout';
 import { RECIPES } from '../src/core/gen/recipes';
 import { seededRandom } from '../src/core/rng';
 
@@ -69,6 +69,22 @@ describe('maps with blocks', () => {
         expect(generateMission(t, v, t + 1, true).rows).toEqual(def.rows);
       }
     }
+  });
+
+  it('stay playable at every garrison difficulty a region can have', () => {
+    for (let t = 0; t < CAMPAIGN_LENGTH; t++) {
+      for (let v = 0; v < VARIATIONS; v++) for (const d of [1, 4, 8, 12, 14]) expect(() => generateMission(t, v, d, true), `${t},${v},${d}`).not.toThrow();
+    }
+  });
+
+  it('are chosen by the seed, not only by where the room is', () => {
+    const r = { ...RECIPES[8], blocks: { chance: 1, tags: ['crates', 'hall', 'fort', 'vault', 'barracks'] as const } };
+    const room = (salt: number) => {
+      const g = Array.from({ length: 14 }, (_, y) => Array.from({ length: 20 }, (_, x) => (x === 0 || y === 0 || x === 19 || y === 13 ? '#' : '.')));
+      stampBlocks(g, r as never, [{ x0: 0, y0: 0, x1: 19, y1: 13 }], salt);
+      return toRows(g).join('/');
+    };
+    expect(new Set(Array.from({ length: 12 }, (_, i) => room(i + 1))).size).toBeGreaterThanOrEqual(8);
   });
 
   it('are off by default, so the campaign maps do not change', () => {
