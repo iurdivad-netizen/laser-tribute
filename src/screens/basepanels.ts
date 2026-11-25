@@ -1,5 +1,6 @@
 import { NO_ART, type Art } from '../art/planetimages';
-import { faceFor, type CampArtId } from './campart';
+import type { CampArtId } from './campart';
+import { faceImage } from './faces';
 import { NAME_W } from './baseinfo';
 import { itemOfNode, type ItemRef } from '../core/world/iteminfo';
 import { rankFor, rankShort } from '../core/ranks';
@@ -182,7 +183,7 @@ export function drawPanel(
   drawText(ctx, `${w.credits} CR`, 462, 12, UI.text, 'right');
   const rows = panelRows(id, w);
   // rows line up: when any soldier has a face, every barracks row leaves room for one
-  const gutter = id === 'barracks' && w.soldiers.some((s) => art.image(`${faceFor(s.name)}_s`) !== null);
+  const gutter = id === 'barracks' && w.soldiers.some((s) => faceImage(art, s.name, true) !== null);
   for (let i = 0; i < PANEL_PAGE; i++) {
     const index = page * PANEL_PAGE + i;
     const row = rows[index];
@@ -192,7 +193,7 @@ export function drawPanel(
     const colour = row.enabled ? UI.text : UI.disabledText;
     // a soldier's small painted face, with the label moved right to make room
     const soldier = id === 'barracks' ? w.soldiers[index] : undefined;
-    const face = soldier ? art.image(`${faceFor(soldier.name)}_s`) : null;
+    const face = soldier ? faceImage(art, soldier.name, true) : null;
     if (face) ctx.drawImage(face, r.x + 3, r.y + 2, 16, 16);
     drawText(ctx, clipText(row.label, gutter ? 172 : 190), r.x + (gutter ? 26 : 8), r.y + 7, colour, 'left');
     drawText(ctx, clipText(row.detail, 230), r.x + r.w - 8, r.y + 7, row.enabled ? UI.dim : UI.disabledText, 'right');

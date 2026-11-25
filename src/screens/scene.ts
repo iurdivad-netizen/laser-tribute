@@ -3,7 +3,8 @@ import { VIEW } from '../render/layout';
 import { textWidth } from '../ui/font';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { drawText } from '../ui/text';
-import { faceFor, type CampArtId } from './campart';
+import type { CampArtId } from './campart';
+import { faceImage } from './faces';
 
 /** What the scene screen shows: who speaks, the line (empty while the choice is up), and the two choice labels if any. */
 export interface SceneView {
@@ -62,7 +63,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, v: SceneView, art: Art<
   drawFrame(ctx, b.x, b.y, b.w, b.h, 'raised');
   const p = SCENE.portrait;
   drawFrame(ctx, p.x, p.y, p.w, p.h, 'inset');
-  const face = art.image(faceFor(v.speaker));
+  const face = faceImage(art, v.speaker, false);
   if (face) {
     ctx.drawImage(face, p.x, p.y, p.w, p.h);
     ctx.strokeStyle = UI.dark;
