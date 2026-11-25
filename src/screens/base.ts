@@ -56,8 +56,9 @@ export function buildingStatus(w: World, id: BuildingId): string[] {
     }
     case 'training': {
       if (levels.training === 0) return ['NOT BUILT', 'RESEARCH IT FIRST'];
-      const busy = w.soldiers.find((s) => s.status === 'training');
-      return busy ? [busy.name.toUpperCase(), `${busy.daysLeft} DAYS LEFT`] : [`LEVEL ${levels.training}`, 'READY TO TRAIN'];
+      const busy = w.soldiers.filter((s) => s.status === 'training');
+      if (busy.length === 0) return [`LEVEL ${levels.training}`, 'READY TO TRAIN'];
+      return [busy.length === 1 ? busy[0].name.toUpperCase() : `${busy.length} TRAINING`, `${Math.max(...busy.map((s) => s.daysLeft))} DAYS LEFT`];
     }
     case 'hospital': {
       if (levels.hospital === 0) return ['NOT BUILT', 'RESEARCH IT FIRST'];

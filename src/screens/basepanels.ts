@@ -91,7 +91,7 @@ export function panelRows(id: PanelId, w: World): PanelRow[] {
         else if (s.status === 'training') detail = `TRAINING ${s.daysLeft}D`;
         else if (s.status === 'wounded') detail = `WOUNDED ${s.daysLeft}D`;
         else if (canTrain(w, s.name)) detail = 'CAN TRAIN';
-        else if (w.soldiers.some((x) => x.status === 'training')) detail = 'LAB BUSY';
+        else if (w.soldiers.filter((x) => x.status === 'training').length >= level) detail = 'FULL';
         return { label: soldierLabel(s), detail, enabled: canTrain(w, s.name) };
       });
     case 'hospital': {
