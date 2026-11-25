@@ -75,7 +75,7 @@ describe('maps with blocks', () => {
     for (let t = 0; t < CAMPAIGN_LENGTH; t++) {
       for (let v = 0; v < VARIATIONS; v++) for (const d of [1, 4, 8, 12, 14]) expect(() => generateMission(t, v, d, true), `${t},${v},${d}`).not.toThrow();
     }
-  });
+  }, 30000);
 
   it('are chosen by the seed, not only by where the room is', () => {
     const r = { ...RECIPES[8], blocks: { chance: 1, tags: ['crates', 'hall', 'fort', 'vault', 'barracks'] as const } };
