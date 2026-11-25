@@ -1381,7 +1381,7 @@ export class App {
     }
     if (this.screen === 'scene') {
       const v = this.sceneView();
-      if (v) this.inMenuSpace(ctx, () => drawScene(ctx, v, this.campArt));
+      if (v) this.inMenuSpace(ctx, () => drawScene(ctx, v));
       return;
     }
     if (this.screen === 'difficulty') {
@@ -1396,7 +1396,7 @@ export class App {
     if (this.screen === 'panel' && this.story) {
       const w = this.story;
       this.inMenuSpace(ctx, () => {
-        drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice, this.campArt);
+        drawPanel(ctx, this.panelId, w, this.panelSelected, this.panelPage, this.baseNotice);
         this.drawBaseInfo(ctx, w);
       });
       return;

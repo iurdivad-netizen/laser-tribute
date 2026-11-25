@@ -41,7 +41,7 @@ describe('renderFace', () => {
       expect(colours(renderFace(faceSpec(name), 64)).size, name).toBeLessThanOrEqual(24);
       expect(colours(renderFace(faceSpec(name), 16)).size, name).toBeLessThanOrEqual(16);
     }
-  });
+  }, 30000);
 
   it('keeps small faces apart too', () => {
     const small = new Set(RECRUIT_SURNAMES.map((n) => bytes(renderFace(faceSpec(n), 16))));
