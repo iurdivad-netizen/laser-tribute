@@ -18,12 +18,14 @@ const fresh = (done: string[] = [], credits = 150): World => ({
 });
 
 describe('hiring', () => {
-  it('hires up to the bed count for credits and names new soldiers in order', () => {
+  it('hires up to the bed count for credits and gives new soldiers distinct random names', () => {
     let w = fresh();
     expect(canHire(w)).toBe(true);
     w = hire(hire(w));
     expect(w.credits).toBe(150 - 2 * 40);
-    expect(w.soldiers.map((s) => s.name).slice(4)).toEqual(['Eriksen', 'Fontaine']);
+    const hired = w.soldiers.map((s) => s.name).slice(4);
+    expect(hired).toHaveLength(2);
+    expect(new Set(hired).size).toBe(2);
     expect(w.soldiers.every((s) => s.status === 'ready' || s.daysLeft === 0)).toBe(true);
     expect(w.namesUsed).toBe(6);
     expect(canHire(w)).toBe(false); // six beds are full

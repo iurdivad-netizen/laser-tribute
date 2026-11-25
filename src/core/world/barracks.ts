@@ -1,4 +1,5 @@
-import { soldierName, type RosterSoldier } from '../campaign';
+import type { RosterSoldier } from '../campaign';
+import { recruitName } from './names';
 import { cheapLoadout, loadoutCost } from '../loadout';
 import { BASE_RULES, bedCount, levelsOf } from './base';
 import type { World } from './world';
@@ -61,7 +62,7 @@ export function hire(w: World): World {
   return {
     ...w,
     credits: w.credits - BASE_RULES.hireCost,
-    soldiers: [...w.soldiers, { name: soldierName(w.namesUsed), kills: 0, trained: 0, status: 'ready', daysLeft: 0 }],
+    soldiers: [...w.soldiers, { name: recruitName(w), kills: 0, trained: 0, status: 'ready', daysLeft: 0 }],
     namesUsed: w.namesUsed + 1,
   };
 }
