@@ -1,4 +1,4 @@
-# Camp and face art
+# Camp art
 
 Painted with PixelLab (`create_image_pixen`, 1 generation each, trial plan) on 2026-11-24 and processed with Pillow (colour
 reduction, hard alpha on sprites, the small faces cut from the 64 px ones). The game bakes these PNGs into
@@ -23,12 +23,12 @@ shoulders, dark moody lighting, scarred, worn, realistic proportions".
 | `face_chen.png` (+ `_s`) | 64 x 64 | wry medic-tinkerer, round goggles pushed up, messy black hair, dark teal collar | `652162ed-ad30-4c25-8dbe-2c30a1f4d306` |
 | `face_dubois.png` (+ `_s`) | 64 x 64 | young hopeful soldier, freckled face, crooked grin, messy ginger hair, dark brown collar | `1ab62128-4f4e-4046-90fb-f82c36215656` |
 
-Not painted yet (the game falls back to its plain look for each): `face_recruit` (and `_s`), and the state sprites `lab_busy`,
+Not painted yet (the game falls back to its plain look for each): the state sprites `lab_busy`,
 `training_busy`, `hospital_busy`. Prompts for them are in `docs/superpowers/plans/2026-11-24-story-mode-camp-portraits.md` (Task 7).
 The second batch (2026-11-25, five bonus generations, one attempt each) painted the three named faces and the two empty-plot sprites,
 processed the same way as above.
 
-Recruit faces are not painted: every soldier who is not one of the four originals gets a face composed from parts (`src/art/facegen.ts`, chosen from the name by `src/core/world/faces.ts`). `face_recruit` (and `_s`) is now only the fallback when no canvas exists, so it can stay unpainted.
+Faces are no longer painted: every soldier, the four originals included, gets a face drawn in code from the name (`src/art/facegen.ts`, `src/core/world/faces.ts`). The PixelLab portraits (the four originals, 64 px and 16 px) are archived, unused, in `art-src/archive/pixellab-faces/`; their rows in the table above are kept as a record.
 
 The gate at the bottom and the fire pit in the middle are painted into the backdrop, so there is no `gate` sprite.
 

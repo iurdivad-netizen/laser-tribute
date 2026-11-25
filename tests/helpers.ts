@@ -63,3 +63,20 @@ export function quietCritState(): number {
   }
   return quiet;
 }
+
+/**
+ * A `document` for node tests whose face-sized canvases (16 px and up) accept every drawing call and do nothing, so faces
+ * can be made. Smaller ones (the text atlas's glyphs) get no context, as in node, so text is unaffected.
+ */
+export function fakeDocument(): unknown {
+  const context = new Proxy({}, {
+    get: (_t, name: string) => (name === 'createImageData' ? (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }) : () => {}),
+    set: () => true,
+  });
+  return {
+    createElement: () => {
+      const canvas = { width: 0, height: 0, getContext: () => (canvas.width >= 16 ? context : null) };
+      return canvas;
+    },
+  };
+}

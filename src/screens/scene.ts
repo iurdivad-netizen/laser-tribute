@@ -1,9 +1,7 @@
-import { NO_ART, type Art } from '../art/planetimages';
 import { VIEW } from '../render/layout';
 import { textWidth } from '../ui/font';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { drawText } from '../ui/text';
-import type { CampArtId } from './campart';
 import { faceImage } from './faces';
 
 /** What the scene screen shows: who speaks, the line (empty while the choice is up), and the two choice labels if any. */
@@ -56,14 +54,14 @@ export function sceneHit(px: number, py: number, view: Pick<SceneView, 'choices'
   return 'next';
 }
 
-export function drawScene(ctx: CanvasRenderingContext2D, v: SceneView, art: Art<CampArtId> = NO_ART): void {
+export function drawScene(ctx: CanvasRenderingContext2D, v: SceneView): void {
   ctx.fillStyle = UI.black;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   const b = SCENE.box;
   drawFrame(ctx, b.x, b.y, b.w, b.h, 'raised');
   const p = SCENE.portrait;
   drawFrame(ctx, p.x, p.y, p.w, p.h, 'inset');
-  const face = faceImage(art, v.speaker, false);
+  const face = faceImage(v.speaker, false);
   if (face) {
     ctx.drawImage(face, p.x, p.y, p.w, p.h);
     ctx.strokeStyle = UI.dark;

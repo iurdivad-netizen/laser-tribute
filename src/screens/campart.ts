@@ -1,5 +1,4 @@
 import { levelsOf } from '../core/world/base';
-import { ORIGINALS } from '../core/world/story';
 import type { World } from '../core/world/world';
 import type { BuildingId } from './base';
 
@@ -7,18 +6,16 @@ export type CampSpriteId =
   | 'lab_idle' | 'lab_busy' | 'barracks' | 'market'
   | 'training_plot' | 'training_built' | 'training_busy'
   | 'hospital_plot' | 'hospital_built' | 'hospital_busy';
-export type FaceId = 'face_alvarez' | 'face_brandt' | 'face_chen' | 'face_dubois' | 'face_recruit';
-/** Every image of the camp set: the backdrop, the building sprites, the faces and their small versions. */
-export type CampArtId = 'camp_backdrop' | CampSpriteId | FaceId | `${FaceId}_s`;
+/** Every image of the camp set: the backdrop, and the building sprites. */
+export type CampArtId = 'camp_backdrop' | CampSpriteId;
 
 export const CAMP_SPRITE_IDS: readonly CampSpriteId[] = [
   'lab_idle', 'lab_busy', 'barracks', 'market',
   'training_plot', 'training_built', 'training_busy',
   'hospital_plot', 'hospital_built', 'hospital_busy',
 ];
-export const FACE_IDS: readonly FaceId[] = ['face_alvarez', 'face_brandt', 'face_chen', 'face_dubois', 'face_recruit'];
 export const CAMP_ART_IDS: readonly CampArtId[] = [
-  'camp_backdrop', ...CAMP_SPRITE_IDS, ...FACE_IDS, ...FACE_IDS.map((f) => `${f}_s` as const),
+  'camp_backdrop', ...CAMP_SPRITE_IDS,
 ];
 
 /** Pixel size of each building sprite. */
@@ -42,10 +39,4 @@ export function campLook(w: World): Record<BuildingId, CampSpriteId | null> {
     wait: null, // the fire pit and the gate are painted into the backdrop
     planet: null,
   };
-}
-
-/** The face for a name: the four mercenaries' own, and the recruit's for everyone else (later hires, a fallen speaker). */
-export function faceFor(name: string): FaceId {
-  const original = (ORIGINALS as readonly string[]).indexOf(name);
-  return original >= 0 ? (`face_${name.toLowerCase()}` as FaceId) : 'face_recruit';
 }

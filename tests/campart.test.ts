@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newWorld, type World } from '../src/core/world/world';
-import { CAMP_ART_IDS, CAMP_SPRITE_IDS, SPRITE_SIZE, campLook, faceFor } from '../src/screens/campart';
+import { CAMP_ART_IDS, CAMP_SPRITE_IDS, SPRITE_SIZE, campLook } from '../src/screens/campart';
 import type { BuildingId } from '../src/screens/base';
 
 const fresh = () => newWorld(1, 'calm');
@@ -48,22 +48,11 @@ describe('campLook', () => {
   });
 });
 
-describe('faceFor', () => {
-  it('gives each original their own face and everyone else the recruit face', () => {
-    expect(faceFor('Alvarez')).toBe('face_alvarez');
-    expect(faceFor('Brandt')).toBe('face_brandt');
-    expect(faceFor('Chen')).toBe('face_chen');
-    expect(faceFor('Dubois')).toBe('face_dubois');
-    for (const name of ['RECRUIT', 'Eriksen', 'Alvarez 2', 'alvarez', '']) expect(faceFor(name), name).toBe('face_recruit');
-  });
-});
-
 describe('the camp art ids', () => {
-  it('are the backdrop, 10 sprites, 5 faces and 5 small faces with no duplicates', () => {
-    expect(CAMP_ART_IDS).toHaveLength(21);
-    expect(new Set(CAMP_ART_IDS).size).toBe(21);
+  it('are the backdrop and 10 sprites with no duplicates', () => {
+    expect(CAMP_ART_IDS).toHaveLength(11);
+    expect(new Set(CAMP_ART_IDS).size).toBe(11);
     expect(CAMP_ART_IDS[0]).toBe('camp_backdrop');
-    expect(CAMP_ART_IDS).toContain('face_recruit_s');
   });
 
   it('give every sprite a size', () => {
