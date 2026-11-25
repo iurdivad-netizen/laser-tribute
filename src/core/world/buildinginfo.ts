@@ -50,7 +50,7 @@ export function buildingInfo(id: InfoId, w: World): BuildingInfo {
         title: 'TRAINING',
         lines: [
           level === 0 ? 'Not built yet: research Training facility I at the lab.' : 'Training makes a ready soldier better without a fight.',
-          `It takes ${BASE_RULES.trainDays} days, one soldier at a time, and the soldier is out of the squad meanwhile.`,
+          `It takes ${BASE_RULES.trainDays} days, one soldier per facility level at a time, and each is out of the squad meanwhile.`,
           level === 0
             ? 'Each training lifts the soldier to the next rank, up to a cap that grows with the facility.'
             : `Each training lifts the soldier to the next rank. Level ${level} trains up to ${BASE_RULES.trainCaps[level - 1]} points (${rankFor(BASE_RULES.trainCaps[level - 1]).name}).`,

@@ -85,10 +85,18 @@ describe('training', () => {
     expect(back.soldiers[0].kills + back.soldiers[0].trained).toBe(5);
   });
 
-  it('trains one soldier at a time', () => {
+  it('trains as many soldiers at once as the facility has levels', () => {
     const w = startTraining(fresh(['training1']), 'Alvarez');
     expect(canTrain(w, 'Brandt')).toBe(false);
     expect(() => startTraining(w, 'Brandt')).toThrow();
+    let two = startTraining(fresh(['training1', 'training2']), 'Alvarez');
+    expect(canTrain(two, 'Brandt')).toBe(true);
+    two = startTraining(two, 'Brandt');
+    expect(canTrain(two, 'Chen')).toBe(false);
+    const three = startTraining(startTraining(startTraining(fresh(['training1', 'training2', 'training3']), 'Alvarez'), 'Brandt'), 'Chen');
+    expect(three.soldiers.filter((s) => s.status === 'training')).toHaveLength(3);
+    expect(canTrain(three, 'Dubois')).toBe(false);
+    expect(advance(two, 4).soldiers.filter((s) => s.status === 'ready')).toHaveLength(4);
   });
 });
 

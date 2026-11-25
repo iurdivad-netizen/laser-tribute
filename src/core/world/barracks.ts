@@ -67,10 +67,10 @@ export function hire(w: World): World {
   };
 }
 
-/** Whether a soldier can start training: a facility exists, nobody else trains, he is ready and below the level's rank cap. */
+/** Whether a soldier can start training: a facility exists with a free place (one per level), he is ready and below the level's rank cap. */
 export function canTrain(w: World, name: string): boolean {
   const level = levelsOf(w.research.done).training;
-  if (w.status !== 'active' || level < 1 || w.soldiers.some((s) => s.status === 'training')) return false;
+  if (w.status !== 'active' || level < 1 || w.soldiers.filter((s) => s.status === 'training').length >= level) return false;
   const s = w.soldiers.find((x) => x.name === name);
   return s !== undefined && s.status === 'ready' && s.kills + s.trained < BASE_RULES.trainCaps[level - 1];
 }
