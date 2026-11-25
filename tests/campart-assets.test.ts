@@ -13,7 +13,8 @@ function sizeOf(uri: string): { w: number; h: number } {
 
 /** What is painted so far; the rest of `CAMP_ART_IDS` falls back to the plain look until it is. */
 const PAINTED = [
-  'camp_backdrop', 'lab_idle', 'barracks', 'market', 'training_built', 'hospital_built', 'face_alvarez', 'face_alvarez_s',
+  'camp_backdrop', 'lab_idle', 'barracks', 'market', 'training_built', 'hospital_built', 'training_plot', 'hospital_plot',
+  'face_alvarez', 'face_alvarez_s', 'face_brandt', 'face_brandt_s', 'face_chen', 'face_chen_s', 'face_dubois', 'face_dubois_s',
 ];
 
 describe('the camp art files', () => {
