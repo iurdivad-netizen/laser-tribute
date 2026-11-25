@@ -28,6 +28,8 @@ Not painted yet (the game falls back to its plain look for each): `face_recruit`
 The second batch (2026-11-25, five bonus generations, one attempt each) painted the three named faces and the two empty-plot sprites,
 processed the same way as above.
 
+Recruit faces are not painted: every soldier who is not one of the four originals gets a face composed from parts (`src/art/facegen.ts`, chosen from the name by `src/core/world/faces.ts`). `face_recruit` (and `_s`) is now only the fallback when no canvas exists, so it can stay unpainted.
+
 The gate at the bottom and the fire pit in the middle are painted into the backdrop, so there is no `gate` sprite.
 
 Raw downloads: `GET https://api.pixellab.ai/mcp/images/<job id>/download`. The processing step was a one-off Pillow script: the backdrop
