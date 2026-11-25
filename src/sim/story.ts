@@ -22,7 +22,7 @@ export type PlayMission = (spec: MissionSpec, world: World, loadout: Loadout) =>
 /** The tactical bot: the same loop as `runCampaign`, on the region's generated map; a stuck fight counts as lost. */
 export function playWithBot(mode: BotMode = 'basic'): PlayMission {
   return (spec, world, loadout) => {
-    const def = generateMission(spec.type, spec.variation, spec.difficulty);
+    const def = generateMission(spec.type, spec.variation, spec.difficulty, true);
     let s = createMission(
       def, spec.seed, deployed(world).roster, loadout, kitBudget(world), world.stash, storyGearRules(world.research.done), spec.enemyLevel,
     );

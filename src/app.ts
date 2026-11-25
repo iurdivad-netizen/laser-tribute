@@ -103,7 +103,7 @@ export interface AppOptions {
   /** Remembers which mode was played last. */
   last?: LastMode | null;
   /** Builds a campaign mission from (type, variation); defaults to the generator. */
-  generate?: (type: number, variation: number, difficulty?: number) => MissionDef;
+  generate?: (type: number, variation: number, difficulty?: number, blocks?: boolean) => MissionDef;
   /** Where the story is saved (same rule as `campaignStore`). */
   storyStore?: StoryStore | null;
   /** With no save to continue, start on the tutorial's equipment screen instead of the title (tests and tools). */
@@ -412,7 +412,7 @@ export class App {
   }
 
   private startStoryMission(w: World, spec: MissionSpec): void {
-    const def = this.generate(spec.type, spec.variation, spec.difficulty);
+    const def = this.generate(spec.type, spec.variation, spec.difficulty, true);
     const state = this.createMission(
       def, spec.seed, deployed(w).roster, this.loadout, kitBudget(w), w.stash, storyGearRules(w.research.done), spec.enemyLevel,
     );

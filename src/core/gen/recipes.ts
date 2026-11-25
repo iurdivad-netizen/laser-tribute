@@ -1,3 +1,4 @@
+import type { BlockTag } from './blocks';
 /** The knobs of one map type. The shared builder in layout.ts turns them into walls, rooms, doors and cover. */
 export interface Recipe {
   id: string;
@@ -20,27 +21,39 @@ export interface Recipe {
   cover: number;
   /** A big open area in the middle of the map, or null. */
   yard: { w: number; h: number } | null;
+  /** Story mode only: the chance that a room gets a premade block of furniture, and which kinds fit this place. */
+  blocks: { chance: number; tags: BlockTag[] };
 }
 
 export const RECIPES: Recipe[] = [
   { id: 'outpost', name: 'Outpost', width: 30, height: 20, enemies: 4, items: { r: 1, p: 1, g: 2 },
-    minW: 5, minH: 5, maxLeaf: 15, vertical: 0.5, arch: 0, cover: 0, yard: { w: 10, h: 6 } },
+    minW: 5, minH: 5, maxLeaf: 15, vertical: 0.5, arch: 0, cover: 0, yard: { w: 10, h: 6 },
+    blocks: { chance: 0.5, tags: ['crates', 'barracks'] } },
   { id: 'warehouse', name: 'Warehouse', width: 30, height: 20, enemies: 5, items: { r: 1, p: 1, g: 2 },
-    minW: 4, minH: 7, maxLeaf: 12, vertical: 0.85, arch: 0.5, cover: 3, yard: null },
+    minW: 4, minH: 7, maxLeaf: 12, vertical: 0.85, arch: 0.5, cover: 3, yard: null,
+    blocks: { chance: 0.7, tags: ['crates'] } },
   { id: 'compound', name: 'Compound', width: 30, height: 20, enemies: 6, items: { r: 1, p: 1, g: 2 },
-    minW: 6, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.2, cover: 1, yard: { w: 12, h: 8 } },
+    minW: 6, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.2, cover: 1, yard: { w: 12, h: 8 },
+    blocks: { chance: 0.6, tags: ['barracks', 'crates'] } },
   { id: 'bunker', name: 'Bunker', width: 32, height: 22, enemies: 6, items: { r: 1, p: 1, g: 3 },
-    minW: 4, minH: 4, maxLeaf: 9, vertical: 0.5, arch: 0, cover: 0, yard: null },
+    minW: 4, minH: 4, maxLeaf: 9, vertical: 0.5, arch: 0, cover: 0, yard: null,
+    blocks: { chance: 0.6, tags: ['vault', 'hall'] } },
   { id: 'village', name: 'Village', width: 36, height: 24, enemies: 7, items: { r: 1, p: 1, g: 3 },
-    minW: 5, minH: 5, maxLeaf: 8, vertical: 0.5, arch: 0.6, cover: 1, yard: { w: 14, h: 8 } },
+    minW: 5, minH: 5, maxLeaf: 8, vertical: 0.5, arch: 0.6, cover: 1, yard: { w: 14, h: 8 },
+    blocks: { chance: 0.5, tags: ['crates', 'barracks'] } },
   { id: 'factory', name: 'Factory', width: 38, height: 26, enemies: 8, items: { r: 1, p: 1, g: 3 },
-    minW: 7, minH: 6, maxLeaf: 18, vertical: 0.5, arch: 0.4, cover: 4, yard: null },
+    minW: 7, minH: 6, maxLeaf: 18, vertical: 0.5, arch: 0.4, cover: 4, yard: null,
+    blocks: { chance: 0.7, tags: ['crates', 'fort'] } },
   { id: 'station', name: 'Station', width: 40, height: 26, enemies: 9, items: { r: 2, p: 1, g: 3 },
-    minW: 6, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.3, cover: 2, yard: { w: 14, h: 10 } },
+    minW: 6, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.3, cover: 2, yard: { w: 14, h: 10 },
+    blocks: { chance: 0.6, tags: ['hall', 'crates'] } },
   { id: 'mine', name: 'Mine', width: 42, height: 28, enemies: 10, items: { r: 2, p: 1, g: 3 },
-    minW: 4, minH: 4, maxLeaf: 11, vertical: 0.5, arch: 0.7, cover: 3, yard: null },
+    minW: 4, minH: 4, maxLeaf: 11, vertical: 0.5, arch: 0.7, cover: 3, yard: null,
+    blocks: { chance: 0.6, tags: ['fort', 'crates'] } },
   { id: 'fortress', name: 'Fortress', width: 46, height: 30, enemies: 11, items: { r: 2, p: 1, g: 3 },
-    minW: 6, minH: 5, maxLeaf: 13, vertical: 0.5, arch: 0.2, cover: 2, yard: { w: 20, h: 12 } },
+    minW: 6, minH: 5, maxLeaf: 13, vertical: 0.5, arch: 0.2, cover: 2, yard: { w: 20, h: 12 },
+    blocks: { chance: 0.7, tags: ['hall', 'fort', 'vault'] } },
   { id: 'citadel', name: 'Citadel', width: 48, height: 32, enemies: 12, items: { r: 2, p: 1, g: 3 },
-    minW: 5, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.3, cover: 3, yard: { w: 16, h: 10 } },
+    minW: 5, minH: 5, maxLeaf: 12, vertical: 0.5, arch: 0.3, cover: 3, yard: { w: 16, h: 10 },
+    blocks: { chance: 0.7, tags: ['hall', 'vault', 'fort'] } },
 ];

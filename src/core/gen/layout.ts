@@ -1,8 +1,9 @@
+import { BLOCKS, orientations } from './blocks';
 import { blank, fill, ri, type Grid, type Rnd } from './grid';
 import type { Recipe } from './recipes';
 
 /** A piece of the map; the coordinates are wall lines, so the room inside is x0+1..x1-1 by y0+1..y1-1. */
-interface Rect { x0: number; y0: number; x1: number; y1: number }
+export interface Rect { x0: number; y0: number; x1: number; y1: number }
 /** A wall line cutting a piece in two. `vertical` means the wall is a column at x = `at`. */
 interface Split { vertical: boolean; at: number; a: Rect; b: Rect }
 
@@ -110,8 +111,42 @@ function scatterCover(g: Grid, rnd: Rnd, per100: number): void {
   }
 }
 
-/** The terrain of a map: walls, rooms, doors, archways, an optional yard and cover. No units or items yet. */
-export function buildLayout(r: Recipe, rnd: Rnd): Grid {
+/** A well-mixed hash of a few numbers: block choices come from here, not from the random stream, so they never shift other draws. */
+function hash(...n: number[]): number {
+  let h = 0x811c9dc5;
+  for (const v of n) {
+    h = Math.imul(h ^ (v + 0x9e3779b9), 0x01000193);
+    h ^= h >>> 15;
+  }
+  return h >>> 0;
+}
+
+/**
+ * Puts a premade block of furniture in some rooms: a block that suits the recipe, in a random orientation, where it and a
+ * ring of floor round it all lie on open floor. `salt` (one draw from the map's seed) keeps two maps with a room in the same place from choosing alike (so doors, archways and the way round are untouched).
+ */
+export function stampBlocks(g: Grid, r: Recipe, leaves: Rect[], salt: number): void {
+  for (const l of leaves) {
+    const h = hash(salt, l.x0, l.y0, l.x1, l.y1);
+    if ((h % 1000) / 1000 >= r.blocks.chance) continue;
+    const w = l.x1 - l.x0 - 1;
+    const rh = l.y1 - l.y0 - 1;
+    const fits = BLOCKS.filter((b) => r.blocks.tags.includes(b.tag))
+      .flatMap((b) => orientations(b.rows))
+      .filter((o) => o[0].length + 2 <= w && o.length + 2 <= rh);
+    if (fits.length === 0) continue;
+    const o = fits[hash(h, 1) % fits.length];
+    const x = l.x0 + 1 + 1 + (hash(h, 2) % (w - o[0].length - 1));
+    const y = l.y0 + 1 + 1 + (hash(h, 3) % (rh - o.length - 1));
+    let clear = true;
+    for (let j = y - 1; j <= y + o.length && clear; j++) for (let i = x - 1; i <= x + o[0].length; i++) if (g[j][i] !== '.') clear = false;
+    if (!clear) continue;
+    o.forEach((row, j) => [...row].forEach((ch, i) => { g[y + j][x + i] = ch; }));
+  }
+}
+
+/** The terrain of a map: walls, rooms, doors, archways, an optional yard, cover and (with `blocks`, story mode) furniture blocks. No units or items yet. */
+export function buildLayout(r: Recipe, rnd: Rnd, blocks = false): Grid {
   const g = blank(r.width, r.height);
   const leaves: Rect[] = [];
   const splits: Split[] = [];
@@ -122,6 +157,7 @@ export function buildLayout(r: Recipe, rnd: Rnd): Grid {
     fill(g, Math.floor((r.width - r.yard.w) / 2), Math.floor((r.height - r.yard.h) / 2), r.yard.w, r.yard.h, '.');
   }
   tidyDoors(g);
+  if (blocks) stampBlocks(g, r, leaves, Math.floor(rnd() * 0x100000000));
   scatterCover(g, rnd, r.cover);
   return g;
 }

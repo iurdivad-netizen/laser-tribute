@@ -135,7 +135,7 @@ describe('the hospital second chance', () => {
   const base = newWorld(1, 'calm');
   const spec: MissionSpec = missionFor(base, attackable(base)[0]);
   const fight = (status: 'won' | 'lost', roster: string[]): GameState => {
-    const def = generateMission(spec.type, spec.variation, spec.difficulty);
+    const def = generateMission(spec.type, spec.variation, spec.difficulty, true);
     const s = createMission(def, spec.seed, roster.map((name) => ({ name, kills: 0 })), defaultLoadout(), 999, undefined, storyGearRules([]), spec.enemyLevel);
     s.units.filter((u) => u.side === 'player').forEach((u) => { u.alive = false; });
     s.status = status;

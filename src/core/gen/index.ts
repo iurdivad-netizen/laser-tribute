@@ -22,9 +22,9 @@ function mix(type: number, variation: number, attempt: number): number {
 /**
  * The map for (type, variation). The same pair always gives the same map: internal attempts are numbered, and the
  * first one that passes `checkMission` wins. `difficulty` (default: the type's place in the campaign, 1 to 10) moves
- * the enemy count up or down from the recipe's.
+ * the enemy count up or down from the recipe's. `blocks` (story mode) furnishes rooms with premade blocks.
  */
-export function generateMission(type: number, variation: number, difficulty: number = type + 1): MissionDef {
+export function generateMission(type: number, variation: number, difficulty: number = type + 1, blocks = false): MissionDef {
   const recipe = RECIPES[type];
   if (!Number.isInteger(type) || !recipe) throw new RangeError(`no map type ${type}`);
   if (!Number.isInteger(variation) || variation < 0 || variation >= VARIATIONS) {
@@ -37,7 +37,7 @@ export function generateMission(type: number, variation: number, difficulty: num
     rnd();
     rnd();
     rnd(); // the first values of nearby seeds are alike
-    const def = populate(buildLayout(recipe, rnd), rnd, recipe, enemies);
+    const def = populate(buildLayout(recipe, rnd, blocks), rnd, recipe, enemies);
     if (def && checkMission(def, want).length === 0) return def;
   }
   throw new Error(`no playable ${recipe.name} variation ${variation} in ${ATTEMPTS} attempts`);

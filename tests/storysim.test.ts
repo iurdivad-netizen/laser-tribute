@@ -10,7 +10,7 @@ import { runStory, type PlayMission } from '../src/sim/story';
 
 /** A "fight" that is decided by the stub: builds the real state, then sets the outcome and who died. */
 const stub = (status: 'won' | 'lost', dead: number[] = []): PlayMission => (spec, world, loadout) => {
-  const def = generateMission(spec.type, spec.variation, spec.difficulty);
+  const def = generateMission(spec.type, spec.variation, spec.difficulty, true);
   const s: GameState = createMission(
     def, spec.seed, deployed(world).roster, loadout, kitBudget(world), world.stash, storyGearRules(world.research.done), spec.enemyLevel,
   );
