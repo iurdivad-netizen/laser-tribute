@@ -1,7 +1,7 @@
 /** How many choices each part of a generated face has. `beard` and `extra` count "none" as choice 0. */
 export const FACE_PARTS = { skin: 6, hairStyle: 8, hairColour: 8, eyes: 5, brows: 4, mouth: 4, beard: 4, extra: 5 } as const;
 
-export type FaceSpec = { [P in keyof typeof FACE_PARTS]: number };
+export type FaceSpec = { -readonly [P in keyof typeof FACE_PARTS]: number };
 
 /** FNV-1a over the UTF-16 units of the name. */
 function hash(text: string): number {
