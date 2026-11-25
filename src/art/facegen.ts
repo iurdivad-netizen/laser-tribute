@@ -8,8 +8,9 @@ export interface Pixels {
 
 type Rgb = readonly [number, number, number];
 
-// The faces are laid out on a 32 x 32 grid. The 64 px face doubles each cell; the 16 px face keeps the likeliest cell of each 2 x 2 block.
-const N = 32;
+// The faces are drawn on a 64 x 64 grid, one cell per pixel of the big face; the 16 px face keeps the likeliest cell of each 4 x 4 block.
+const N = 64;
+const MID = (N - 1) / 2;
 
 const lighten = (c: Rgb, t: number): Rgb => [0, 1, 2].map((i) => Math.round(c[i] + (255 - c[i]) * t)) as unknown as Rgb;
 const blend = (a: Rgb, b: Rgb, t: number): Rgb => [0, 1, 2].map((i) => Math.round(a[i] * (1 - t) + b[i] * t)) as unknown as Rgb;
@@ -25,126 +26,150 @@ const HAIR: readonly (readonly [Rgb, Rgb])[] = [
 const ACCENT: readonly Rgb[] = [[0, 0, 0], [232, 214, 200], [150, 150, 160], [168, 40, 40], [0, 0, 0]]; // none, scar, glasses, headband, freckles
 const BACKGROUND: Rgb = [20, 18, 19];
 const FIXED: Record<string, Rgb> = {
-  k: [8, 8, 10], w: [236, 236, 230], p: [24, 22, 30], m: [96, 40, 40], c: [76, 84, 56], C: [52, 58, 38],
+  k: [8, 8, 10], w: [236, 236, 230], i: [74, 56, 46], p: [20, 18, 26], m: [96, 40, 40], c: [76, 84, 56], C: [52, 58, 38],
 };
-const FEATURES = 'kwpmgx'; // cells that win a tie when the small face drops resolution
+const FEATURES = 'kwpimngx'; // cells that win a tie when the small face drops resolution
 
 type Cells = string[][];
-const MID = (N - 1) / 2;
 const dist = (x: number) => x - MID; // distance from the middle line, negative on the lit (left) side
+const squeeze = (y: number) => (y > 32 ? 1 - 0.4 * ((y - 32) / 19) ** 2 : 1);
+const headU = (x: number, y: number) => dist(x) / (19 * squeeze(y));
+const headV = (y: number) => (y - 26) / 23;
 /** An egg: wide at the brow, narrowing to a chin. */
-const inHead = (x: number, y: number) => {
-  const squeeze = y > 16 ? 1 - 0.42 * ((y - 16) / 9.5) ** 2 : 1;
-  return (dist(x) / (9.5 * squeeze)) ** 2 + ((y - 13) / 11.5) ** 2 <= 1;
-};
+const inHead = (x: number, y: number) => headU(x, y) ** 2 + headV(y) ** 2 <= 1;
 const put = (g: Cells, x: number, y: number, c: string) => {
   if (x >= 0 && x < N && y >= 0 && y < N) g[y][x] = c;
 };
 const each = (f: (x: number, y: number) => void) => {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) f(x, y);
 };
-/** Draws `row` starting at column `left`, and its mirror image on the other side of the face. */
-const pair = (g: Cells, left: number, y: number, row: string) => {
-  for (let i = 0; i < row.length; i++) {
-    put(g, left + i, y, row[i]);
-    put(g, N - 1 - (left + i), y, row[i]);
-  }
+const ell = (x: number, y: number, cx: number, cy: number, rx: number, ry: number) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+/** Draws on both sides of the face: `x` on the left, its mirror image on the right. */
+const both = (g: Cells, x: number, y: number, c: string) => {
+  put(g, x, y, c);
+  put(g, N - 1 - x, y, c);
 };
-const inEllipse = (x: number, y: number, cx: number, cy: number, rx: number, ry: number) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
 
-/** Hair of each style: 'h' hair, null nothing. The light and dark edges are shaded afterwards. */
-const HAIR_STYLES: ((x: number, y: number) => string | null)[] = [
+/** Light comes from the upper left: five tones of skin from the egg's surface normal. */
+function skinTone(x: number, y: number): string {
+  const u = headU(x, y);
+  const v = headV(y);
+  const z = Math.sqrt(Math.max(0, 1 - u * u - v * v));
+  const l = 0.5 * z - 0.35 * u - 0.4 * v - 0.32;
+  return l > 0.36 ? 'L' : l > 0.1 ? 'l' : l > -0.12 ? 's' : l > -0.3 ? 'd' : 'D';
+}
+
+/** Hair is lit on the crown and dark underneath. */
+function hairTone(x: number, y: number): string {
+  const u = Math.max(-1, Math.min(1, dist(x) / 24));
+  const v = Math.max(-1, Math.min(1, (y - 18) / 24));
+  const z = Math.sqrt(Math.max(0, 1 - u * u - v * v));
+  const l = 0.5 * z - 0.35 * u - 0.5 * v - 0.2;
+  const t = l > 0.3 ? 'H' : l > -0.1 ? 'h' : 'g';
+  return t;
+}
+
+/** Where hair grows, per style; the shade of it is worked out afterwards. */
+const HAIR_STYLES: ((x: number, y: number) => boolean)[] = [
   // buzz cut
-  (x, y) => (inHead(x, y) && (y <= 5 || (Math.abs(dist(x)) >= 8 && y <= 10)) ? 'h' : null),
+  (x, y) => inHead(x, y) && (y <= 11 || (Math.abs(dist(x)) >= 16 && y <= 20)),
   // short
-  (x, y) => (inHead(x, y) && (y <= 7 || (Math.abs(dist(x)) >= 8.2 && y <= 13)) ? 'h' : null),
+  (x, y) => inHead(x, y) && (y <= 15 || (Math.abs(dist(x)) >= 17 && y <= 27)),
   // long, falling past the shoulders
-  (x, y) => {
-    const side = Math.abs(dist(x)) >= 7.6 && Math.abs(dist(x)) <= 11.5 && y >= 5 && y <= 27;
-    return (inHead(x, y) && y <= 7) || side ? 'h' : null;
-  },
+  (x, y) => (inHead(x, y) && y <= 15) || (Math.abs(dist(x)) >= 15.5 && Math.abs(dist(x)) <= 23 && y >= 11 && y <= 56),
   // bald
-  () => null,
+  () => false,
   // mohawk
-  (x, y) => (Math.abs(dist(x)) <= 2.2 && y <= 8 ? 'h' : null),
+  (x, y) => Math.abs(dist(x)) <= 4.6 && y <= 17,
   // parted and swept
-  (x, y) => (inHead(x, y) && (y <= 6 || (dist(x) < -3 && y <= 8) || (Math.abs(dist(x)) >= 8.4 && y <= 11)) ? 'h' : null),
+  (x, y) => inHead(x, y) && (y <= 13 || (dist(x) < -6 && y <= 17) || (Math.abs(dist(x)) >= 17 && y <= 23)),
   // curly, standing off the head
   (x, y) => {
-    const r = 12.4 * (1 + 0.05 * Math.sin(x * 1.9 + y * 0.7));
-    const cloud = (dist(x) / r) ** 2 + ((y - 8) / 9.5) ** 2 <= 1;
-    return cloud && (y <= 8 || Math.abs(dist(x)) >= 8.6) && !(inHead(x, y) && y > 8) ? 'h' : null;
+    const r = 25 * (1 + 0.05 * Math.sin(x * 0.95 + y * 0.35));
+    return (dist(x) / r) ** 2 + ((y - 16) / 19) ** 2 <= 1 && (y <= 17 || Math.abs(dist(x)) >= 17.5) && !(inHead(x, y) && y > 17);
   },
   // short with a bun on top
-  (x, y) => ((inHead(x, y) && y <= 7) || inEllipse(x, y, MID, 1.5, 3.2, 2.6) ? 'h' : null),
+  (x, y) => (inHead(x, y) && y <= 15) || ell(x, y, MID, 3, 6.5, 5.5),
 ];
 
-const EYES: ((g: Cells) => void)[] = [
-  (g) => { pair(g, 10, 12, 'dddd'); pair(g, 10, 13, 'wppw'); },
-  (g) => { pair(g, 10, 12, 'dddd'); pair(g, 10, 13, 'pppp'); },
-  (g) => { pair(g, 10, 12, 'wppw'); pair(g, 10, 13, 'wppw'); },
-  (g) => { pair(g, 10, 13, 'wppw'); pair(g, 10, 14, 'dddd'); },
-  (g) => { pair(g, 10, 12, 'dddd'); pair(g, 10, 13, 'wwpp'); },
-];
-const BROWS: ((g: Cells) => void)[] = [
-  (g) => pair(g, 10, 10, 'gggg'),
-  (g) => { pair(g, 10, 9, 'gg'); pair(g, 12, 10, 'gg'); },
-  (g) => { pair(g, 10, 9, 'gggg'); pair(g, 10, 10, 'gggg'); },
-  (g) => { pair(g, 10, 10, 'g'); pair(g, 11, 9, 'gg'); pair(g, 13, 10, 'g'); },
-];
-const MOUTHS: ((g: Cells) => void)[] = [
-  (g) => { for (let x = 14; x <= 17; x++) put(g, x, 21, 'm'); },
-  (g) => { put(g, 13, 20, 'm'); put(g, 18, 20, 'm'); for (let x = 14; x <= 17; x++) put(g, x, 21, 'm'); },
-  (g) => { put(g, 13, 22, 'm'); put(g, 18, 22, 'm'); for (let x = 14; x <= 17; x++) put(g, x, 21, 'm'); },
-  (g) => { for (let x = 14; x <= 17; x++) { put(g, x, 21, 'w'); put(g, x, 22, 'm'); } },
+/** Left eye (the right one mirrors it): a lash line, white, iris, pupil and a glint, in five moods. */
+function eye(g: Cells, kind: number, cx: number, cy: number, side: 1 | -1) {
+  const ry = [2.2, 1.3, 2.8, 2.2, 2.2][kind];
+  const shift = kind === 4 ? -2 * side : 0;
+  const bigIris = kind === 2 ? 2.4 : 2.3;
+  for (let y = cy - 6; y <= cy + 6; y++) {
+    for (let x = cx - 7; x <= cx + 7; x++) {
+      if (ell(x, y, cx, cy, 4.6, ry)) {
+        let c = 'w';
+        if (ell(x, y, cx + shift, cy, bigIris, bigIris)) c = ell(x, y, cx + shift, cy, 1.15, 1.15) ? 'p' : 'i';
+        both(g, x, y, c);
+        if (c === 'i' && x === cx + shift - 1 && y === cy - 1) both(g, x, y, 'w'); // the glint
+      } else if (ell(x, y, cx, cy, 5.5, ry + 1.1) && y <= cy) both(g, x, y, 'k'); // the upper lash line
+      else if (kind === 3 && y > cy && ell(x, y, cx, cy + ry + 2.2, 4.6, 1.2)) both(g, x, y, 'd'); // bags
+      else if (y < cy && ell(x, y, cx, cy - 1, 6, ry + 3.2) && g[y][x] !== 'k') both(g, x, y, 'd'); // the lid in shadow
+    }
+  }
+}
+
+const BROWS: ((i: number) => [number, number])[] = [
+  (i) => [i, 0], // flat
+  (i) => [i, Math.floor(i * 0.35) - 2], // angry: the inner end drops
+  (i) => [i, 0], // thick (drawn three rows deep)
+  (i) => [i, -Math.round(Math.sin((i / 9) * Math.PI) * 2)], // arched
 ];
 
-/** The edges of the hair: lit along the top, dark along the bottom, so it reads as a solid mass. */
-function shadeHair(g: Cells) {
-  const hair = (c: string | undefined) => c === 'h' || c === 'H' || c === 'g';
-  const next = g.map((row) => row.slice());
-  each((x, y) => {
-    if (g[y][x] !== 'h') return;
-    if (!hair(g[y + 1]?.[x])) next[y][x] = 'g';
-    else if (!hair(g[y - 1]?.[x]) && y <= 7 && dist(x) < 4) next[y][x] = 'H';
-  });
-  each((x, y) => { g[y][x] = next[y][x]; });
+function brows(g: Cells, kind: number, cx: number, cy: number) {
+  for (let i = 0; i <= 9; i++) {
+    const [dx, dy] = BROWS[kind](i);
+    const x = cx - 5 + dx;
+    const y = cy - 7 + dy;
+    for (let t = 0; t < (kind === 2 ? 3 : 2); t++) both(g, x, y + t - (kind === 2 ? 1 : 0), 'g');
+  }
+}
+
+function mouth(g: Cells, kind: number) {
+  const row = (y: number, x0: number, x1: number, c: string) => { for (let x = x0; x <= x1; x++) put(g, x, y, c); };
+  if (kind === 0) { row(43, 27, 36, 'm'); row(44, 28, 35, 'n'); row(45, 30, 33, 'n'); }
+  if (kind === 1) { row(43, 27, 36, 'm'); put(g, 25, 42, 'm'); put(g, 26, 42, 'm'); put(g, 37, 42, 'm'); put(g, 38, 42, 'm'); row(44, 28, 35, 'n'); }
+  if (kind === 2) { row(43, 27, 36, 'm'); put(g, 26, 44, 'm'); put(g, 25, 45, 'm'); put(g, 37, 44, 'm'); put(g, 38, 45, 'm'); row(44, 30, 33, 'n'); }
+  if (kind === 3) { row(43, 28, 35, 'w'); row(44, 28, 35, 'm'); row(45, 29, 34, 'm'); row(46, 29, 34, 'n'); }
 }
 
 function layout(spec: FaceSpec): Cells {
   const g: Cells = Array.from({ length: N }, () => Array<string>(N).fill('b'));
   each((x, y) => {
     const ax = Math.abs(dist(x));
-    if (y >= 22 && ax <= 3.6) g[y][x] = 'd'; // neck
-    if (y >= 25 && ax <= 7 + (y - 25) * 4) g[y][x] = y >= 30 ? 'C' : 'c'; // shoulders
-    if (y >= 25 && ax <= 3.4 - (y - 25) * 0.7) g[y][x] = 'd'; // the opening of the collar
-    if (inHead(x, y)) {
-      const cheek = inEllipse(x, y, 11, 15.5, 2.6, 2) || inEllipse(x, y, 13, 6.5, 3.6, 1.6);
-      g[y][x] = y >= 22.5 || dist(x) >= 6.5 ? 'd' : cheek ? 'l' : 's';
-    }
+    if (y >= 43 && ax <= 7) g[y][x] = y < 49 ? 'D' : 'd'; // neck, in the shadow of the chin
+    if (y >= 50 && ax <= 14 + (y - 50) * 4.5) g[y][x] = y >= 60 || ax >= 12 ? 'C' : 'c'; // shoulders
+    if (y >= 50 && ax <= 8 - (y - 50) * 1.3) g[y][x] = 'd'; // the opening of the collar
   });
-  each((x, y) => {
-    const c = HAIR_STYLES[spec.hairStyle](x, y);
-    if (c) g[y][x] = c;
-  });
-  if (spec.beard === 1) each((x, y) => { if (inHead(x, y) && y >= 18) g[y][x] = 'u'; });
-  if (spec.beard === 2) { for (let x = 12; x <= 19; x++) put(g, x, 19, 'h'); put(g, 12, 20, 'h'); put(g, 19, 20, 'h'); }
-  if (spec.beard === 3) each((x, y) => { if (inHead(x, y) && (y >= 17 || (Math.abs(dist(x)) >= 7.5 && y >= 12))) g[y][x] = 'h'; });
-  shadeHair(g);
-  for (const y of [14, 15, 16]) put(g, 17, y, 'd'); // the nose: shaded on the far side, lit on the near one
-  for (let x = 14; x <= 17; x++) put(g, x, 17, 'd');
-  put(g, 15, 14, 'l');
-  put(g, 15, 15, 'l');
-  MOUTHS[spec.mouth](g);
-  EYES[spec.eyes](g);
-  BROWS[spec.brows](g);
-  if (spec.extra === 1) for (const [x, y] of [[21, 12], [21, 13], [20, 14], [20, 15], [19, 16]]) put(g, x, y, 'x');
-  if (spec.extra === 2) {
-    for (let x = 9; x <= 14; x++) { put(g, x, 12, 'x'); put(g, x, 14, 'x'); put(g, N - 1 - x, 12, 'x'); put(g, N - 1 - x, 14, 'x'); }
-    for (const x of [9, 14, 15, 16, 17, 22]) put(g, x, 13, 'x');
+  each((x, y) => { if (ell(x, y, 11, 29, 2.8, 5) || ell(x, y, 52, 29, 2.8, 5)) g[y][x] = dist(x) < 0 ? 's' : 'd'; }); // ears
+  each((x, y) => { if (inHead(x, y)) g[y][x] = skinTone(x, y); });
+  const style = HAIR_STYLES[spec.hairStyle];
+  each((x, y) => { if (style(x, y)) g[y][x] = hairTone(x, y); });
+  if (spec.beard === 1) each((x, y) => { if (inHead(x, y) && y >= 36) g[y][x] = 'dD'.includes(g[y][x]) ? 'U' : 'u'; });
+  if (spec.beard === 2) {
+    for (let y = 39; y <= 41; y++) for (let x = 22; x <= 41; x++) if (Math.abs(dist(x)) <= 9 && !(Math.abs(dist(x)) < 1.6 && y === 39)) g[y][x] = hairTone(x, y + 6);
+    for (const y of [42, 43]) for (const x of [22, 23, 40, 41]) g[y][x] = 'g';
   }
-  if (spec.extra === 3) each((x, y) => { if (inHead(x, y) && (y === 5 || y === 6)) g[y][x] = 'x'; });
-  if (spec.extra === 4) for (const [x, y] of [[11, 16], [13, 17], [12, 18], [20, 16], [18, 17], [19, 18]]) put(g, x, y, 'd');
+  if (spec.beard === 3) {
+    each((x, y) => { if (inHead(x, y) && (y >= 35 || (Math.abs(dist(x)) >= 15 && y >= 26))) g[y][x] = hairTone(x, y - 14); });
+  }
+  for (let y = 28; y <= 36; y++) { put(g, 33, y, 'd'); put(g, 34, y, 'd'); } // the nose: shaded on the far side, lit on the near one
+  for (let y = 29; y <= 34; y++) { put(g, 30, y, 'L'); put(g, 31, y, 'L'); }
+  for (let x = 27; x <= 36; x++) put(g, x, 37, 'd');
+  for (const x of [28, 29, 34, 35]) put(g, x, 37, 'D');
+  for (let x = 29; x <= 34; x++) put(g, x, 38, 'd');
+  mouth(g, spec.mouth);
+  eye(g, spec.eyes, 22, 27, 1);
+  brows(g, spec.brows, 22, 27);
+  if (spec.extra === 1) for (let t = 0; t <= 11; t++) put(g, 43 - Math.round(t * 0.35), 23 + t, 'x');
+  if (spec.extra === 2) {
+    for (let y = 22; y <= 32; y++) for (let x = 15; x <= 29; x++) if ((x === 15 || x === 29 || y === 22 || y === 32) && !(y === 22 && x <= 16)) both(g, x, y, 'x');
+    for (let x = 30; x <= 33; x++) put(g, x, 27, 'x');
+  }
+  if (spec.extra === 3) each((x, y) => { if (inHead(x, y) && y >= 11 && y <= 14) g[y][x] = 'x'; });
+  if (spec.extra === 4) for (const [x, y] of [[18, 33], [21, 35], [24, 32], [26, 35], [16, 36], [23, 38]]) both(g, x, y, 'd');
   // one dark line round the whole figure, where it meets the background
   const edge: [number, number][] = [];
   each((x, y) => {
@@ -160,9 +185,13 @@ function colourOf(c: string, spec: FaceSpec): Rgb {
   const [hair, dark] = HAIR[spec.hairColour];
   if (c === 'b') return BACKGROUND;
   if (c === 's') return skin;
-  if (c === 'l') return lighten(skin, 0.18);
+  if (c === 'l') return lighten(skin, 0.12);
+  if (c === 'L') return lighten(skin, 0.24);
   if (c === 'd') return shade;
+  if (c === 'D') return blend(shade, [0, 0, 0], 0.3);
   if (c === 'u') return blend(skin, dark, 0.4);
+  if (c === 'U') return blend(shade, dark, 0.45);
+  if (c === 'n') return blend(skin, [160, 60, 64], 0.55);
   if (c === 'h') return hair;
   if (c === 'H') return lighten(hair, 0.22);
   if (c === 'g') return dark;
@@ -170,7 +199,7 @@ function colourOf(c: string, spec: FaceSpec): Rgb {
   return FIXED[c];
 }
 
-const weight = (cell: string, count: number) => count * 10 + (FEATURES.includes(cell) ? 5 : 0);
+const weight = (cell: string, count: number) => count * 10 + (FEATURES.includes(cell) ? 30 : 0);
 
 /** Draws a face: opaque, on the dark background the painted faces use. */
 export function renderFace(spec: FaceSpec, size: 64 | 16): Pixels {
@@ -179,12 +208,12 @@ export function renderFace(spec: FaceSpec, size: 64 | 16): Pixels {
   }
   const g = layout(spec);
   const rgba = new Uint8ClampedArray(size * size * 4);
+  const k = N / size;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let cell: string;
-      if (size > N) cell = g[Math.floor((y * N) / size)][Math.floor((x * N) / size)];
+      if (k === 1) cell = g[y][x];
       else {
-        const k = N / size;
         const count = new Map<string, number>();
         for (let dy = 0; dy < k; dy++) {
           for (let dx = 0; dx < k; dx++) {
@@ -197,5 +226,26 @@ export function renderFace(spec: FaceSpec, size: 64 | 16): Pixels {
       rgba.set([...colourOf(cell, spec), 255], (y * size + x) * 4);
     }
   }
+  if (size === 16) limitColours(rgba, 16);
   return { w: size, h: size, rgba };
+}
+
+/** The small faces keep at most `max` colours, like the painted ones: the rarest colour joins its nearest neighbour until they fit. */
+function limitColours(rgba: Uint8ClampedArray, max: number) {
+  const key = (i: number) => `${rgba[i]},${rgba[i + 1]},${rgba[i + 2]}`;
+  for (;;) {
+    const count = new Map<string, number>();
+    for (let i = 0; i < rgba.length; i += 4) count.set(key(i), (count.get(key(i)) ?? 0) + 1);
+    if (count.size <= max) return;
+    const [rare] = [...count].sort((a, b) => a[1] - b[1])[0];
+    const from = rare.split(',').map(Number);
+    let best = '';
+    let bestD = Infinity;
+    for (const k of count.keys()) {
+      const d = k.split(',').map(Number).reduce((sum, v, j) => sum + (v - from[j]) ** 2, 0);
+      if (k !== rare && d < bestD) { best = k; bestD = d; }
+    }
+    const to = best.split(',').map(Number);
+    for (let i = 0; i < rgba.length; i += 4) if (key(i) === rare) rgba.set(to, i);
+  }
 }
