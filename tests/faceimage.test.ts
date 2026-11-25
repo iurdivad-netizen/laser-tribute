@@ -32,6 +32,14 @@ describe('faceImage', () => {
     expect(made).toBe(3);
   });
 
+  it('gives the generic RECRUIT speaker the plain recruit image, never a made face', () => {
+    let made = 0;
+    const make = (p: Pixels) => { made++; return tagged(p); };
+    expect(idOf(faceImage(art, 'RECRUIT', false, make))).toEqual({ id: 'face_recruit' });
+    expect(idOf(faceImage(art, 'RECRUIT', true, make))).toEqual({ id: 'face_recruit_s' });
+    expect(made).toBe(0);
+  });
+
   it('falls back to the recruit images when nothing can be made, and to null when those are missing', () => {
     expect(idOf(faceImage(art, 'Haddad', false, () => null))).toEqual({ id: 'face_recruit' });
     expect(idOf(faceImage(art, 'Haddad', true, () => null))).toEqual({ id: 'face_recruit_s' });
