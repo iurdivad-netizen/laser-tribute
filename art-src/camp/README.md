@@ -28,7 +28,7 @@ Not painted yet (the game falls back to its plain look for each): the state spri
 The second batch (2026-11-25, five bonus generations, one attempt each) painted the three named faces and the two empty-plot sprites,
 processed the same way as above.
 
-Faces are no longer painted: every soldier, the four originals included, gets a face drawn in code from the name (`src/art/facegen.ts`, `src/core/world/faces.ts`). The PixelLab portraits (the four originals, 64 px and 16 px) are archived, unused, in `art-src/archive/pixellab-faces/`; their rows in the table above are kept as a record.
+Faces are not part of the camp art: see `art-src/faces/README.md`. The portraits in the table above are archived in `art-src/archive/pixellab-faces/`; only the 64 px `face_chen.png` and `face_dubois.png` are still used, as two of the six face sources.
 
 The gate at the bottom and the fire pit in the middle are painted into the backdrop, so there is no `gate` sprite.
 

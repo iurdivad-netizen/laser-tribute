@@ -1,14 +1,31 @@
 # Mixed faces
 
 Four straight-front portraits painted with PixelLab (`create_image_pixen`, 1 generation each, trial plan) on 2026-11-27,
-64 x 64, saved as downloaded. `scripts/mix-faces.mjs` mixes them with the archived `chen` and `dubois` portraits
-(`art-src/archive/pixellab-faces/`). The game does not use any of this yet: it draws faces in code (`src/art/facegen.ts`).
+64 x 64, saved as downloaded. The game mixes them with the archived `chen` and `dubois` portraits
+(`art-src/archive/pixellab-faces/`) to draw every soldier's face, in story scenes and, shrunk to 16 x 16, in the barracks.
 
 ```
+node scripts/build-faces.mjs
 node scripts/mix-faces.mjs sheet.png
 ```
 
-writes every allowed face (337, the six originals included) to one contact sheet.
+The first bakes the six cleaned portraits into `src/art/faces.generated.ts`; run it after changing a portrait or its
+measurements (`npm run art` runs it too). The second writes every allowed face (337, the six originals included) to one
+contact sheet. Both need Node 22.18 or later. The mixing code and the swap rules are in `src/art/facemix.ts`.
+
+## Who gets which face
+
+`src/art/facepick.ts` chooses by name, so a soldier keeps one face with nothing added to the save.
+
+| Soldier | Head | Eyes | Mouth | Clothes |
+|---|---|---|---|---|
+| Alvarez | veteran | veteran | veteran | woman |
+| Brandt | man | man | veteran | man |
+| Chen | chen | chen | chen | chen |
+| Dubois | dubois | dubois | dubois | dubois |
+
+Everyone else gets one of 180 hire faces: a `woman`, `veteran`, `man` or `blonde` head, each equally likely, and never
+Alvarez's or Brandt's head together with their clothes. Hires can share a face.
 
 ## Prompts
 
@@ -30,7 +47,7 @@ not kept.
 
 ## Swaps that are never drawn
 
-Judged by eye on 2026-11-27; the lists follow `SOURCES` in `scripts/mix-faces.mjs`. A face may always keep its own parts.
+Judged by eye on 2026-11-27; the lists follow `src/art/facemix.ts`. A face may always keep its own parts.
 
 | Part | Rule | Why |
 |---|---|---|
@@ -42,5 +59,7 @@ Judged by eye on 2026-11-27; the lists follow `SOURCES` in `scripts/mix-faces.mj
 
 ## Adding a portrait
 
-It must face straight front. Add its file to `SOURCES` with the background colour, the eye and mouth rows and the jaw
-points (measured by hand on an enlarged copy), then look at its swaps and extend the rules.
+It must face straight front. Add its file to `SOURCES` in `scripts/build-faces.mjs` with the background colour, the eye
+and mouth rows and the jaw points (measured by hand on an enlarged copy), add its name to `FaceName` and `FACES` in
+`src/art/facemix.ts`, rebuild, then look at its swaps and extend the rules. Hires get it only once its head is in
+`HIRE_HEADS` in `src/art/facepick.ts`.

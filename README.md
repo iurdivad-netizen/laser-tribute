@@ -72,7 +72,7 @@ Soldiers are promoted by their own kills, which persist through the campaign: Pr
 
 ## Graphics
 
-All art is 16x16 pixel tiles on a 480x400 canvas. Soldiers are PixelLab-generated sprites; maps have five themes (base, timber, steel, cave, stone) with props and floor decals, and the title screen, frames and item icons are drawn in code (`src/art`, `src/ui`, `src/screens`). The interface uses a 5x7 pixel font. In dev mode (`npm run dev`) type `gallery()` in the browser console to see every sprite enlarged.
+All art is 16x16 pixel tiles on a 480x400 canvas. Soldiers are PixelLab-generated sprites, and their faces are mixed from six painted portraits (`art-src/faces/README.md`); maps have five themes (base, timber, steel, cave, stone) with props and floor decals, and the title screen, frames and item icons are drawn in code (`src/art`, `src/ui`, `src/screens`). The interface uses a 5x7 pixel font. In dev mode (`npm run dev`) type `gallery()` in the browser console to see every sprite enlarged.
 
 ## Sound
 

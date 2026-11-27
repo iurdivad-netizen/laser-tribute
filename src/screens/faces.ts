@@ -1,5 +1,6 @@
-import { renderFace, type Pixels } from '../art/facegen';
-import { faceSpec } from '../core/world/faces';
+import { mixFace, shrinkFace, type Pixels } from '../art/facemix';
+import { facePick } from '../art/facepick';
+import { PORTRAITS } from '../art/portraits';
 
 type Make = (p: Pixels) => CanvasImageSource | null;
 
@@ -25,6 +26,9 @@ export function faceImage(name: string, small: boolean, make: Make = canvasMake)
   let cache = made.get(make);
   if (!cache) made.set(make, (cache = new Map()));
   const key = `${small ? 16 : 64}:${name}`;
-  if (!cache.has(key)) cache.set(key, make(renderFace(faceSpec(name), small ? 16 : 64)));
+  if (!cache.has(key)) {
+    const face = mixFace(PORTRAITS, facePick(name));
+    cache.set(key, make(small ? shrinkFace(face) : face));
+  }
   return cache.get(key) ?? null;
 }

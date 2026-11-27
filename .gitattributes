@@ -1,3 +1,4 @@
 # generated art manifest: one very long line, keep LF on every machine
 src/art/planet.generated.ts text eol=lf
 src/art/camp.generated.ts text eol=lf
+src/art/faces.generated.ts text eol=lf
