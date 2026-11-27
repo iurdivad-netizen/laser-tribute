@@ -4,6 +4,7 @@ import { CAMPAIGN_LENGTH } from '../src/core/gen';
 import { REGIONS } from '../src/core/world/planet';
 import { LastMode, SaveStore, type SaveStorage } from '../src/save';
 import { BUILDINGS } from '../src/screens/base';
+import { CARD } from '../src/screens/baseinfo';
 import { PANEL } from '../src/screens/basepanels';
 import { DIFFICULTY_SCREEN } from '../src/screens/difficulty';
 import { PLANET } from '../src/screens/planet';
@@ -111,6 +112,18 @@ describe('the soldier card in the training panel', () => {
   });
 });
 
+describe('the soldier card in the field hospital', () => {
+  it('opens the wounded soldier whose name was clicked', () => {
+    const s = setup();
+    const w = s.app.story!;
+    s.app.story = { ...w, soldiers: w.soldiers.map((x, i) => (i === 2 ? { ...x, status: 'wounded' as const, daysLeft: 3 } : x)) };
+    s.openPanel('hospital');
+    s.click(s.nameOf(3)); // the fourth row is the third soldier
+    expect(s.priv().cardName).toBe('Chen');
+    expect(s.texts()).toContain(KIT);
+  });
+});
+
 describe('the building info boxes', () => {
   const TITLES: [string, string][] = [
     ['lab', 'LAB'], ['barracks', 'BARRACKS'], ['market', 'MARKET'], ['training', 'TRAINING'], ['hospital', 'FIELD HOSPITAL'], ['wait', 'WAIT'],
@@ -186,6 +199,16 @@ describe('the soldier card in the squad step', () => {
     s.click(NOWHERE);
     s.click({ x: row.x + 200, y: row.y + 10 });
     expect(s.priv().squadPicked).not.toEqual(before);
+  });
+
+  it('does not press the button under the card with the second click of a double-click on BACK', () => {
+    const s = setup();
+    toSquad(s);
+    const row = SQUAD.rows[0];
+    s.click({ x: row.x + 10, y: row.y + 10 });
+    s.click(mid(CARD.back));
+    s.app.click(mid(SQUAD.start)); // a few milliseconds later: no time passes
+    expect(s.app.screen).toBe('squad');
   });
 
   it('gives a soldier in training a card from the name', () => {

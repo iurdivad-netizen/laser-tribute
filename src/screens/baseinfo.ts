@@ -4,6 +4,7 @@ import type { SoldierStats } from '../core/world/soldierinfo';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
+import { faceImage } from './faces';
 import { wrapText } from './scene';
 
 /** A soldier row's name area: this many pixels from the row's left edge. A click there opens the soldier's card; the rest of the row keeps its job. */
@@ -16,9 +17,12 @@ const DIM = 'rgba(0,0,0,0.6)';
 
 /** The soldier card: a framed box in the middle of the 480x400 menu space. Any click, or BACK, closes it. */
 export const CARD = {
-  box: { x: 80, y: 40, w: 320, h: 290 },
-  back: { x: 190, y: 288, w: 100, h: 28 },
+  box: { x: 80, y: 30, w: 320, h: 320 },
+  back: { x: 190, y: 308, w: 100, h: 28 },
 } as const satisfies { box: Rect; back: Rect };
+
+/** The face at the top of the soldier card, drawn at its own size. */
+const FACE = 64;
 
 /** The building explanation box: wide enough for 64 characters a line. */
 export const INFO_BOX = {
@@ -35,14 +39,17 @@ export function drawSoldierCard(ctx: CanvasRenderingContext2D, stats: SoldierSta
   dim(ctx);
   const b = CARD.box;
   drawFrame(ctx, b.x, b.y, b.w, b.h, 'raised');
-  drawText(ctx, clipText(stats.name, 160), b.x + PAD, b.y + 12, UI.accent, 'left');
-  drawText(ctx, stats.rank, b.x + b.w - PAD, b.y + 12, UI.text, 'right');
+  const face = faceImage(stats.name, false);
+  if (face) ctx.drawImage(face, b.x + (b.w - FACE) / 2, b.y + 8, FACE, FACE);
+  const top = b.y + 12 + (face ? FACE + 4 : 0);
+  drawText(ctx, clipText(stats.name, 160), b.x + PAD, top, UI.accent, 'left');
+  drawText(ctx, stats.rank, b.x + b.w - PAD, top, UI.text, 'right');
   stats.rows.forEach(([label, value], i) => {
-    const y = b.y + 34 + i * ROW;
+    const y = top + 22 + i * ROW;
     drawText(ctx, label, b.x + PAD, y, UI.dim, 'left');
     drawText(ctx, clipText(value, b.w - 2 * PAD - 90), b.x + b.w - PAD, y, UI.text, 'right');
   });
-  drawText(ctx, clipText(stats.note, b.w - 2 * PAD), b.x + PAD, b.y + 34 + stats.rows.length * ROW + 8, UI.hint, 'left');
+  drawText(ctx, clipText(stats.note, b.w - 2 * PAD), b.x + PAD, top + 22 + stats.rows.length * ROW + 8, UI.hint, 'left');
   drawButton(ctx, CARD.back, 'BACK', 'raised');
 }
 

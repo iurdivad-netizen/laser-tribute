@@ -48,7 +48,7 @@ import type { CampArtId } from './screens/campart';
 import { PLANET_ART_DATA } from './art/planet.generated';
 import { STORY_EQUIPMENT_BACK, drawPlanet, planetHit, storyEquipmentBackHit } from './screens/planet';
 import { baseHit, drawBase } from './screens/base';
-import { drawPanel, panelAction, panelHit, panelItem, type PanelId } from './screens/basepanels';
+import { drawPanel, panelAction, panelHit, panelItem, panelSoldier, type PanelId } from './screens/basepanels';
 import { drawInfoBox, drawItemCard, drawSoldierCard } from './screens/baseinfo';
 import { itemCard, type ItemRef } from './core/world/iteminfo';
 import { buildingInfo } from './core/world/buildinginfo';
@@ -939,7 +939,7 @@ export class App {
           this.baseNotice = '';
           const item = panelItem(this.panelId, hit.index);
           if (item) this.cardItem = item;
-          else this.cardName = w.soldiers[hit.index]?.name ?? null;
+          else this.cardName = panelSoldier(this.panelId, w, hit.index)?.name ?? null;
           this.lock(); // the second click of a double-click must not close the card it just opened
           this.sound.play('click', 0.9);
         } else if (hit.kind === 'info') {
@@ -968,7 +968,10 @@ export class App {
       case 'squad': {
         const w = this.story;
         if (!w) return;
-        if (this.closeInfo()) return;
+        if (this.closeInfo()) {
+          this.lock(); // the card's BACK reaches START's touch slop: a double-click must not press it
+          return;
+        }
         const hit = squadHit(mp.x, mp.y, w, pointer === 'touch' ? 5 : 0);
         if (!hit) return;
         if (hit.kind === 'card') {
