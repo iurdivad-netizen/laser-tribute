@@ -6,7 +6,7 @@ import { attachmentPrice, gadgetPrice, throwablePrice, weaponPrice } from '../co
 import { BASE_RULES, NODES, bedCount, levelsOf, nodeById, researchDays, type ResearchNode } from '../core/world/base';
 import { canHire, canTrain } from '../core/world/barracks';
 import { canResearch } from '../core/world/research';
-import { incomePerDay, type World } from '../core/world/world';
+import { incomePerDay, type PoolSoldier, type World } from '../core/world/world';
 import { VIEW } from '../render/layout';
 import { UI, drawButton, drawFrame, type Rect } from '../ui/frame';
 import { clipText, drawText } from '../ui/text';
@@ -52,6 +52,18 @@ const soldierLabel = (s: World['soldiers'][number]): string =>
   `${s.name.toUpperCase()} ${rankShort(rankFor(s.kills + s.trained).name).toUpperCase()}`;
 
 const hospitalNext = (w: World): ResearchNode | undefined => nodeById(`hospital${levelsOf(w.research.done).hospital + 1}`);
+
+/** The hospital's facility rows, above its list of the wounded. */
+const HOSPITAL_HEAD = 3;
+
+const wounded = (w: World): PoolSoldier[] => w.soldiers.filter((s) => s.status === 'wounded');
+
+/** The soldier a panel row shows (its absolute row index), or undefined on every other row. */
+export function panelSoldier(id: PanelId, w: World, index: number): PoolSoldier | undefined {
+  if (id === 'barracks' || id === 'training') return w.soldiers[index];
+  if (id === 'hospital') return wounded(w)[index - HOSPITAL_HEAD];
+  return undefined;
+}
 
 export function panelRows(id: PanelId, w: World): PanelRow[] {
   const done = w.research.done;
@@ -105,6 +117,7 @@ export function panelRows(id: PanelId, w: World): PanelRow[] {
           detail: next ? `${next.name.toUpperCase()} ${next.cost} CR ${researchDays(next, done)}D` : 'FULLY BUILT',
           enabled: next ? canResearch(w, next.id) : false,
         },
+        ...wounded(w).map((s) => ({ label: soldierLabel(s), detail: `WOUNDED ${s.daysLeft}D`, enabled: true })),
       ];
     }
     case 'wait':
@@ -126,6 +139,8 @@ export function panelAction(id: PanelId, w: World, selected: number | null): str
     case 'barracks': return canHire(w) ? 'HIRE' : null;
     case 'training': return row?.enabled ? 'TRAIN' : null;
     case 'hospital': {
+      // START is the facility upgrade: with a wounded soldier selected it would read as treating them
+      if (selected !== null && panelSoldier(id, w, selected)) return null;
       const next = hospitalNext(w);
       return next && canResearch(w, next.id) ? 'START' : null;
     }
@@ -158,10 +173,9 @@ export function panelHit(id: PanelId, px: number, py: number, w: World, page: nu
     if (inside(PANEL.rows[i], px, py, 0)) {
       const index = page * PANEL_PAGE + i;
       if (index >= count) return null;
-      // on the soldier lists the name opens the soldier's card, on the Market and Lab gear rows the item's card; the rest of the row selects as always
-      const soldierList = id === 'barracks' || id === 'training';
+      // on a soldier row the name opens the soldier's card, on the Market and Lab gear rows the item's card; the rest of the row selects as always
       const inName = px < PANEL.rows[i].x + NAME_W;
-      return inName && (soldierList || panelItem(id, index) !== null) ? { kind: 'name', index } : { kind: 'row', index };
+      return inName && (panelSoldier(id, w, index) || panelItem(id, index)) ? { kind: 'name', index } : { kind: 'row', index };
     }
   }
   if (inside(PANEL.info, px, py, slop)) return { kind: 'info' };
@@ -180,8 +194,6 @@ export function drawPanel(
   drawText(ctx, TITLE[id], 18, 12, UI.accent, 'left');
   drawText(ctx, `${w.credits} CR`, 462, 12, UI.text, 'right');
   const rows = panelRows(id, w);
-  // rows line up: when any soldier has a face, every barracks row leaves room for one
-  const gutter = id === 'barracks' && w.soldiers.some((s) => faceImage(s.name, true) !== null);
   for (let i = 0; i < PANEL_PAGE; i++) {
     const index = page * PANEL_PAGE + i;
     const row = rows[index];
@@ -190,10 +202,10 @@ export function drawPanel(
     drawFrame(ctx, r.x, r.y, r.w, r.h, index === selected ? 'hover' : 'raised');
     const colour = row.enabled ? UI.text : UI.disabledText;
     // a soldier's small face, with the label moved right to make room
-    const soldier = id === 'barracks' ? w.soldiers[index] : undefined;
+    const soldier = panelSoldier(id, w, index);
     const face = soldier ? faceImage(soldier.name, true) : null;
     if (face) ctx.drawImage(face, r.x + 3, r.y + 2, 16, 16);
-    drawText(ctx, clipText(row.label, gutter ? 172 : 190), r.x + (gutter ? 26 : 8), r.y + 7, colour, 'left');
+    drawText(ctx, clipText(row.label, face ? 172 : 190), r.x + (face ? 26 : 8), r.y + 7, colour, 'left');
     drawText(ctx, clipText(row.detail, 230), r.x + r.w - 8, r.y + 7, row.enabled ? UI.dim : UI.disabledText, 'right');
   }
   if (pages(rows.length) > 1) {
