@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Pixels } from '../src/art/facegen';
+import { mixFace, shrinkFace, type Pixels } from '../src/art/facemix';
+import { PORTRAITS } from '../src/art/portraits';
 import { newWorld } from '../src/core/world/world';
 import { drawPanel } from '../src/screens/basepanels';
 import { faceImage } from '../src/screens/faces';
@@ -21,8 +22,29 @@ describe('faceImage', () => {
     expect(made).toBe(5);
   });
 
+  it('draws the painted face the name picks, at both sizes', () => {
+    const seen: Pixels[] = [];
+    const make = (p: Pixels) => { seen.push(p); return tagged(p); };
+    faceImage('Chen', false, make);
+    faceImage('Chen', true, make);
+    const chen = mixFace(PORTRAITS, { head: 'chen', eyes: 'chen', mouth: 'chen', clothes: 'chen' });
+    expect(seen).toEqual([chen, shrinkFace(chen)]);
+  });
+
   it('gives null when nothing can be made', () => {
     expect(faceImage('Haddad', true, () => null)).toBeNull();
+  });
+});
+
+describe('shrinkFace', () => {
+  it('shrinks the middle 48 x 48 of a face, three pixels to one', () => {
+    const big = { w: 64, h: 64, rgba: new Uint8ClampedArray(64 * 64 * 4).fill(255) };
+    big.rgba.set([0, 0, 0, 255], (6 * 64 + 8) * 4); // top left pixel of the window
+    big.rgba.set([0, 0, 0, 255], (5 * 64 + 7) * 4); // just outside it
+    const small = shrinkFace(big);
+    expect([small.w, small.h, small.rgba.length]).toEqual([16, 16, 1024]);
+    expect([...small.rgba.slice(0, 4)]).toEqual([227, 227, 227, 255]); // round(255 * 8 / 9)
+    expect([...small.rgba.slice(4, 8)]).toEqual([255, 255, 255, 255]);
   });
 });
 
